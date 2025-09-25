@@ -9,6 +9,8 @@ interface FormData {
   product: string;
   feedbackDesired: string;
   keyQuestions: string;
+  desiredIcp: string;
+  desiredIcpIndustry: string;
 }
 
 const INITIAL_DATA: FormData = {
@@ -16,7 +18,9 @@ const INITIAL_DATA: FormData = {
   company: "",
   product: "",
   feedbackDesired: "",
-  keyQuestions: ""
+  keyQuestions: "",
+  desiredIcp: "",
+  desiredIcpIndustry: ""
 };
 
 export default function HomePage() {
@@ -142,6 +146,42 @@ export default function HomePage() {
               value={form.keyQuestions}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, keyQuestions: event.target.value }))
+              }
+              required
+            />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <div className={styles.labelRow}>
+              <label htmlFor="desiredIcp">Desired ICP</label>
+              <span className={styles.requiredTag}>Required *</span>
+            </div>
+            <input
+              id="desiredIcp"
+              name="desiredIcp"
+              className={styles.input}
+              placeholder="Product Manager"
+              value={form.desiredIcp}
+              onChange={(event) =>
+                setForm((previous) => ({ ...previous, desiredIcp: event.target.value }))
+              }
+              required
+            />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <div className={styles.labelRow}>
+              <label htmlFor="desiredIcpIndustry">Desired ICP Industry</label>
+              <span className={styles.requiredTag}>Required *</span>
+            </div>
+            <input
+              id="desiredIcpIndustry"
+              name="desiredIcpIndustry"
+              className={styles.input}
+              placeholder="Technology"
+              value={form.desiredIcpIndustry}
+              onChange={(event) =>
+                setForm((previous) => ({ ...previous, desiredIcpIndustry: event.target.value }))
               }
               required
             />

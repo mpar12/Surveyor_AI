@@ -77,7 +77,12 @@
   border-radius: 12px;
   padding: 0.9rem 1rem;
   font-size: 1rem;
+  color: #111827;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder {
+  color: #9ca3af;
 }
 
 .input:focus {

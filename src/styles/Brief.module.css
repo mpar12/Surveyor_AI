@@ -1,0 +1,164 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+}
+
+.card {
+  width: min(960px, 100%);
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.header h1 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 700;
+  color: #111827;
+}
+
+.header p {
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.status {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+.status a {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.errorMessage {
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.summaryBlock {
+  background: linear-gradient(145deg, #f9fafb 0%, #eef2ff 100%);
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 200px;
+}
+
+.summaryBlock h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.summaryBlock p {
+  color: #334155;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.metaList {
+  display: grid;
+  gap: 0.75rem;
+  background: #f9fafb;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.metaItem span {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.metaItem p {
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.questionsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.questionsHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.questionsHeader h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.questionsHeader p {
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.questionsList {
+  display: grid;
+  gap: 0.8rem;
+  padding-left: 1.25rem;
+  color: #1f2937;
+  line-height: 1.55;
+}
+
+.questionsList li {
+  background: rgba(37, 99, 235, 0.06);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  list-style: decimal;
+}
+
+.questionsList li::marker {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 2rem 1.5rem;
+    border-radius: 16px;
+  }
+}

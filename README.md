@@ -48,6 +48,34 @@ Response body:
 
 The route uses OpenAI's ChatGPT API (model `gpt-4o-mini`) to craft two separate 50-word descriptions.
 
+### Generate tailored survey questions
+
+`POST /api/questions`
+
+Request body:
+
+```json
+{
+  "company": "Apple",
+  "product": "iPhone 17",
+  "desiredIcp": "Product Manager",
+  "desiredIcpIndustry": "Technology",
+  "keyQuestions": "How do you evaluate emerging devices?"
+}
+```
+
+Response body:
+
+```json
+{
+  "questions": [
+    "...10 tailored market-positioning survey prompts, including the submitter's key questions..."
+  ]
+}
+```
+
+This call instructs ChatGPT to deliver exactly ten questions that blend the supplied key questions with additional prompts aimed at the specified ICP and industry.
+
 ## Current pages
 
 - `/` – Intake form that captures your name, company, product, desired feedback, and key questions. All fields are required before you can continue.
