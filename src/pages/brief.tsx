@@ -265,7 +265,19 @@ export default function BriefPage() {
         </section>
 
         <div className={styles.status}>
-          <Link href="/agent">Continue to ElevenLabs agent setup →</Link>
+          <Link
+            href={{
+              pathname: "/assistant",
+              query: {
+                name,
+                company,
+                product,
+                feedbackDesired
+              }
+            }}
+          >
+            Continue to ElevenLabs agent setup →
+          </Link>
         </div>
       </div>
     </div>

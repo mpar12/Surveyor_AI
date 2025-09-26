@@ -18,7 +18,27 @@ a {
   text-decoration: none;
 }
 
+html,
+body,
+#__next {
+  height: 100%;
+}
+
 body {
   min-height: 100vh;
   background: radial-gradient(circle at top left, #e9f2ff 0%, #f7f7f9 100%);
+}
+
+.fullscreen-center {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: #0b0b0c;
+  padding: 2rem;
+}
+
+elevenlabs-convai {
+  width: 100%;
+  max-width: 720px;
 }

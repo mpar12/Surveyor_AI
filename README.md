@@ -1,3 +1,5 @@
+## TODO: Improvements needed --> CGPT questions suck
+
 # SurvAgent — AI Survey Conductor
 
 A multi-step Next.js experience for orchestrating an AI-assisted survey workflow powered by the ElevenLabs Agent platform. This initial cut wires up the intake step of the four-page flow; subsequent iterations will flesh out the agent integration and follow-on pages.
@@ -16,7 +18,14 @@ A multi-step Next.js experience for orchestrating an AI-assisted survey workflow
 
 ### Environment variables
 
-Create an `.env` file at the project root and add your OpenAI API key:
+Create an `.env.local` file (ignored by git) for ElevenLabs configuration:
+
+```
+NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your-elevenlabs-agent-id
+ELEVENLABS_API_KEY=your-elevenlabs-api-key
+```
+
+Add your OpenAI key to `.env` (or the same `.env.local` if you prefer a single file):
 
 ```
 OPENAI_API_KEY=sk-your-key-here
@@ -78,9 +87,10 @@ This call instructs ChatGPT to deliver exactly ten questions that blend the supp
 
 ## Current pages
 
-- `/` – Intake form that captures your name, company, product, desired feedback, and key questions. All fields are required before you can continue.
-- `/brief` – Placeholder for the upcoming survey brief confirmation step.
+- `/` – Intake form that captures your name, company, product, desired feedback, desired ICP, desired ICP industry, and key questions. All fields are required before you can continue.
+- `/brief` – Generates AI-backed product/company summaries plus a tailored question set prior to outreach.
 - `/agent` – Placeholder page to host the ElevenLabs Agent configuration.
+- `/assistant` – Fullscreen, audio-only ElevenLabs agent experience gated on explicit microphone consent.
 - `/results` – Placeholder page that will surface survey insights.
 
 ## Next steps
