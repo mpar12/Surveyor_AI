@@ -12,9 +12,37 @@ interface SearchBody {
   limit?: number;
 }
 
+type ApolloSearchCandidate = {
+  id?: string;
+  person_id?: string;
+  email_status?: string;
+  status?: string;
+  emails?: Array<{ email?: string; email_status?: string; status?: string }>;
+  person?: {
+    first_name?: string;
+    last_name?: string;
+    name?: string;
+    title?: string;
+    headline?: string;
+    email_status?: string;
+    status?: string;
+    emails?: Array<{ email?: string; email_status?: string; status?: string }>;
+    linkedin_url?: string;
+    linked_in_url?: string;
+    linkedin_profile_url?: string;
+    linkedin?: string;
+    employment_history?: Array<{
+      organization_name?: string;
+      title?: string;
+      is_primary?: boolean;
+    }>;
+  };
+  [key: string]: unknown;
+};
+
 type ApolloSearchResponse = {
-  people?: Array<{ id?: string; person_id?: string }>;
-  matches?: Array<{ id?: string; person_id?: string }>;
+  people?: ApolloSearchCandidate[];
+  matches?: ApolloSearchCandidate[];
 };
 
 type ApolloBulkResponse = {
@@ -85,7 +113,7 @@ const candidateHasVerifiedEmail = (candidate: any): boolean => {
   ].some(isVerifiedStatus);
 };
 
-const pickVerifiedCandidates = (payload: ApolloSearchResponse, limit: number) => {
+const pickVerifiedCandidates = (payload: ApolloSearchResponse, limit: number): ApolloSearchCandidate[] => {
   const collection = payload.people ?? payload.matches ?? [];
 
   const verifiedCandidates = collection.filter(candidateHasVerifiedEmail);
@@ -232,7 +260,7 @@ export async function POST(req: Request) {
     .filter((value): value is string => Boolean(value));
 
   const details = verifiedCandidates.map((candidate) => {
-    const person = candidate?.person ?? candidate ?? {};
+    const person = candidate?.person ?? (candidate as Record<string, unknown>) ?? {};
 
     const detail: Record<string, unknown> = {
       first_name: person.first_name,
