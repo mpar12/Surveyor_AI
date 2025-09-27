@@ -261,6 +261,105 @@ export default function PeopleResultsPage() {
             ) : null}
           </section>
         )}
+
+        {debug?.enrichment ? (
+          <section
+            style={{
+              display: "grid",
+              gap: "0.75rem",
+              padding: "1.25rem 1.5rem",
+              borderRadius: "16px",
+              border: "1px solid #e5e7eb",
+              background: "#ffffff",
+              boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)"
+            }}
+          >
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "#111827" }}>
+              Bulk Match contacts
+            </h2>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                background: "#ffffff",
+                borderRadius: "16px",
+                overflow: "hidden",
+                boxShadow: "0 18px 40px rgba(15, 23, 42, 0.1)"
+              }}
+            >
+              <thead style={{ background: "#f3f4f6", textAlign: "left" }}>
+                <tr>
+                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>Name</th>
+                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>Title</th>
+                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>
+                    Organization
+                  </th>
+                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>Email</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const payload = debug.enrichment as any;
+                  const entries = Array.isArray(payload?.matches)
+                    ? payload.matches
+                    : Array.isArray(payload?.people)
+                      ? payload.people
+                      : Array.isArray(payload?.matched_people)
+                        ? payload.matched_people
+                        : Array.isArray(payload?.contacts)
+                          ? payload.contacts
+                          : [];
+
+                  if (!entries.length) {
+                    return (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>
+                          No contacts returned by bulk match.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return entries.map((entry: any, index: number) => {
+                    const person = entry.person ?? entry ?? {};
+                    const organization = person.organization ?? entry.organization ?? {};
+                    const employment = Array.isArray(person.employment_history)
+                      ? person.employment_history
+                      : Array.isArray(entry.employment_history)
+                        ? entry.employment_history
+                        : [];
+
+                    const primaryEmployment = employment.find((job) => job?.is_primary) ?? employment[0] ?? {};
+
+                    const name = person.name ?? [person.first_name, person.last_name].filter(Boolean).join(" ");
+                    const title = person.title ?? person.headline ?? primaryEmployment?.title ?? entry.title;
+                    const organizationName =
+                      organization.name ?? primaryEmployment?.organization_name ?? entry.organization_name ?? "";
+
+                    const emails = [
+                      ...(entry.emails ?? []),
+                      ...(person.emails ?? [])
+                    ];
+
+                    const email =
+                      entry.email ??
+                      person.email ??
+                      (emails.find((item: any) => item?.email)?.email ?? "");
+
+                    return (
+                      <tr key={`${index}-${name}-${email}`} style={{ borderTop: "1px solid #f3f4f6" }}>
+                        <td style={{ padding: "0.8rem 1rem", color: "#111827" }}>{name || "—"}</td>
+                        <td style={{ padding: "0.8rem 1rem", color: "#374151" }}>{title || "—"}</td>
+                        <td style={{ padding: "0.8rem 1rem", color: "#111827" }}>{organizationName || "—"}</td>
+                        <td style={{ padding: "0.8rem 1rem", color: "#2563eb", fontWeight: 600 }}>{email || "—"}</td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
       </div>
     );
   };

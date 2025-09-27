@@ -11,16 +11,18 @@ interface FormData {
   keyQuestions: string;
   desiredIcp: string;
   desiredIcpIndustry: string;
+  desiredIcpRegion: string;
 }
 
 const INITIAL_DATA: FormData = {
-  name: "",
-  company: "",
-  product: "",
-  feedbackDesired: "",
-  keyQuestions: "",
-  desiredIcp: "",
-  desiredIcpIndustry: ""
+  name: "Elon Musk",
+  company: "X.ai",
+  product: "Grok",
+  feedbackDesired: "Understand how early adopters perceive our value proposition",
+  keyQuestions: "What triggers evaluation? What convinces a switch?",
+  desiredIcp: "Product Manager",
+  desiredIcpIndustry: "Information & Technology Services",
+  desiredIcpRegion: "USA"
 };
 
 export default function HomePage() {
@@ -72,7 +74,7 @@ export default function HomePage() {
               id="name"
               name="name"
               className={styles.input}
-              placeholder="To inform folks on whose behalf you are reaching out on"
+              placeholder="Elon Musk"
               value={form.name}
               onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
               required
@@ -88,7 +90,7 @@ export default function HomePage() {
               id="company"
               name="company"
               className={styles.input}
-              placeholder="Apple"
+              placeholder="X.ai"
               value={form.company}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, company: event.target.value }))
@@ -106,7 +108,7 @@ export default function HomePage() {
               id="product"
               name="product"
               className={styles.input}
-              placeholder="iPhone 17"
+              placeholder="Grok"
               value={form.product}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, product: event.target.value }))
@@ -124,7 +126,7 @@ export default function HomePage() {
               id="feedbackDesired"
               name="feedbackDesired"
               className={styles.input}
-              placeholder="What insight are you hoping to capture?"
+              placeholder="Understand how early adopters perceive our value proposition"
               value={form.feedbackDesired}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, feedbackDesired: event.target.value }))
@@ -142,7 +144,7 @@ export default function HomePage() {
               id="keyQuestions"
               name="keyQuestions"
               className={styles.input}
-              placeholder="List the core questions you want answered"
+              placeholder="What triggers evaluation? What convinces a switch?"
               value={form.keyQuestions}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, keyQuestions: event.target.value }))
@@ -178,10 +180,28 @@ export default function HomePage() {
               id="desiredIcpIndustry"
               name="desiredIcpIndustry"
               className={styles.input}
-              placeholder="Technology"
+              placeholder="Information & Technology Services"
               value={form.desiredIcpIndustry}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, desiredIcpIndustry: event.target.value }))
+              }
+              required
+            />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <div className={styles.labelRow}>
+              <label htmlFor="desiredIcpRegion">Desired ICP Region</label>
+              <span className={styles.requiredTag}>Required *</span>
+            </div>
+            <input
+              id="desiredIcpRegion"
+              name="desiredIcpRegion"
+              className={styles.input}
+              placeholder="USA"
+              value={form.desiredIcpRegion}
+              onChange={(event) =>
+                setForm((previous) => ({ ...previous, desiredIcpRegion: event.target.value }))
               }
               required
             />

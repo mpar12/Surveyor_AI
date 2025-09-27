@@ -23,12 +23,14 @@ Create an `.env.local` file (ignored by git) for ElevenLabs configuration:
 ```
 NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your-elevenlabs-agent-id
 ELEVENLABS_API_KEY=your-elevenlabs-api-key
+APOLLO_BASE=https://api.apollo.io/api/v1
 ```
 
 Add your OpenAI key to `.env` (or the same `.env.local` if you prefer a single file):
 
 ```
 OPENAI_API_KEY=sk-your-key-here
+APOLLO_API_KEY=your-apollo-api-key
 ```
 
 Restart the dev server after editing environment variables.
@@ -85,12 +87,49 @@ Response body:
 
 This call instructs ChatGPT to deliver exactly ten questions that blend the supplied key questions with additional prompts aimed at the specified ICP and industry.
 
+### Fetch verified contacts
+
+`POST /api/people`
+
+Request body:
+
+```json
+{
+  "title": "Head of Product",
+  "location": "California, US",
+  "industry": "B2B SaaS"
+}
+```
+
+Response body:
+
+```json
+{
+  "contacts": [
+    {
+      "name": "Jane Doe",
+      "title": "VP Product",
+      "email": "jane.doe@company.com",
+      "company": "Acme Co",
+      "domain": "acme.com",
+      "location": "San Francisco, CA",
+      "email_status": "verified"
+    }
+  ]
+}
+```
+
+Behind the scenes the API calls Apollo's Mixed People Search and Bulk Match endpoints and filters for verified emails (up to ten results).
+
 ## Current pages
 
-- `/` – Intake form that captures your name, company, product, desired feedback, desired ICP, desired ICP industry, and key questions. All fields are required before you can continue.
+- `/` – Intake form that captures your name, company, product, desired feedback, desired ICP, desired ICP industry, desired ICP region, and key questions. All fields are required before you can continue.
 - `/brief` – Generates AI-backed product/company summaries plus a tailored question set prior to outreach.
+- `/population` – Lets you choose between uploading a comma-separated email list (with validation) or requesting an automated prospect search.
 - `/agent` – Placeholder page to host the ElevenLabs Agent configuration.
 - `/assistant` – Fullscreen, audio-only ElevenLabs agent experience gated on explicit microphone consent.
+- `/people-demo` – Simple client page to exercise the `/api/people` endpoint and review verified contacts.
+- `/people-results` – Displays the most recent contact list generated from the population workflow.
 - `/results` – Placeholder page that will surface survey insights.
 
 ## Next steps

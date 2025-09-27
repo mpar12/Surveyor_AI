@@ -37,6 +37,10 @@ export default function BriefPage() {
     () => getQueryValue(router.query.desiredIcpIndustry),
     [router.query.desiredIcpIndustry]
   );
+  const desiredIcpRegion = useMemo(
+    () => getQueryValue(router.query.desiredIcpRegion),
+    [router.query.desiredIcpRegion]
+  );
 
   const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +197,10 @@ export default function BriefPage() {
             <p>{desiredIcpIndustry || "—"}</p>
           </div>
           <div className={styles.metaItem}>
+            <span>Desired ICP Region</span>
+            <p>{desiredIcpRegion || "—"}</p>
+          </div>
+          <div className={styles.metaItem}>
             <span>Feedback Desired</span>
             <p>{feedbackDesired || "—"}</p>
           </div>
@@ -267,16 +275,20 @@ export default function BriefPage() {
         <div className={styles.status}>
           <Link
             href={{
-              pathname: "/assistant",
+              pathname: "/population",
               query: {
                 name,
                 company,
                 product,
-                feedbackDesired
+                feedbackDesired,
+                desiredIcp,
+                desiredIcpIndustry,
+                desiredIcpRegion,
+                keyQuestions
               }
             }}
           >
-            Continue to ElevenLabs agent setup →
+            Determine survey population →
           </Link>
         </div>
       </div>
