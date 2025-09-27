@@ -16,24 +16,6 @@ A multi-step Next.js experience for orchestrating an AI-assisted survey workflow
    ```
 3. Open http://localhost:3000 in your browser to view the app.
 
-### Environment variables
-
-Create an `.env.local` file (ignored by git) for ElevenLabs configuration:
-
-```
-NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your-elevenlabs-agent-id
-ELEVENLABS_API_KEY=your-elevenlabs-api-key
-APOLLO_BASE=https://api.apollo.io/api/v1
-```
-
-Add your OpenAI key to `.env` (or the same `.env.local` if you prefer a single file):
-
-```
-OPENAI_API_KEY=sk-your-key-here
-APOLLO_API_KEY=your-apollo-api-key
-```
-
-Restart the dev server after editing environment variables.
 
 ### Generate company and product descriptions
 
