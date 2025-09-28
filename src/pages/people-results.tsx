@@ -23,6 +23,7 @@ interface StoredPeopleSearch {
   debug?: {
     search?: unknown;
     enrichment?: unknown;
+    bulkDetails?: unknown;
   };
 }
 
