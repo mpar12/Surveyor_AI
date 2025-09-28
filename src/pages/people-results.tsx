@@ -330,7 +330,7 @@ export default function PeopleResultsPage() {
                         ? entry.employment_history
                         : [];
 
-                    const primaryEmployment = employment.find((job) => job?.is_primary) ?? employment[0] ?? {};
+                    const primaryEmployment = employment.find((job: any) => job?.is_primary) ?? employment[0] ?? {};
 
                     const name = person.name ?? [person.first_name, person.last_name].filter(Boolean).join(" ");
                     const title = person.title ?? person.headline ?? primaryEmployment?.title ?? entry.title;
