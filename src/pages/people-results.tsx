@@ -194,7 +194,7 @@ export default function PeopleResultsPage() {
           </div>
         )}
 
-        {(debug?.search || debug?.enrichment || debug?.bulkDetails) && (
+        {Boolean(debug && (debug.search || debug.enrichment || debug.bulkDetails)) && (
           <section
             style={{
               display: "grid",
