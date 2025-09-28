@@ -12,6 +12,7 @@
     "@elevenlabs/react": "^0.6.3",
     "next": "^14.2.33",
     "openai": "4.52.0",
+    "postgres": "^3.4.7",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
