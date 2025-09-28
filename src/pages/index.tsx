@@ -12,6 +12,7 @@ interface FormData {
   desiredIcp: string;
   desiredIcpIndustry: string;
   desiredIcpRegion: string;
+  [key: string]: string;
 }
 
 const INITIAL_DATA: FormData = {
