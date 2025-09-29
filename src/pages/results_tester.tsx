@@ -8,7 +8,7 @@ interface TranscriptRecord {
   conversationId: string;
   sessionId: string | null;
   pinCode: string | null;
-  dynamicVariables: Record<string, unknown>;
+  dynamicVariables: Record<string, string>;
   transcript: unknown[];
   completedAt: string | null;
   receivedAt: string | null;
@@ -37,7 +37,7 @@ export const getServerSideProps: GetServerSideProps<ResultsTesterProps> = async 
     conversationId: row.conversationId,
     sessionId: row.sessionId ?? null,
     pinCode: row.pinCode ?? null,
-    dynamicVariables: (row.dynamicVariables as Record<string, unknown>) ?? {},
+    dynamicVariables: normalizeStringRecord(row.dynamicVariables),
     transcript: Array.isArray(row.transcript) ? (row.transcript as unknown[]) : [],
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null
@@ -49,6 +49,31 @@ export const getServerSideProps: GetServerSideProps<ResultsTesterProps> = async 
     }
   };
 };
+
+function normalizeStringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  const result: Record<string, string> = {};
+
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (!key) continue;
+    if (typeof rawValue === "string") {
+      result[key] = rawValue;
+    } else if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+      result[key] = String(rawValue);
+    } else if (rawValue != null) {
+      try {
+        result[key] = JSON.stringify(rawValue);
+      } catch (error) {
+        result[key] = String(rawValue);
+      }
+    }
+  }
+
+  return result;
+}
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -63,6 +88,8 @@ function formatDate(value: string | null) {
 }
 
 export default function ResultsTesterPage({ records }: ResultsTesterProps) {
+  const listOfQuestionsKey = "{{List of questions}}";
+
   return (
     <div style={{ minHeight: "100vh", padding: "3rem 1.5rem", background: "#f3f4f6" }}>
       <Head>
@@ -93,13 +120,17 @@ export default function ResultsTesterPage({ records }: ResultsTesterProps) {
           </div>
         ) : null}
 
-        {records.map((record) => (
-          <section
-            key={record.conversationId}
-            style={{
-              background: "#ffffff",
-              borderRadius: "18px",
-              border: "1px solid #e5e7eb",
+        {records.map((record) => {
+          const resolvedSessionId = record.sessionId ?? record.dynamicVariables.session_id ?? null;
+          const resolvedPin = record.pinCode ?? record.dynamicVariables.PIN ?? null;
+
+          return (
+            <section
+              key={record.conversationId}
+              style={{
+                background: "#ffffff",
+                borderRadius: "18px",
+                border: "1px solid #e5e7eb",
               boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
               padding: "1.5rem",
               display: "grid",
@@ -116,8 +147,8 @@ export default function ResultsTesterPage({ records }: ResultsTesterProps) {
                 </p>
               </div>
               <div style={{ color: "#4b5563", fontSize: "0.95rem", textAlign: "right" }}>
-                {record.sessionId ? <div>Session: {record.sessionId}</div> : null}
-                {record.pinCode ? <div>PIN: {record.pinCode}</div> : null}
+                {resolvedSessionId ? <div>Session: {resolvedSessionId}</div> : null}
+                {resolvedPin ? <div>PIN: {resolvedPin}</div> : null}
               </div>
             </div>
 
@@ -185,8 +216,27 @@ export default function ResultsTesterPage({ records }: ResultsTesterProps) {
                 </ol>
               )}
             </div>
+            <div
+              style={{
+                background: "#f3f4f6",
+                borderRadius: "14px",
+                padding: "1rem 1.2rem",
+                display: "grid",
+                gap: "0.45rem"
+              }}
+            >
+              <div style={{ fontWeight: 600, color: "#1f2937" }}>Session context</div>
+              <div style={{ color: "#4b5563" }}>
+                session_id: {record.dynamicVariables.session_id ?? "—"}
+              </div>
+              <div style={{ color: "#4b5563" }}>PIN: {record.dynamicVariables.PIN ?? "—"}</div>
+              <div style={{ color: "#4b5563" }}>
+                {listOfQuestionsKey}: {record.dynamicVariables[listOfQuestionsKey] ?? "—"}
+              </div>
+            </div>
           </section>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

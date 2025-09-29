@@ -20,6 +20,28 @@ function isValidPin(value: unknown): value is string {
   return typeof value === "string" && value.trim().length === 4;
 }
 
+function normalizeDynamicVariables(raw: Record<string, unknown>): Record<string, string> {
+  const output: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (!key) continue;
+
+    if (typeof value === "string") {
+      output[key] = value;
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      output[key] = String(value);
+    } else if (value != null) {
+      try {
+        output[key] = JSON.stringify(value);
+      } catch (error) {
+        output[key] = String(value);
+      }
+    }
+  }
+
+  return output;
+}
+
 function getRawBody(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
@@ -106,10 +128,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "missing_conversation_id" });
   }
 
-  const dynamicVariables = (
+  const rawDynamicVariables =
     (data.conversation_initiation_client_data as { dynamic_variables?: Record<string, unknown> } | undefined)
-      ?.dynamic_variables ?? {}
-  ) as Record<string, unknown>;
+      ?.dynamic_variables ?? {};
+  const dynamicVariables = normalizeDynamicVariables(rawDynamicVariables as Record<string, unknown>);
   const transcript = Array.isArray(data.transcript) ? (data.transcript as unknown[]) : [];
 
   if (!Array.isArray(transcript)) {
@@ -117,7 +139,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const sidCandidate = dynamicVariables.sid;
-  const pinCandidate = dynamicVariables.pin;
+  const pinCandidate = dynamicVariables.PIN ?? dynamicVariables.pin;
 
   const sessionId = isValidUuid(sidCandidate) ? sidCandidate : null;
   const pinCode = isValidPin(pinCandidate) ? (pinCandidate as string).trim() : null;

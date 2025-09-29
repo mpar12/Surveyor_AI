@@ -18,6 +18,9 @@ export default function AssistantPage() {
     const company = getQueryValue(router.query.company);
     const product = getQueryValue(router.query.product);
     const feedbackDesired = getQueryValue(router.query.feedbackDesired);
+    const keyQuestions = getQueryValue(router.query.keyQuestions);
+    const sessionId = getQueryValue(router.query.sid);
+    const pin = getQueryValue(router.query.pin);
 
     const variables: Record<string, string> = {};
 
@@ -33,9 +36,26 @@ export default function AssistantPage() {
     if (feedbackDesired) {
       variables.key_feedback_desired = feedbackDesired;
     }
+    if (sessionId) {
+      variables.session_id = sessionId;
+    }
+    if (pin) {
+      variables.PIN = pin;
+    }
+    if (keyQuestions) {
+      variables["{{List of questions}}"] = keyQuestions;
+    }
 
     return variables;
-  }, [router.query.name, router.query.company, router.query.product, router.query.feedbackDesired]);
+  }, [
+    router.query.name,
+    router.query.company,
+    router.query.product,
+    router.query.feedbackDesired,
+    router.query.keyQuestions,
+    router.query.sid,
+    router.query.pin
+  ]);
 
   useEffect(() => {
     const widget = document.querySelector("elevenlabs-convai");
