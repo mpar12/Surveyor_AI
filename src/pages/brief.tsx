@@ -41,6 +41,8 @@ export default function BriefPage() {
     () => getQueryValue(router.query.desiredIcpRegion),
     [router.query.desiredIcpRegion]
   );
+  const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
+  const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
 
   const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -183,6 +185,19 @@ export default function BriefPage() {
           </p>
         </div>
 
+        {pin ? (
+          <div className={styles.pinNotice}>
+            <h3>Your session PIN</h3>
+            <p>
+              Save this 4-digit PIN now: <strong>{pin}</strong>. You&apos;ll need it to revisit your scorecard via the
+              “Returning?” button on the homepage.
+            </p>
+            <p>
+              <em>Note:</em> The PIN grants access only after you deploy the email outreach through the AI agent.
+            </p>
+          </div>
+        ) : null}
+
         <div className={styles.metaList}>
           <div className={styles.metaItem}>
             <span>Requester</span>
@@ -284,7 +299,9 @@ export default function BriefPage() {
                 desiredIcp,
                 desiredIcpIndustry,
                 desiredIcpRegion,
-                keyQuestions
+                keyQuestions,
+                sid,
+                pin
               }
             }}
           >

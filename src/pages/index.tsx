@@ -29,6 +29,8 @@ const INITIAL_DATA: FormData = {
 export default function HomePage() {
   const router = useRouter();
   const [form, setForm] = useState<FormData>(INITIAL_DATA);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isFormComplete = useMemo(
     () =>
@@ -38,16 +40,40 @@ export default function HomePage() {
     [form]
   );
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isFormComplete) {
+    if (!isFormComplete || isSubmitting) {
       return;
     }
 
-    router.push({
-      pathname: "/brief",
-      query: form
-    });
+    try {
+      setSubmitError(null);
+      setIsSubmitting(true);
+
+      const response = await fetch("/api/sessions", { method: "POST" });
+
+      if (!response.ok) {
+        throw new Error("Unable to create session. Please try again.");
+      }
+
+      const payload: { sessionId?: string; pin?: string } = await response.json();
+
+      if (!payload.sessionId || !payload.pin) {
+        throw new Error("Session response was incomplete. Please try again.");
+      }
+
+      router.push({
+        pathname: "/brief",
+        query: {
+          ...form,
+          sid: payload.sessionId,
+          pin: payload.pin
+        }
+      });
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Something went wrong. Please retry.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -65,6 +91,10 @@ export default function HomePage() {
             <h2>Kick off your outreach survey</h2>
             <p>All fields marked as required must be completed before continuing.</p>
           </div>
+
+          {submitError ? (
+            <div className={styles.errorBanner}>{submitError}</div>
+          ) : null}
 
           <div className={styles.fieldGroup}>
             <div className={styles.labelRow}>
@@ -209,8 +239,12 @@ export default function HomePage() {
           </div>
 
           <div className={styles.actions}>
-            <button className={styles.submitButton} type="submit" disabled={!isFormComplete}>
-              Continue
+            <button
+              className={styles.submitButton}
+              type="submit"
+              disabled={!isFormComplete || isSubmitting}
+            >
+              {isSubmitting ? "Creating session…" : "Continue"}
             </button>
           </div>
         </form>

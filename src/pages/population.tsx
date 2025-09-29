@@ -33,6 +33,8 @@ export default function PopulationPage() {
     const desiredIcp = getQueryValue(router.query.desiredIcp);
     const desiredIcpIndustry = getQueryValue(router.query.desiredIcpIndustry);
     const desiredIcpRegion = getQueryValue(router.query.desiredIcpRegion);
+    const sidValue = getQueryValue(router.query.sid);
+    const pinValue = getQueryValue(router.query.pin);
 
     return {
       name,
@@ -41,7 +43,9 @@ export default function PopulationPage() {
       feedbackDesired,
       desiredIcp,
       desiredIcpIndustry,
-      desiredIcpRegion
+      desiredIcpRegion,
+      sid: sidValue,
+      pin: pinValue
     };
   }, [
     router.query.name,
@@ -50,7 +54,9 @@ export default function PopulationPage() {
     router.query.feedbackDesired,
     router.query.desiredIcp,
     router.query.desiredIcpIndustry,
-    router.query.desiredIcpRegion
+    router.query.desiredIcpRegion,
+    router.query.sid,
+    router.query.pin
   ]);
 
   const handleManualToggle = (event: ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +126,8 @@ export default function PopulationPage() {
     const title = contextSummary.desiredIcp;
     const location = contextSummary.desiredIcpRegion;
     const industry = contextSummary.desiredIcpIndustry;
+    const sid = contextSummary.sid;
+    const pin = contextSummary.pin;
 
     if (!title || !location) {
       setSearchError("Title and region are required to run the search.");
@@ -168,7 +176,9 @@ export default function PopulationPage() {
               location,
               industry,
               generatedAt: Date.now(),
-              debug
+              debug,
+              sid,
+              pin
             })
           );
         } catch (storageError) {
@@ -178,7 +188,15 @@ export default function PopulationPage() {
         }
       }
 
-      router.push("/people-results");
+      const query: Record<string, string> = {};
+      if (sid) {
+        query.sid = sid;
+      }
+      if (pin) {
+        query.pin = pin;
+      }
+
+      router.push({ pathname: "/people-results", query });
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Unexpected error");
     } finally {

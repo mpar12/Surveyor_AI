@@ -20,6 +20,8 @@ interface StoredPeopleSearch {
   location: string;
   industry?: string;
   generatedAt?: number;
+  sid?: string;
+  pin?: string;
   debug?: {
     search?: unknown;
     enrichment?: unknown;
@@ -49,6 +51,12 @@ const formatTimestamp = (value?: number) => {
 export default function PeopleResultsPage() {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
+  const sidFromQuery = (() => {
+    const raw = router.query.sid;
+    if (typeof raw === "string") return raw;
+    if (Array.isArray(raw)) return raw[0];
+    return undefined;
+  })();
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -78,6 +86,8 @@ export default function PeopleResultsPage() {
           location: parsed.location ?? "",
           industry: parsed.industry,
           generatedAt: parsed.generatedAt,
+          sid: typeof parsed.sid === "string" ? parsed.sid : undefined,
+          pin: typeof parsed.pin === "string" ? parsed.pin : undefined,
           debug: parsed.debug
         }
       });
@@ -404,6 +414,40 @@ export default function PeopleResultsPage() {
       </div>
 
       {renderContent()}
+
+      {(() => {
+        const storedSid = state.status === "ready" ? state.data.sid : undefined;
+        const sessionId = storedSid ?? sidFromQuery;
+
+        if (!sessionId) {
+          return null;
+        }
+
+        const handleViewScorecard = () => {
+          router.push({ pathname: "/scorecard", query: { sid: sessionId } });
+        };
+
+        return (
+          <div style={{ marginTop: "2.5rem", display: "flex", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={handleViewScorecard}
+              style={{
+                borderRadius: "999px",
+                background: "#0ea5e9",
+                color: "#ffffff",
+                fontWeight: 600,
+                padding: "0.65rem 1.8rem",
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 12px 24px rgba(14, 165, 233, 0.25)"
+              }}
+            >
+              View session scorecard
+            </button>
+          </div>
+        );
+      })()}
 
       <div style={{ marginTop: "2.5rem", color: "#6b7280", fontSize: "0.9rem" }}>
         Need a fresh search? <Link href="/population">Run it again from the population page.</Link>

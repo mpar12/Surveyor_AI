@@ -10,11 +10,27 @@ A multi-step Next.js experience for orchestrating an AI-assisted survey workflow
    ```bash
    npm install
    ```
-2. Run the development server:
+2. Copy the example environment variables into `.env.local` and provide your own keys. The application expects the following values (and they must also be configured inside Vercel → Project Settings → Environment Variables):
+   - `NEXT_PUBLIC_ELEVENLABS_AGENT_ID`
+   - `ELEVENLABS_API_KEY`
+   - `OPENAI_API_KEY`
+   - `APOLLO_API_KEY`
+   - `APOLLO_BASE` (defaults to `https://api.apollo.io/api/v1`)
+   - `POSTGRES_URL` (Vercel Postgres connection string)
+3. Run database migrations to ensure the `sessions` and `responses` tables exist:
+   ```bash
+   npx drizzle-kit migrate
+   ```
+4. Start the development server:
    ```bash
    npm run dev
    ```
-3. Open http://localhost:3000 in your browser to view the app.
+5. Open http://localhost:3000 in your browser to view the app.
+
+### Database
+
+- Drizzle ORM (see `src/db/schema.ts`) is used with the Vercel Postgres adapter; the client is initialised in `src/db/client.ts`.
+- SQL migrations live in the `drizzle/` folder (e.g., `drizzle/0000_create_sessions_responses.sql`) and can be executed with `npx drizzle-kit migrate`.
 
 
 ### Generate company and product descriptions
@@ -103,6 +119,22 @@ Response body:
 
 Behind the scenes the API calls Apollo's Mixed People Search and Bulk Match endpoints and filters for verified emails (up to ten results).
 
+### Session PIN flow
+
+- `POST /api/sessions`
+  - Generates a new survey session with a unique 4-digit PIN and returns `{ "sessionId": "uuid", "pin": "1234" }`.
+- `POST /api/return`
+  - Accepts a form submission containing a `pin` field and redirects the browser to `/scorecard?sid=<session_id>` if the PIN is valid and active. Invalid PINs redirect back to `/return?e=1` without leaking information.
+- `POST /api/sessions/[sessionId]/close`
+  - Marks the session as `closed`, preventing the PIN from resolving in the return flow.
+
+### Scorecard access flow
+
+1. Create a session by calling `POST /api/sessions` (from the agent workflow, back-office tooling, etc.) and store the returned PIN.
+2. Returning users visit the homepage and click the **“Returning? Click here to input PIN and view previous results”** button in the header.
+3. They land on `/return`, enter their four-digit PIN, and the server resolves the session.
+4. When the PIN is valid, the user is redirected to `/scorecard?sid=<session_id>`, where responses are summarised server-side.
+
 ## Current pages
 
 - `/` – Intake form that captures your name, company, product, desired feedback, desired ICP, desired ICP industry, desired ICP region, and key questions. All fields are required before you can continue.
@@ -112,6 +144,8 @@ Behind the scenes the API calls Apollo's Mixed People Search and Bulk Match endp
 - `/assistant` – Fullscreen, audio-only ElevenLabs agent experience gated on explicit microphone consent.
 - `/people-demo` – Simple client page to exercise the `/api/people` endpoint and review verified contacts.
 - `/people-results` – Displays the most recent contact list generated from the population workflow.
+- `/return` – Entry point for returning users to submit their PIN and jump straight to the scorecard.
+- `/scorecard` – Server-rendered dashboard that loads responses for a session via the `sid` query parameter.
 - `/results` – Placeholder page that will surface survey insights.
 
 ## Next steps
