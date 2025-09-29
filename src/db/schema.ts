@@ -15,3 +15,13 @@ export const responses = drizzleSchema.table("responses", {
   submittedAt: timestamp("submitted_at", { withTimezone: true }),
   answers: jsonb("answers")
 });
+
+export const convaiTranscripts = drizzleSchema.table("convai_transcripts", {
+  conversationId: text("conversation_id").primaryKey(),
+  sessionId: uuid("session_id").references(() => sessions.sessionId),
+  pinCode: char("pin_code", { length: 4 }),
+  dynamicVariables: jsonb("dynamic_variables").notNull(),
+  transcript: jsonb("transcript").notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow()
+});

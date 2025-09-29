@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Brief.module.css";
 
 type DescriptionResponse = {
@@ -43,6 +43,40 @@ export default function BriefPage() {
   );
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
+  const launchHref = useMemo(() => {
+    const params = new URLSearchParams();
+
+    const setParam = (key: string, value: string) => {
+      if (value && value.trim()) {
+        params.set(key, value.trim());
+      }
+    };
+
+    setParam("name", name);
+    setParam("company", company);
+    setParam("product", product);
+    setParam("feedbackDesired", feedbackDesired);
+    setParam("keyQuestions", keyQuestions);
+    setParam("desiredIcp", desiredIcp);
+    setParam("desiredIcpIndustry", desiredIcpIndustry);
+    setParam("desiredIcpRegion", desiredIcpRegion);
+    setParam("sid", sid);
+    setParam("pin", pin);
+
+    const query = params.toString();
+    return query ? `/assistant?${query}` : "/assistant";
+  }, [
+    name,
+    company,
+    product,
+    feedbackDesired,
+    keyQuestions,
+    desiredIcp,
+    desiredIcpIndustry,
+    desiredIcpRegion,
+    sid,
+    pin
+  ]);
 
   const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +84,18 @@ export default function BriefPage() {
   const [questions, setQuestions] = useState<string[] | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
+  const [showResultsLink, setShowResultsLink] = useState(false);
+
+  const canLaunchAgent = useMemo(() => Boolean(sid) && Boolean(pin), [sid, pin]);
+
+  const handleLaunchAgent = useCallback(() => {
+    if (typeof window === "undefined" || !router.isReady || !canLaunchAgent) {
+      return;
+    }
+
+    window.open(launchHref, "_blank", "noopener,noreferrer");
+    setShowResultsLink(true);
+  }, [router.isReady, canLaunchAgent, launchHref]);
 
   useEffect(() => {
     if (!router.isReady) {
@@ -287,8 +333,18 @@ export default function BriefPage() {
           ) : null}
         </section>
 
-        <div className={styles.status}>
+        <div className={styles.actionsRow}>
+          <button
+            type="button"
+            className={styles.launchButton}
+            onClick={handleLaunchAgent}
+            disabled={!canLaunchAgent}
+          >
+            Launch agent in new window
+          </button>
+
           <Link
+            className={styles.populationLink}
             href={{
               pathname: "/population",
               query: {
@@ -308,6 +364,19 @@ export default function BriefPage() {
             Determine survey population →
           </Link>
         </div>
+
+        {showResultsLink ? (
+          <div className={styles.resultsContainer}>
+            <Link
+              className={styles.resultsLink}
+              href="/results_tester"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View latest transcripts →
+            </Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );
