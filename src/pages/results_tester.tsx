@@ -40,7 +40,8 @@ export const getServerSideProps: GetServerSideProps<ResultsTesterProps> = async 
     dynamicVariables: normalizeStringRecord(row.dynamicVariables),
     transcript: Array.isArray(row.transcript) ? (row.transcript as unknown[]) : [],
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
-    receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null
+    receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
+    rawPayload: normalizeObject(row)
   }));
 
   return {
@@ -89,6 +90,18 @@ function formatDate(value: string | null) {
 
 export default function ResultsTesterPage({ records }: ResultsTesterProps) {
   const listOfQuestionsKey = "{{List of questions}}";
+  const latestRecord = records[0];
+  const latestRawOutput = latestRecord
+    ? {
+        conversation_id: latestRecord.conversationId,
+        session_id: latestRecord.sessionId ?? latestRecord.dynamicVariables.session_id ?? null,
+        pin: latestRecord.pinCode ?? latestRecord.dynamicVariables.PIN ?? null,
+        dynamic_variables: latestRecord.dynamicVariables,
+        transcript: latestRecord.transcript,
+        completed_at: latestRecord.completedAt,
+        received_at: latestRecord.receivedAt
+      }
+    : null;
 
   return (
     <div style={{ minHeight: "100vh", padding: "3rem 1.5rem", background: "#f3f4f6" }}>
@@ -98,6 +111,27 @@ export default function ResultsTesterPage({ records }: ResultsTesterProps) {
       </Head>
 
       <div style={{ maxWidth: "960px", margin: "0 auto", display: "grid", gap: "1.5rem" }}>
+        {latestRawOutput ? (
+          <section
+            style={{
+              background: "#111827",
+              color: "#f9fafb",
+              borderRadius: "18px",
+              padding: "1.5rem",
+              border: "1px solid rgba(148, 163, 184, 0.3)",
+              boxShadow: "0 24px 60px rgba(15, 23, 42, 0.35)",
+              overflowX: "auto"
+            }}
+          >
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.85rem" }}>
+              Latest webhook payload (raw)
+            </h2>
+            <pre style={{ fontSize: "0.9rem", lineHeight: 1.6 }}>{
+              JSON.stringify(latestRawOutput, null, 2)
+            }</pre>
+          </section>
+        ) : null}
+
         <header style={{ textAlign: "center" }}>
           <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "#111827" }}>ElevenLabs Transcript Tester</h1>
           <p style={{ color: "#4b5563", marginTop: "0.5rem" }}>
