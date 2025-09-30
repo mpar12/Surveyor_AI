@@ -65,8 +65,12 @@ function verifySignature(rawBody: Buffer, signatureHeader: string | string[] | u
   }
 
   try {
-    const expectedSignature = createHmac("sha256", WEBHOOK_SECRET).update(rawBody).digest("hex");
-    const providedSignature = signatureHeader.trim();
+    const expectedSignature = createHmac("sha256", WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest("hex")
+      .toLowerCase();
+
+    const providedSignature = signatureHeader.trim().toLowerCase().replace(/^sha256=/, "");
 
     if (expectedSignature.length !== providedSignature.length) {
       return false;
