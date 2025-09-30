@@ -60,26 +60,33 @@ export default function ReturnPage() {
           action="/api/return"
           style={{ display: "grid", gap: "1.25rem" }}
         >
-          <input
-            name="pin"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={4}
-            autoComplete="one-time-code"
-            required
-            placeholder="Enter your 4-digit PIN"
-            style={{
-              width: "100%",
-              borderRadius: "12px",
-              border: "1px solid #d1d5db",
-              padding: "0.9rem 1rem",
-              textAlign: "center",
-              letterSpacing: "0.4rem",
-              fontSize: "1.5rem",
-              fontWeight: 600,
-              color: "#111827"
-            }}
-          />
+          <div style={{ display: "grid", gap: "0.6rem" }}>
+            <label style={{ color: "#374151", fontWeight: 600 }} htmlFor="pin">
+              Please enter your 4-digit PIN
+            </label>
+            <input
+              id="pin"
+              name="pin"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              autoComplete="one-time-code"
+              required
+              placeholder="0000"
+              style={{
+                width: "100%",
+                borderRadius: "12px",
+                border: "1px solid #d1d5db",
+                padding: "0.9rem 1rem",
+                textAlign: "center",
+                letterSpacing: "0.35rem",
+                fontSize: "1.5rem",
+                fontWeight: 600,
+                color: "#111827",
+                background: "#ffffff"
+              }}
+            />
+          </div>
 
           <button
             type="submit"

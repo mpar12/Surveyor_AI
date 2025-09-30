@@ -8,6 +8,7 @@ interface ScorecardProps {
   sessionId: string | null;
   status: string | null;
   createdAt: string | null;
+  pin?: string | null;
   context?: {
     requester?: string | null;
     company?: string | null;
@@ -37,6 +38,7 @@ export default function ScorecardPage({
   sessionId,
   status,
   createdAt,
+  pin,
   context,
   emailsSent,
   responders,
@@ -52,9 +54,11 @@ export default function ScorecardPage({
 
       <header style={{ marginBottom: "2rem" }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "#111827" }}>Scorecard</h1>
-        {sessionId ? (
+        {pin || createdAt || status ? (
           <p style={{ color: "#4b5563", marginTop: "0.5rem" }}>
-            Session <strong>{sessionId}</strong> · Created {formatDate(createdAt)} · Status: {status || "unknown"}
+            PIN <strong>{pin ?? "—"}</strong>
+            {createdAt ? <> · Created {formatDate(createdAt)}</> : null}
+            {status ? <> · Status: {status}</> : null}
           </p>
         ) : null}
       </header>
@@ -228,6 +232,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         sessionId: null,
         status: null,
         createdAt: null,
+        pin: null,
         context: null,
         emailsSent: 0,
         responders: 0,
@@ -250,6 +255,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
           sessionId: sid,
           status: null,
           createdAt: null,
+          pin: pin ?? null,
           context: null,
           emailsSent: 0,
           responders: 0,
@@ -319,6 +325,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         sessionId: sessionRecord.sessionId,
         status: sessionRecord.status,
         createdAt: sessionRecord.createdAt ? sessionRecord.createdAt.toISOString() : null,
+        pin: pin ?? null,
         context: contextRows[0] ?? null,
         emailsSent: uniqueRecipients.size,
         responders: summaries.length,
@@ -332,6 +339,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         sessionId: sid,
         status: null,
         createdAt: null,
+        pin: pin ?? null,
         context: null,
         emailsSent: 0,
         responders: 0,
