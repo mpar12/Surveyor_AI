@@ -40,8 +40,7 @@ export const getServerSideProps: GetServerSideProps<ResultsTesterProps> = async 
     dynamicVariables: normalizeStringRecord(row.dynamicVariables),
     transcript: Array.isArray(row.transcript) ? (row.transcript as unknown[]) : [],
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
-    receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
-    rawPayload: normalizeObject(row)
+    receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null
   }));
 
   return {
