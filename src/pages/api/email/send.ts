@@ -33,12 +33,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const rawSubject = (bodyPayload as Record<string, unknown>).subject;
   const rawBody = (bodyPayload as Record<string, unknown>).body;
   const rawAgentLink = (bodyPayload as Record<string, unknown>).agentLink;
+  const rawHtmlBody = (bodyPayload as Record<string, unknown>).htmlBody;
 
   const recipients = normalizeRecipients(rawRecipients);
   const subject = typeof rawSubject === "string" ? rawSubject.trim() : "";
   const body = typeof rawBody === "string" ? rawBody : "";
   const agentLink = typeof rawAgentLink === "string" ? rawAgentLink.trim() : "";
   const sessionId = isValidUuid(rawSessionId) ? rawSessionId : null;
+  const htmlBody = typeof rawHtmlBody === "string" ? rawHtmlBody : null;
 
   if (!recipients.length) {
     return res.status(400).json({ error: "At least one valid recipient is required." });
@@ -86,7 +88,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       to: fromEmail,
       bcc: recipients,
       subject,
-      text: body
+      text: body,
+      html: htmlBody ?? body.replace(/\n/g, "<br />")
     });
 
     providerResponse = info as unknown as Record<string, unknown>;

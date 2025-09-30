@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/EmailPreview.module.css";
-import { EMAIL_PREVIEW_RECIPIENTS_KEY } from "@/lib/storageKeys";
+import { EMAIL_PREVIEW_LAST_SEND_KEY, EMAIL_PREVIEW_RECIPIENTS_KEY } from "@/lib/storageKeys";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -180,6 +180,15 @@ export default function EmailPreviewPage() {
     setSuccess(null);
 
     try {
+      const htmlBody = agentLink
+        ? body
+            .split(agentLink)
+            .join(
+              `<a href="${agentLink}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;">Open Survey</a>`
+            )
+            .replace(/\n/g, "<br />")
+        : body.replace(/\n/g, "<br />");
+
       const response = await fetch("/api/email/send", {
         method: "POST",
         headers: {
@@ -190,7 +199,8 @@ export default function EmailPreviewPage() {
           recipients,
           subject: subject.trim(),
           body,
-          agentLink
+          agentLink,
+          htmlBody
         })
       });
 
@@ -207,7 +217,14 @@ export default function EmailPreviewPage() {
         sessionStorage.removeItem(EMAIL_PREVIEW_RECIPIENTS_KEY);
       }
 
-      setSuccess("Email sent successfully.");
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          EMAIL_PREVIEW_LAST_SEND_KEY,
+          JSON.stringify({ recipients, subject: subject.trim(), sentAt: Date.now() })
+        );
+      }
+
+      router.push({ pathname: "/email-success", query: { sid: context.sid ?? "", pin: context.pin ?? "" } });
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "Failed to send email.");
       setSuccess(null);
