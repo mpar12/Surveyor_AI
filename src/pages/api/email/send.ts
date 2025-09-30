@@ -76,10 +76,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "Email body cannot be empty." });
   }
 
-  if (agentLink && !body.includes(agentLink)) {
-    return res.status(400).json({ error: "Email body must include the survey link." });
-  }
-
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT ?? "");
   const user = process.env.SMTP_USER;
