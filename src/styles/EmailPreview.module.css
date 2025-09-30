@@ -101,6 +101,16 @@
   line-height: 1.55;
 }
 
+.previewBox {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  line-height: 1.6;
+  display: grid;
+  gap: 1rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

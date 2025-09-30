@@ -21,6 +21,28 @@ function normalizeRecipients(value: unknown): string[] {
     .filter((entry) => EMAIL_REGEX.test(entry));
 }
 
+const buildEmailHtml = (body: string, agentLink: string) => {
+  const safeBody = body.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lines = safeBody.split("\n").join("<br />");
+
+  if (!agentLink) {
+    return `<div>${lines}</div>`;
+  }
+
+  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${agentLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Open Survey</a></div>`;
+
+  if (safeBody.includes(agentLink)) {
+    const replaced = safeBody
+      .split(agentLink)
+      .join(
+        `<a href=\"${agentLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`
+      );
+    return `<div>${replaced.replace(/\n/g, "<br />")}${buttonHtml}</div>`;
+  }
+
+  return `<div>${lines}${buttonHtml}</div>`;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -88,8 +110,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       to: fromEmail,
       bcc: recipients,
       subject,
-      text: body,
-      html: htmlBody ?? body.replace(/\n/g, "<br />")
+      text: agentLink ? `${body}\n\nSurvey link: ${agentLink}` : body,
+      html: htmlBody ?? buildEmailHtml(body, agentLink)
     });
 
     providerResponse = info as unknown as Record<string, unknown>;

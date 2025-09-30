@@ -7,6 +7,28 @@ import { EMAIL_PREVIEW_LAST_SEND_KEY, EMAIL_PREVIEW_RECIPIENTS_KEY } from "@/lib
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const buildEmailHtml = (body: string, agentLink: string) => {
+  const safeBody = body.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lines = safeBody.split("\n").join("<br />");
+
+  if (!agentLink) {
+    return `<div>${lines}</div>`;
+  }
+
+  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${agentLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Open Survey</a></div>`;
+
+  if (safeBody.includes(agentLink)) {
+    const replaced = safeBody
+      .split(agentLink)
+      .join(
+        `<a href=\"${agentLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`
+      );
+    return `<div>${replaced.replace(/\n/g, "<br />")}${buttonHtml}</div>`;
+  }
+
+  return `<div>${lines}${buttonHtml}</div>`;
+};
+
 const getQueryValue = (value: string | string[] | undefined) => {
   if (Array.isArray(value)) {
     return value[0] ?? "";
@@ -118,10 +140,6 @@ export default function EmailPreviewPage() {
   }, [router.isReady, context]);
 
   useEffect(() => {
-    if (!agentLink) {
-      return;
-    }
-
     setSubject((prev) => {
       if (prev) return prev;
       return context.product ? `${context.product} Survey` : "Survey Invitation";
@@ -131,9 +149,9 @@ export default function EmailPreviewPage() {
       if (prev) return prev;
       const requester = context.name || "our team";
       const company = context.company || "our organization";
-      return `Hello! We are reaching out to you on behalf of ${requester} at ${company}.\n\nPlease chat with our AI agent in the form of our new survey: ${agentLink}\n\nThank you!`;
+      return `Hello! We are reaching out to you on behalf of ${requester} at ${company}.\n\nPlease chat with our AI agent by clicking the button below.\n\nThank you!`;
     });
-  }, [agentLink, context]);
+  }, [context]);
 
   const handleSubjectChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSubject(event.target.value);
@@ -169,25 +187,12 @@ export default function EmailPreviewPage() {
       return;
     }
 
-    if (agentLink && !body.includes(agentLink)) {
-      setError("Email body must include the survey link.");
-      setSuccess(null);
-      return;
-    }
-
     setIsSending(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const htmlBody = agentLink
-        ? body
-            .split(agentLink)
-            .join(
-              `<a href="${agentLink}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;">Open Survey</a>`
-            )
-            .replace(/\n/g, "<br />")
-        : body.replace(/\n/g, "<br />");
+      const htmlBody = buildEmailHtml(body, agentLink);
 
       const response = await fetch("/api/email/send", {
         method: "POST",
@@ -291,7 +296,15 @@ export default function EmailPreviewPage() {
             value={body}
             onChange={handleBodyChange}
           />
-          <p className={styles.helperText}>The survey link must remain in the message.</p>
+          <p className={styles.helperText}>The survey button below is automatically included in the final email.</p>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.label}>Preview</div>
+          <div
+            className={styles.previewBox}
+            dangerouslySetInnerHTML={{ __html: buildEmailHtml(body, agentLink) }}
+          />
         </section>
 
         {error ? <div className={styles.statusError}>{error}</div> : null}
