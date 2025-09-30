@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/db/client";
 import { convaiTranscripts } from "@/db/schema";
 
@@ -9,7 +8,6 @@ export const config = {
   }
 };
 
-const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET ?? "";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isValidUuid(value: unknown): value is string {
@@ -59,42 +57,10 @@ function getRawBody(req: NextApiRequest): Promise<Buffer> {
   });
 }
 
-function verifySignature(rawBody: Buffer, signatureHeader: string | string[] | undefined): boolean {
-  if (!WEBHOOK_SECRET || !signatureHeader || Array.isArray(signatureHeader)) {
-    return false;
-  }
-
-  try {
-    const expectedSignature = createHmac("sha256", WEBHOOK_SECRET)
-      .update(rawBody)
-      .digest("hex")
-      .toLowerCase();
-
-    const providedSignature = signatureHeader.trim().toLowerCase().replace(/^sha256=/, "");
-
-    if (expectedSignature.length !== providedSignature.length) {
-      return false;
-    }
-
-    const expectedBuffer = Buffer.from(expectedSignature, "hex");
-    const providedBuffer = Buffer.from(providedSignature, "hex");
-
-    return timingSafeEqual(expectedBuffer, providedBuffer);
-  } catch (error) {
-    console.error("[elevenlabs:webhook] failed to verify signature", error);
-    return false;
-  }
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "method_not_allowed" });
-  }
-
-  if (!WEBHOOK_SECRET) {
-    console.error("[elevenlabs:webhook] ELEVENLABS_WEBHOOK_SECRET is not configured");
-    return res.status(500).json({ error: "webhook_not_configured" });
   }
 
   let rawBody: Buffer;
@@ -104,12 +70,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error) {
     console.error("[elevenlabs:webhook] unable to read raw body", error);
     return res.status(400).json({ error: "invalid_body" });
-  }
-
-  const isValidSignature = verifySignature(rawBody, req.headers["x-el-signature"]);
-
-  if (!isValidSignature) {
-    return res.status(401).json({ error: "invalid_signature" });
   }
 
   let payload: Record<string, unknown>;
