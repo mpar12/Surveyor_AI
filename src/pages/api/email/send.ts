@@ -54,14 +54,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const rawSubject = (bodyPayload as Record<string, unknown>).subject;
   const rawBody = (bodyPayload as Record<string, unknown>).body;
   const rawAgentLink = (bodyPayload as Record<string, unknown>).agentLink;
-  const rawHtmlBody = (bodyPayload as Record<string, unknown>).htmlBody;
 
- const recipients = normalizeRecipients(rawRecipients);
+const recipients = normalizeRecipients(rawRecipients);
   const subject = typeof rawSubject === "string" ? rawSubject.trim() : "";
   const body = typeof rawBody === "string" ? rawBody : "";
   const agentLink = typeof rawAgentLink === "string" ? rawAgentLink.trim() : "";
   const sessionId = isValidUuid(rawSessionId) ? rawSessionId : null;
-  const htmlBody = typeof rawHtmlBody === "string" ? rawHtmlBody : null;
 
   if (!recipients.length) {
     return res.status(400).json({ error: "At least one valid recipient is required." });
@@ -98,33 +96,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   });
 
-  let status: "sent" | "failed" = "sent";
-  let providerResponse: Record<string, unknown> | null = null;
+  const appendEmailParam = (baseLink: string, email: string) => {
+    if (!baseLink) {
+      return "";
+    }
+
+    try {
+      const url = new URL(baseLink);
+      url.searchParams.set("email", email);
+      return url.toString();
+    } catch (error) {
+      console.error("Failed to personalize survey link", error);
+      return baseLink;
+    }
+  };
+
+  const providerResponses: Array<Record<string, unknown>> = [];
 
   try {
-    const info = await transporter.sendMail({
-      from: `${fromName} <${fromEmail}>`,
-      to: fromEmail,
-      bcc: uniqueRecipients,
-      subject,
-      text: agentLink ? `${body}\n\nSurvey link: ${agentLink}` : body,
-      html: htmlBody ?? buildEmailHtml(body, agentLink)
-    });
+    for (const recipient of uniqueRecipients) {
+      const personalizedLink = appendEmailParam(agentLink, recipient);
+      const info = await transporter.sendMail({
+        from: `${fromName} <${fromEmail}>`,
+        to: recipient,
+        subject,
+        text: personalizedLink ? `${body}\n\nSurvey link: ${personalizedLink}` : body,
+        html: buildEmailHtml(body, personalizedLink)
+      });
 
-    providerResponse = info as unknown as Record<string, unknown>;
+      providerResponses.push({
+        recipient,
+        response: info as unknown as Record<string, unknown>
+      });
+    }
   } catch (error) {
-    status = "failed";
-    providerResponse = {
-      error: error instanceof Error ? error.message : "Unknown email error"
-    };
-
     await db.insert(emailSends).values({
       sessionId,
       recipients: uniqueRecipients,
       subject,
       body,
-      status,
-      providerResponse,
+      status: "failed",
+      providerResponse: {
+        error: error instanceof Error ? error.message : "Unknown email error",
+        partial: providerResponses
+      },
       sentAt: new Date()
     });
 
@@ -136,8 +151,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     recipients: uniqueRecipients,
     subject,
     body,
-    status,
-    providerResponse,
+    status: "sent",
+    providerResponse: providerResponses,
     sentAt: new Date()
   });
 

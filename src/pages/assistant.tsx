@@ -83,6 +83,8 @@ export default function AssistantPage() {
     const keyQuestions = getQueryValue(router.query.keyQuestions);
     const sessionId = getQueryValue(router.query.sid);
     const pin = getQueryValue(router.query.pin);
+    const participantEmail =
+      getQueryValue(router.query.email) || getQueryValue(router.query.email_address);
 
     const variables: Record<string, string> = {};
 
@@ -104,6 +106,9 @@ export default function AssistantPage() {
     if (pin) {
       variables.PIN = pin;
     }
+    if (participantEmail) {
+      variables.email_address = participantEmail;
+    }
     if (surveyQuestions.length) {
       const enumerated = surveyQuestions
         .map((question, index) => `${index + 1}. ${question}`)
@@ -122,6 +127,8 @@ export default function AssistantPage() {
     router.query.keyQuestions,
     router.query.sid,
     router.query.pin,
+    router.query.email,
+    router.query.email_address,
     surveyQuestions
   ]);
 

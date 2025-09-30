@@ -21,7 +21,12 @@ interface ScorecardProps {
   } | null;
   emailsSent: number;
   responders: number;
-  callSummaries: Array<{ conversationId: string; summary: string | null; receivedAt: string | null }>;
+  callSummaries: Array<{
+    conversationId: string;
+    summary: string | null;
+    receivedAt: string | null;
+    email: string | null;
+  }>;
   error?: string;
 }
 
@@ -203,8 +208,13 @@ export default function ScorecardPage({
                       padding: "1.1rem"
                     }}
                   >
-                    <div style={{ color: "#6b7280", fontSize: "0.85rem", marginBottom: "0.45rem" }}>
-                      {formatDate(summary.receivedAt)}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ color: "#111827", fontWeight: 600 }}>
+                        {summary.email ? summary.email : "Unknown participant"}
+                      </div>
+                      <div style={{ color: "#6b7280", fontSize: "0.85rem" }}>
+                        {formatDate(summary.receivedAt)}
+                      </div>
                     </div>
                     <div style={{ color: "#1f2937", lineHeight: 1.55 }}>
                       {summary.summary || "Summary not available."}
@@ -305,20 +315,32 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
       .select({
         conversationId: convaiTranscripts.conversationId,
         summary: convaiTranscripts.analysis,
-        receivedAt: convaiTranscripts.receivedAt
+        receivedAt: convaiTranscripts.receivedAt,
+        dynamicVariables: convaiTranscripts.dynamicVariables
       })
       .from(convaiTranscripts)
       .where(transcriptCondition)
       .orderBy(desc(convaiTranscripts.receivedAt));
 
-    const summaries = transcriptRows.map((row) => ({
-      conversationId: row.conversationId,
-      summary:
+    const summaries = transcriptRows.map((row) => {
+      const summaryText =
         row.summary && typeof row.summary === "object"
           ? ((row.summary as Record<string, unknown>).transcript_summary as string | null) ?? null
-          : null,
-      receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null
-    }));
+          : null;
+
+      const dynamicVars =
+        row.dynamicVariables && typeof row.dynamicVariables === "object"
+          ? (row.dynamicVariables as Record<string, unknown>)
+          : {};
+      const emailValue = dynamicVars.email_address;
+
+      return {
+        conversationId: row.conversationId,
+        summary: summaryText,
+        receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
+        email: typeof emailValue === "string" && emailValue.trim() ? emailValue.trim() : null
+      };
+    });
 
     return {
       props: {
