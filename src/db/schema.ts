@@ -22,6 +22,7 @@ export const convaiTranscripts = drizzleSchema.table("convai_transcripts", {
   pinCode: char("pin_code", { length: 4 }),
   dynamicVariables: jsonb("dynamic_variables").notNull(),
   transcript: jsonb("transcript").notNull(),
+  analysis: jsonb("analysis"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow()
 });
@@ -35,4 +36,19 @@ export const emailSends = drizzleSchema.table("email_sends", {
   status: text("status").notNull(),
   providerResponse: jsonb("provider_response"),
   sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow()
+});
+
+export const sessionContexts = drizzleSchema.table("session_contexts", {
+  sessionId: uuid("session_id")
+    .primaryKey()
+    .references(() => sessions.sessionId),
+  requester: text("requester"),
+  company: text("company"),
+  product: text("product"),
+  feedbackDesired: text("feedback_desired"),
+  desiredIcp: text("desired_icp"),
+  desiredIcpIndustry: text("desired_icp_industry"),
+  desiredIcpRegion: text("desired_icp_region"),
+  keyQuestions: text("key_questions"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow()
 });

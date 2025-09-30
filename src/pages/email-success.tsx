@@ -9,6 +9,8 @@ interface LastSend {
   recipients: string[];
   subject: string;
   sentAt: number;
+  sessionId: string | null;
+  pin: string | null;
 }
 
 export default function EmailSuccessPage() {
@@ -39,6 +41,8 @@ export default function EmailSuccessPage() {
   const subjectLine = lastSend?.subject ?? "Survey Invitation";
   const recipients = lastSend?.recipients ?? [];
   const sentAtLabel = lastSend?.sentAt ? new Date(lastSend.sentAt).toLocaleString() : "";
+  const sessionId = lastSend?.sessionId ?? (typeof router.query.sid === "string" ? router.query.sid : null);
+  const pin = lastSend?.pin ?? (typeof router.query.pin === "string" ? router.query.pin : null);
 
   return (
     <div className={styles.container}>
@@ -78,14 +82,19 @@ export default function EmailSuccessPage() {
         <div className={styles.actions}>
           <Link
             className={styles.secondaryLink}
-            href={{ pathname: "/population", query: { sid: router.query.sid ?? "", pin: router.query.pin ?? "" } }}
+            href={{ pathname: "/population", query: { sid: sessionId ?? "", pin: pin ?? "" } }}
           >
             Back to population
           </Link>
 
-          <Link className={styles.secondaryLink} href={{ pathname: "/results", query: { sid: router.query.sid ?? "" } }}>
-            View survey results
-          </Link>
+          {sessionId ? (
+            <Link
+              className={styles.secondaryLink}
+              href={{ pathname: "/scorecard", query: { sid: sessionId, pin: pin ?? "" } }}
+            >
+              View results
+            </Link>
+          ) : null}
         </div>
       </div>
     </div>

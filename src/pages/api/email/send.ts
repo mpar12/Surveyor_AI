@@ -29,14 +29,13 @@ const buildEmailHtml = (body: string, agentLink: string) => {
     return `<div>${lines}</div>`;
   }
 
-  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${agentLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Open Survey</a></div>`;
+  const safeLink = agentLink.replace(/"/g, "&quot;");
+  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Open Survey</a></div>`;
 
   if (safeBody.includes(agentLink)) {
     const replaced = safeBody
       .split(agentLink)
-      .join(
-        `<a href=\"${agentLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`
-      );
+      .join(`<a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`);
     return `<div>${replaced.replace(/\n/g, "<br />")}${buttonHtml}</div>`;
   }
 
@@ -57,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const rawAgentLink = (bodyPayload as Record<string, unknown>).agentLink;
   const rawHtmlBody = (bodyPayload as Record<string, unknown>).htmlBody;
 
-  const recipients = normalizeRecipients(rawRecipients);
+ const recipients = normalizeRecipients(rawRecipients);
   const subject = typeof rawSubject === "string" ? rawSubject.trim() : "";
   const body = typeof rawBody === "string" ? rawBody : "";
   const agentLink = typeof rawAgentLink === "string" ? rawAgentLink.trim() : "";
@@ -87,6 +86,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Email service is not configured." });
   }
 
+  const uniqueRecipients = Array.from(new Set(recipients));
+
   const transporter = nodemailer.createTransport({
     host,
     port,
@@ -104,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const info = await transporter.sendMail({
       from: `${fromName} <${fromEmail}>`,
       to: fromEmail,
-      bcc: recipients,
+      bcc: uniqueRecipients,
       subject,
       text: agentLink ? `${body}\n\nSurvey link: ${agentLink}` : body,
       html: htmlBody ?? buildEmailHtml(body, agentLink)
@@ -119,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     await db.insert(emailSends).values({
       sessionId,
-      recipients,
+      recipients: uniqueRecipients,
       subject,
       body,
       status,
@@ -132,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   await db.insert(emailSends).values({
     sessionId,
-    recipients,
+    recipients: uniqueRecipients,
     subject,
     body,
     status,

@@ -19,6 +19,12 @@
       "version": "0002_add_email_sends",
       "when": 2,
       "tag": "0002_add_email_sends"
+    },
+    {
+      "idx": 3,
+      "version": "0003_add_session_contexts",
+      "when": 3,
+      "tag": "0003_add_session_contexts"
     }
   ]
 }

@@ -30,6 +30,7 @@ export default function PopulationPage() {
     const company = getQueryValue(router.query.company);
     const product = getQueryValue(router.query.product);
     const feedbackDesired = getQueryValue(router.query.feedbackDesired);
+    const keyQuestions = getQueryValue(router.query.keyQuestions);
     const desiredIcp = getQueryValue(router.query.desiredIcp);
     const desiredIcpIndustry = getQueryValue(router.query.desiredIcpIndustry);
     const desiredIcpRegion = getQueryValue(router.query.desiredIcpRegion);
@@ -41,6 +42,7 @@ export default function PopulationPage() {
       company,
       product,
       feedbackDesired,
+      keyQuestions,
       desiredIcp,
       desiredIcpIndustry,
       desiredIcpRegion,
@@ -52,6 +54,7 @@ export default function PopulationPage() {
     router.query.company,
     router.query.product,
     router.query.feedbackDesired,
+    router.query.keyQuestions,
     router.query.desiredIcp,
     router.query.desiredIcpIndustry,
     router.query.desiredIcpRegion,
@@ -125,14 +128,16 @@ export default function PopulationPage() {
       .map((entry) => entry.trim())
       .filter((entry) => EMAIL_REGEX.test(entry));
 
-    if (!entries.length) {
+    const unique = Array.from(new Set(entries));
+
+    if (!unique.length) {
       setEmailError("Provide at least one valid email address.");
       setHasValidEmails(false);
       return;
     }
 
     if (typeof window !== "undefined") {
-      sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(entries));
+      sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(unique));
     }
 
     const query: Record<string, string> = {};
@@ -147,6 +152,7 @@ export default function PopulationPage() {
     assign("company", contextSummary.company);
     assign("product", contextSummary.product);
     assign("feedbackDesired", contextSummary.feedbackDesired);
+    assign("keyQuestions", contextSummary.keyQuestions);
     assign("desiredIcp", contextSummary.desiredIcp);
     assign("desiredIcpIndustry", contextSummary.desiredIcpIndustry);
     assign("desiredIcpRegion", contextSummary.desiredIcpRegion);
@@ -225,6 +231,7 @@ export default function PopulationPage() {
               company: contextSummary.company,
               product: contextSummary.product,
               feedbackDesired: contextSummary.feedbackDesired,
+              keyQuestions: contextSummary.keyQuestions,
               desiredIcp: contextSummary.desiredIcp,
               desiredIcpIndustry: contextSummary.desiredIcpIndustry,
               desiredIcpRegion: contextSummary.desiredIcpRegion

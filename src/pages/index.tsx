@@ -62,6 +62,26 @@ export default function HomePage() {
         throw new Error("Session response was incomplete. Please try again.");
       }
 
+      await fetch("/api/sessions/context", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId: payload.sessionId,
+          requester: form.name,
+          company: form.company,
+          product: form.product,
+          feedbackDesired: form.feedbackDesired,
+          desiredIcp: form.desiredIcp,
+          desiredIcpIndustry: form.desiredIcpIndustry,
+          desiredIcpRegion: form.desiredIcpRegion,
+          keyQuestions: form.keyQuestions
+        })
+      }).catch((contextError) => {
+        console.error("Failed to persist session context", contextError);
+      });
+
       router.push({
         pathname: "/brief",
         query: {

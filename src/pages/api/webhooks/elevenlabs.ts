@@ -97,6 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ?.dynamic_variables ?? {};
   const dynamicVariables = normalizeDynamicVariables(rawDynamicVariables as Record<string, unknown>);
   const transcript = Array.isArray(data.transcript) ? (data.transcript as unknown[]) : [];
+  const analysis = data.analysis ?? null;
 
   if (!Array.isArray(transcript)) {
     return res.status(400).json({ error: "invalid_transcript" });
@@ -117,6 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       pinCode,
       dynamicVariables,
       transcript,
+      analysis,
       completedAt,
       receivedAt: new Date()
     };
@@ -131,6 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pinCode: record.pinCode,
           dynamicVariables: record.dynamicVariables,
           transcript: record.transcript,
+          analysis: record.analysis,
           completedAt: record.completedAt,
           receivedAt: record.receivedAt
         }

@@ -2,6 +2,12 @@
 ## TODO: Re-add authentication for 11Labs Webhook
 ## TODO: Pass List of Questions to 11Labs Agent
 ## TODO: (Optional) - Link Clean-up??
+## TODO: Steps to not fall into SPAM
+## Track which email address a specific call went to
+## 
+##
+##
+##
 
 
 # SurvAgent — AI Survey Conductor
