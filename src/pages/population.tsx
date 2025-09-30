@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { ChangeEvent, useMemo, useState } from "react";
 import styles from "@/styles/Population.module.css";
-import { PEOPLE_SEARCH_STORAGE_KEY } from "@/lib/storageKeys";
+import { EMAIL_PREVIEW_RECIPIENTS_KEY, PEOPLE_SEARCH_STORAGE_KEY } from "@/lib/storageKeys";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -115,6 +115,48 @@ export default function PopulationPage() {
     setHasValidEmails(true);
   };
 
+  const handlePrepareEmailManual = () => {
+    if (!manualSelected) {
+      return;
+    }
+
+    const entries = emailCsv
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => EMAIL_REGEX.test(entry));
+
+    if (!entries.length) {
+      setEmailError("Provide at least one valid email address.");
+      setHasValidEmails(false);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(entries));
+    }
+
+    const query: Record<string, string> = {};
+
+    const assign = (key: string, value: string | undefined) => {
+      if (value && value.trim()) {
+        query[key] = value.trim();
+      }
+    };
+
+    assign("name", contextSummary.name);
+    assign("company", contextSummary.company);
+    assign("product", contextSummary.product);
+    assign("feedbackDesired", contextSummary.feedbackDesired);
+    assign("desiredIcp", contextSummary.desiredIcp);
+    assign("desiredIcpIndustry", contextSummary.desiredIcpIndustry);
+    assign("desiredIcpRegion", contextSummary.desiredIcpRegion);
+    assign("sid", contextSummary.sid);
+    assign("pin", contextSummary.pin);
+    query.source = "manual";
+
+    router.push({ pathname: "/email-preview", query });
+  };
+
   const handleConductSearch = async () => {
     if (!scrapeSelected) {
       return;
@@ -178,7 +220,14 @@ export default function PopulationPage() {
               generatedAt: Date.now(),
               debug,
               sid,
-              pin
+              pin,
+              requester: contextSummary.name,
+              company: contextSummary.company,
+              product: contextSummary.product,
+              feedbackDesired: contextSummary.feedbackDesired,
+              desiredIcp: contextSummary.desiredIcp,
+              desiredIcpIndustry: contextSummary.desiredIcpIndustry,
+              desiredIcpRegion: contextSummary.desiredIcpRegion
             })
           );
         } catch (storageError) {
@@ -303,8 +352,8 @@ export default function PopulationPage() {
 
         <div className={styles.actions}>
           {manualSelected && hasValidEmails ? (
-            <button type="button" className={styles.primaryButton}>
-              Preview Email
+            <button type="button" className={styles.primaryButton} onClick={handlePrepareEmailManual}>
+              Prepare Email
             </button>
           ) : null}
 

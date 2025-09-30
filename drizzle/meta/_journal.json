@@ -13,6 +13,12 @@
       "version": "0001_add_convai_transcripts",
       "when": 1,
       "tag": "0001_add_convai_transcripts"
+    },
+    {
+      "idx": 2,
+      "version": "0002_add_email_sends",
+      "when": 2,
+      "tag": "0002_add_email_sends"
     }
   ]
 }

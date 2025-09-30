@@ -2,7 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { PEOPLE_SEARCH_STORAGE_KEY } from "@/lib/storageKeys";
+import { EMAIL_PREVIEW_RECIPIENTS_KEY, PEOPLE_SEARCH_STORAGE_KEY } from "@/lib/storageKeys";
 
 interface Contact {
   name: string;
@@ -22,6 +22,13 @@ interface StoredPeopleSearch {
   generatedAt?: number;
   sid?: string;
   pin?: string;
+  requester?: string;
+  company?: string;
+  product?: string;
+  feedbackDesired?: string;
+  desiredIcp?: string;
+  desiredIcpIndustry?: string;
+  desiredIcpRegion?: string;
   debug?: {
     search?: unknown;
     enrichment?: unknown;
@@ -51,6 +58,7 @@ const formatTimestamp = (value?: number) => {
 export default function PeopleResultsPage() {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
+  const [prepareError, setPrepareError] = useState<string | null>(null);
   const sidFromQuery = (() => {
     const raw = router.query.sid;
     if (typeof raw === "string") return raw;
@@ -88,6 +96,16 @@ export default function PeopleResultsPage() {
           generatedAt: parsed.generatedAt,
           sid: typeof parsed.sid === "string" ? parsed.sid : undefined,
           pin: typeof parsed.pin === "string" ? parsed.pin : undefined,
+          requester: typeof parsed.requester === "string" ? parsed.requester : undefined,
+          company: typeof parsed.company === "string" ? parsed.company : undefined,
+          product: typeof parsed.product === "string" ? parsed.product : undefined,
+          feedbackDesired:
+            typeof parsed.feedbackDesired === "string" ? parsed.feedbackDesired : undefined,
+          desiredIcp: typeof parsed.desiredIcp === "string" ? parsed.desiredIcp : undefined,
+          desiredIcpIndustry:
+            typeof parsed.desiredIcpIndustry === "string" ? parsed.desiredIcpIndustry : undefined,
+          desiredIcpRegion:
+            typeof parsed.desiredIcpRegion === "string" ? parsed.desiredIcpRegion : undefined,
           debug: parsed.debug
         }
       });
@@ -101,6 +119,46 @@ export default function PeopleResultsPage() {
 
   const handleBack = () => {
     router.push("/population");
+  };
+
+  const handlePrepareEmail = () => {
+    if (state.status !== "ready") {
+      return;
+    }
+
+    const recipients = Array.from(
+      new Set(state.data.contacts.map((contact) => contact.email).filter((email) => Boolean(email)))
+    );
+
+    if (!recipients.length) {
+      setPrepareError("No verified email addresses available to email.");
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(recipients));
+    }
+
+    const query: Record<string, string> = { source: "search" };
+
+    const assign = (key: string, value?: string) => {
+      if (value && value.trim()) {
+        query[key] = value.trim();
+      }
+    };
+
+    assign("name", state.data.requester);
+    assign("company", state.data.company);
+    assign("product", state.data.product);
+    assign("feedbackDesired", state.data.feedbackDesired);
+    assign("desiredIcp", state.data.desiredIcp);
+    assign("desiredIcpIndustry", state.data.desiredIcpIndustry);
+    assign("desiredIcpRegion", state.data.desiredIcpRegion);
+    assign("sid", state.data.sid ?? sidFromQuery);
+    assign("pin", state.data.pin);
+
+    setPrepareError(null);
+    router.push({ pathname: "/email-preview", query });
   };
 
   const renderContent = () => {
@@ -137,6 +195,40 @@ export default function PeopleResultsPage() {
 
     return (
       <div style={{ display: "grid", gap: "1.25rem" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={handlePrepareEmail}
+            style={{
+              borderRadius: "999px",
+              background: "#2563eb",
+              color: "#ffffff",
+              fontWeight: 600,
+              padding: "0.6rem 1.6rem",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 12px 24px rgba(37, 99, 235, 0.25)"
+            }}
+          >
+            Prepare Email
+          </button>
+        </div>
+
+        {prepareError ? (
+          <div
+            style={{
+              padding: "0.9rem 1.1rem",
+              borderRadius: "12px",
+              border: "1px solid #fecaca",
+              background: "#fee2e2",
+              color: "#b91c1c",
+              fontWeight: 600
+            }}
+          >
+            {prepareError}
+          </div>
+        ) : null}
+
         <section
           style={{
             display: "grid",

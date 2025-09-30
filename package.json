@@ -16,7 +16,8 @@
     "drizzle-orm": "^0.30.7",
     "postgres": "^3.4.7",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "nodemailer": "^6.9.11"
   },
   "devDependencies": {
     "@types/node": "20.12.7",

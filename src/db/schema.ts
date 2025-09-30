@@ -25,3 +25,14 @@ export const convaiTranscripts = drizzleSchema.table("convai_transcripts", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
   receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow()
 });
+
+export const emailSends = drizzleSchema.table("email_sends", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sessionId: uuid("session_id"),
+  recipients: jsonb("recipients").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull(),
+  providerResponse: jsonb("provider_response"),
+  sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow()
+});
