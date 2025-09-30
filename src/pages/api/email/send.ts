@@ -27,13 +27,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
-  const {
-    sessionId: rawSessionId,
-    recipients: rawRecipients,
-    subject: rawSubject,
-    body: rawBody,
-    agentLink: rawAgentLink
-  } = typeof req.body === "object" && req.body !== null ? req.body : {};
+  const bodyPayload = typeof req.body === "object" && req.body !== null ? req.body : {};
+  const rawSessionId = (bodyPayload as Record<string, unknown>).sessionId;
+  const rawRecipients = (bodyPayload as Record<string, unknown>).recipients;
+  const rawSubject = (bodyPayload as Record<string, unknown>).subject;
+  const rawBody = (bodyPayload as Record<string, unknown>).body;
+  const rawAgentLink = (bodyPayload as Record<string, unknown>).agentLink;
 
   const recipients = normalizeRecipients(rawRecipients);
   const subject = typeof rawSubject === "string" ? rawSubject.trim() : "";
