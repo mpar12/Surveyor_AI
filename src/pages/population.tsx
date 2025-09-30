@@ -1,8 +1,12 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Population.module.css";
-import { EMAIL_PREVIEW_RECIPIENTS_KEY, PEOPLE_SEARCH_STORAGE_KEY } from "@/lib/storageKeys";
+import {
+  EMAIL_PREVIEW_RECIPIENTS_KEY,
+  PEOPLE_SEARCH_STORAGE_KEY,
+  SURVEY_QUESTIONS_STORAGE_KEY
+} from "@/lib/storageKeys";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,6 +28,7 @@ export default function PopulationPage() {
   const [hasValidEmails, setHasValidEmails] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
 
   const contextSummary = useMemo(() => {
     const name = getQueryValue(router.query.name);
@@ -47,13 +52,15 @@ export default function PopulationPage() {
       desiredIcpIndustry,
       desiredIcpRegion,
       sid: sidValue,
-      pin: pinValue
+      pin: pinValue,
+      surveyQuestions
     };
   }, [
     router.query.name,
     router.query.company,
     router.query.product,
     router.query.feedbackDesired,
+    surveyQuestions,
     router.query.keyQuestions,
     router.query.desiredIcp,
     router.query.desiredIcpIndustry,
@@ -61,6 +68,24 @@ export default function PopulationPage() {
     router.query.sid,
     router.query.pin
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const stored = sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as string[];
+        if (Array.isArray(parsed)) {
+          setSurveyQuestions(parsed);
+        }
+      } catch (error) {
+        console.error("Failed to parse stored survey questions", error);
+      }
+    }
+  }, []);
 
   const handleManualToggle = (event: ChangeEvent<HTMLInputElement>) => {
     const isChecked = event.target.checked;
@@ -138,6 +163,11 @@ export default function PopulationPage() {
 
     if (typeof window !== "undefined") {
       sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(unique));
+      try {
+        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(surveyQuestions));
+      } catch (storageError) {
+        console.error("Failed to persist survey questions for email preview", storageError);
+      }
     }
 
     const query: Record<string, string> = {};
@@ -158,6 +188,14 @@ export default function PopulationPage() {
     assign("desiredIcpRegion", contextSummary.desiredIcpRegion);
     assign("sid", contextSummary.sid);
     assign("pin", contextSummary.pin);
+    if (surveyQuestions.length) {
+      try {
+        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(surveyQuestions))));
+        assign("surveyQuestions", encoded);
+      } catch (error) {
+        console.error("Failed to encode survey questions", error);
+      }
+    }
     query.source = "manual";
 
     router.push({ pathname: "/email-preview", query });
@@ -219,24 +257,26 @@ export default function PopulationPage() {
           sessionStorage.setItem(
             PEOPLE_SEARCH_STORAGE_KEY,
             JSON.stringify({
-              contacts,
-              title,
-              location,
-              industry,
-              generatedAt: Date.now(),
-              debug,
-              sid,
-              pin,
-              requester: contextSummary.name,
-              company: contextSummary.company,
-              product: contextSummary.product,
-              feedbackDesired: contextSummary.feedbackDesired,
-              keyQuestions: contextSummary.keyQuestions,
-              desiredIcp: contextSummary.desiredIcp,
-              desiredIcpIndustry: contextSummary.desiredIcpIndustry,
-              desiredIcpRegion: contextSummary.desiredIcpRegion
-            })
+            contacts,
+            title,
+            location,
+            industry,
+            generatedAt: Date.now(),
+            debug,
+            sid,
+            pin,
+            requester: contextSummary.name,
+            company: contextSummary.company,
+            product: contextSummary.product,
+            feedbackDesired: contextSummary.feedbackDesired,
+            keyQuestions: contextSummary.keyQuestions,
+            desiredIcp: contextSummary.desiredIcp,
+            desiredIcpIndustry: contextSummary.desiredIcpIndustry,
+            desiredIcpRegion: contextSummary.desiredIcpRegion,
+            surveyQuestions
+          })
           );
+          sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(surveyQuestions));
         } catch (storageError) {
           console.error("Failed to store search results", storageError);
           setSearchError("Search succeeded, but results could not be saved.");

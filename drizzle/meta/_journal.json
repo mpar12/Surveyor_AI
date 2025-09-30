@@ -25,6 +25,12 @@
       "version": "0003_add_session_contexts",
       "when": 3,
       "tag": "0003_add_session_contexts"
+    },
+    {
+      "idx": 4,
+      "version": "0004_add_survey_questions_column",
+      "when": 4,
+      "tag": "0004_add_survey_questions_column"
     }
   ]
 }

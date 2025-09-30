@@ -2,6 +2,7 @@
 ## Pass List of Questions to 11Labs Agent
 ## Tag specific call to specific email
 ## Improvements needed --> CGPT questions suck
+## Scorecard - table for each question for sure
 
 ## TODO Optional:
 ## Re-add authentication for 11Labs Webhook

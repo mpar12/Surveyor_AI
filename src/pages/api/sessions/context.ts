@@ -18,7 +18,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     desiredIcp,
     desiredIcpIndustry,
     desiredIcpRegion,
-    keyQuestions
+    keyQuestions,
+    surveyQuestions
   } = req.body ?? {};
 
   if (typeof sessionId !== "string" || !sessionId.trim()) {
@@ -36,6 +37,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       desiredIcpIndustry: typeof desiredIcpIndustry === "string" ? desiredIcpIndustry : null,
       desiredIcpRegion: typeof desiredIcpRegion === "string" ? desiredIcpRegion : null,
       keyQuestions: typeof keyQuestions === "string" ? keyQuestions : null,
+      surveyQuestions: Array.isArray(surveyQuestions)
+        ? (surveyQuestions as string[])
+        : typeof surveyQuestions === "string" && surveyQuestions.trim()
+          ? (() => {
+              try {
+                const parsed = JSON.parse(surveyQuestions);
+                return Array.isArray(parsed) ? parsed : [surveyQuestions];
+              } catch (error) {
+                return [surveyQuestions];
+              }
+            })()
+          : null,
       updatedAt: new Date()
     };
 
@@ -53,6 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           desiredIcpIndustry: payload.desiredIcpIndustry,
           desiredIcpRegion: payload.desiredIcpRegion,
           keyQuestions: payload.keyQuestions,
+          surveyQuestions: payload.surveyQuestions,
           updatedAt: payload.updatedAt
         }
       });

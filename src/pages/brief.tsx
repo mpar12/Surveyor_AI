@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Brief.module.css";
+import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 
 type DescriptionResponse = {
   companyDescription: string;
@@ -43,6 +44,24 @@ export default function BriefPage() {
   );
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
+  const encodedSurveyQuestions = useMemo(() => {
+    if (!questions || !questions.length) {
+      return null;
+    }
+
+    try {
+      if (typeof window === "undefined") {
+        return null;
+      }
+
+      const payload = JSON.stringify(questions);
+      return window.btoa(unescape(encodeURIComponent(payload)));
+    } catch (error) {
+      console.error("Failed to encode survey questions", error);
+      return null;
+    }
+  }, [questions]);
+
   const launchHref = useMemo(() => {
     const params = new URLSearchParams();
 
@@ -62,6 +81,9 @@ export default function BriefPage() {
     setParam("desiredIcpRegion", desiredIcpRegion);
     setParam("sid", sid);
     setParam("pin", pin);
+    if (encodedSurveyQuestions) {
+      params.set("surveyQuestions", encodedSurveyQuestions);
+    }
 
     const query = params.toString();
     return query ? `/assistant?${query}` : "/assistant";
@@ -75,7 +97,8 @@ export default function BriefPage() {
     desiredIcpIndustry,
     desiredIcpRegion,
     sid,
-    pin
+    pin,
+    encodedSurveyQuestions
   ]);
 
   const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
@@ -211,6 +234,41 @@ export default function BriefPage() {
 
     return () => controller.abort();
   }, [router.isReady, company, product, desiredIcp, desiredIcpIndustry, keyQuestions]);
+
+  useEffect(() => {
+    if (!questions || !sid) {
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(questions));
+      } catch (error) {
+        console.error("Failed to store survey questions", error);
+      }
+    }
+
+    fetch("/api/sessions/context", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        sessionId: sid,
+        requester: name,
+        company,
+        product,
+        feedbackDesired,
+        desiredIcp,
+        desiredIcpIndustry,
+        desiredIcpRegion,
+        keyQuestions,
+        surveyQuestions: questions
+      })
+    }).catch((error) => {
+      console.error("Failed to update session context with survey questions", error);
+    });
+  }, [questions, sid, name, company, product, feedbackDesired, desiredIcp, desiredIcpIndustry, desiredIcpRegion, keyQuestions]);
 
   const productCopy = descriptions?.productDescription;
   const companyCopy = descriptions?.companyDescription;
@@ -357,7 +415,8 @@ export default function BriefPage() {
                 desiredIcpRegion,
                 keyQuestions,
                 sid,
-                pin
+                pin,
+                ...(encodedSurveyQuestions ? { surveyQuestions: encodedSurveyQuestions } : {})
               }
             }}
           >

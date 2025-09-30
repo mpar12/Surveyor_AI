@@ -2,7 +2,11 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { EMAIL_PREVIEW_RECIPIENTS_KEY, PEOPLE_SEARCH_STORAGE_KEY } from "@/lib/storageKeys";
+import {
+  EMAIL_PREVIEW_RECIPIENTS_KEY,
+  PEOPLE_SEARCH_STORAGE_KEY,
+  SURVEY_QUESTIONS_STORAGE_KEY
+} from "@/lib/storageKeys";
 
 interface Contact {
   name: string;
@@ -34,6 +38,7 @@ interface StoredPeopleSearch {
     enrichment?: unknown;
     bulkDetails?: unknown;
   };
+  surveyQuestions?: string[];
 }
 
 type State =
@@ -106,7 +111,10 @@ export default function PeopleResultsPage() {
             typeof parsed.desiredIcpIndustry === "string" ? parsed.desiredIcpIndustry : undefined,
           desiredIcpRegion:
             typeof parsed.desiredIcpRegion === "string" ? parsed.desiredIcpRegion : undefined,
-          debug: parsed.debug
+          debug: parsed.debug,
+          surveyQuestions: Array.isArray(parsed.surveyQuestions)
+            ? (parsed.surveyQuestions as string[])
+            : undefined
         }
       });
     } catch (error) {
@@ -137,6 +145,23 @@ export default function PeopleResultsPage() {
 
     if (typeof window !== "undefined") {
       sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(recipients));
+      try {
+        sessionStorage.setItem(
+          PEOPLE_SEARCH_STORAGE_KEY,
+          JSON.stringify({
+            ...state.data,
+            contacts: state.data.contacts
+          })
+        );
+        if (Array.isArray(state.data.surveyQuestions)) {
+          sessionStorage.setItem(
+            SURVEY_QUESTIONS_STORAGE_KEY,
+            JSON.stringify(state.data.surveyQuestions)
+          );
+        }
+      } catch (storageError) {
+        console.error("Failed to persist recipients or survey questions", storageError);
+      }
     }
 
     const query: Record<string, string> = { source: "search" };
@@ -156,6 +181,17 @@ export default function PeopleResultsPage() {
     assign("desiredIcpRegion", state.data.desiredIcpRegion);
     assign("sid", state.data.sid ?? sidFromQuery);
     assign("pin", state.data.pin);
+    if (Array.isArray(state.data.surveyQuestions) && state.data.surveyQuestions.length) {
+      try {
+        const payload = JSON.stringify(state.data.surveyQuestions);
+        if (typeof window !== "undefined") {
+          const encoded = window.btoa(unescape(encodeURIComponent(payload)));
+          assign("surveyQuestions", encoded);
+        }
+      } catch (encodingError) {
+        console.error("Failed to encode survey questions for email preview", encodingError);
+      }
+    }
 
     setPrepareError(null);
     router.push({ pathname: "/email-preview", query });

@@ -1,10 +1,12 @@
 import Head from "next/head";
 import Script from "next/script";
 import { useRouter } from "next/router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 
 export default function AssistantPage() {
   const router = useRouter();
+  const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
 
   const getQueryValue = (value: string | string[] | undefined) => {
     if (Array.isArray(value)) {
@@ -12,6 +14,66 @@ export default function AssistantPage() {
     }
     return value ?? "";
   };
+
+  useEffect(() => {
+    if (!router.isReady || typeof window === "undefined") {
+      return;
+    }
+
+    const trimQuestions = (input: unknown): string[] | null => {
+      if (!Array.isArray(input)) {
+        return null;
+      }
+
+      const sanitized = input
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter((item): item is string => Boolean(item));
+
+      return sanitized.length ? sanitized : null;
+    };
+
+    const decodeFromParam = (encoded: string): string[] | null => {
+      try {
+        const decoded = window.atob(encoded);
+        const normalized = decodeURIComponent(escape(decoded));
+        const parsed = JSON.parse(normalized);
+        return trimQuestions(parsed);
+      } catch (error) {
+        console.error("Failed to decode survey questions from query", error);
+        return null;
+      }
+    };
+
+    const encodedParam = getQueryValue(router.query.surveyQuestions);
+
+    if (encodedParam) {
+      const decoded = decodeFromParam(encodedParam);
+      if (decoded) {
+        setSurveyQuestions(decoded);
+        try {
+          window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(decoded));
+        } catch (storageError) {
+          console.error("Failed to persist decoded survey questions", storageError);
+        }
+        return;
+      }
+    }
+
+    try {
+      const stored = window.sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
+      if (!stored) {
+        return;
+      }
+
+      const parsed = JSON.parse(stored);
+      const sanitized = trimQuestions(parsed);
+      if (sanitized) {
+        setSurveyQuestions(sanitized);
+      }
+    } catch (error) {
+      console.error("Failed to read stored survey questions", error);
+    }
+  }, [router.isReady, router.query.surveyQuestions]);
 
   const dynamicVariables = useMemo(() => {
     const name = getQueryValue(router.query.name);
@@ -42,8 +104,13 @@ export default function AssistantPage() {
     if (pin) {
       variables.PIN = pin;
     }
-    if (keyQuestions) {
-      variables["{{List of questions}}"] = keyQuestions;
+    if (surveyQuestions.length) {
+      const enumerated = surveyQuestions
+        .map((question, index) => `${index + 1}. ${question}`)
+        .join("\n");
+      variables.List_of_Questions = enumerated;
+    } else if (keyQuestions) {
+      variables.List_of_Questions = keyQuestions;
     }
 
     return variables;
@@ -54,7 +121,8 @@ export default function AssistantPage() {
     router.query.feedbackDesired,
     router.query.keyQuestions,
     router.query.sid,
-    router.query.pin
+    router.query.pin,
+    surveyQuestions
   ]);
 
   useEffect(() => {

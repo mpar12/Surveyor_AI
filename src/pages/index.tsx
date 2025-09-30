@@ -76,7 +76,8 @@ export default function HomePage() {
           desiredIcp: form.desiredIcp,
           desiredIcpIndustry: form.desiredIcpIndustry,
           desiredIcpRegion: form.desiredIcpRegion,
-          keyQuestions: form.keyQuestions
+          keyQuestions: form.keyQuestions,
+          surveyQuestions: []
         })
       }).catch((contextError) => {
         console.error("Failed to persist session context", contextError);

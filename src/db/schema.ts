@@ -50,5 +50,6 @@ export const sessionContexts = drizzleSchema.table("session_contexts", {
   desiredIcpIndustry: text("desired_icp_industry"),
   desiredIcpRegion: text("desired_icp_region"),
   keyQuestions: text("key_questions"),
+  surveyQuestions: jsonb("survey_questions"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow()
 });

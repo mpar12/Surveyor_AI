@@ -3,7 +3,11 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/EmailPreview.module.css";
-import { EMAIL_PREVIEW_LAST_SEND_KEY, EMAIL_PREVIEW_RECIPIENTS_KEY } from "@/lib/storageKeys";
+import {
+  EMAIL_PREVIEW_LAST_SEND_KEY,
+  EMAIL_PREVIEW_RECIPIENTS_KEY,
+  SURVEY_QUESTIONS_STORAGE_KEY
+} from "@/lib/storageKeys";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -132,11 +136,39 @@ export default function EmailPreviewPage() {
     setParam("sid", context.sid);
     setParam("pin", context.pin);
 
+    const encodedSurveyQuestions = (() => {
+      const raw = getQueryValue(router.query.surveyQuestions);
+      if (raw && raw.trim()) {
+        return raw.trim();
+      }
+
+      if (typeof window !== "undefined") {
+        const stored = sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored) as unknown;
+            if (Array.isArray(parsed) && parsed.length) {
+              const payload = JSON.stringify(parsed);
+              return window.btoa(unescape(encodeURIComponent(payload)));
+            }
+          } catch (storageError) {
+            console.error("Failed to encode stored survey questions for assistant link", storageError);
+          }
+        }
+      }
+
+      return "";
+    })();
+
+    if (encodedSurveyQuestions) {
+      params.set("surveyQuestions", encodedSurveyQuestions);
+    }
+
     const query = params.toString();
     const origin = window.location.origin;
     const link = `${origin}/assistant${query ? `?${query}` : ""}`;
     setAgentLink(link);
-  }, [router.isReady, context]);
+  }, [router.isReady, context, router.query.surveyQuestions]);
 
   useEffect(() => {
     setSubject((prev) => {
