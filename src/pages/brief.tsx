@@ -44,6 +44,14 @@ export default function BriefPage() {
   );
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
+  const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [questions, setQuestions] = useState<string[] | null>(null);
+  const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
+  const [showResultsLink, setShowResultsLink] = useState(false);
+
   const encodedSurveyQuestions = useMemo(() => {
     if (!questions || !questions.length) {
       return null;
@@ -56,8 +64,8 @@ export default function BriefPage() {
 
       const payload = JSON.stringify(questions);
       return window.btoa(unescape(encodeURIComponent(payload)));
-    } catch (error) {
-      console.error("Failed to encode survey questions", error);
+    } catch (encodedError) {
+      console.error("Failed to encode survey questions", encodedError);
       return null;
     }
   }, [questions]);
@@ -100,14 +108,6 @@ export default function BriefPage() {
     pin,
     encodedSurveyQuestions
   ]);
-
-  const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [questions, setQuestions] = useState<string[] | null>(null);
-  const [questionsError, setQuestionsError] = useState<string | null>(null);
-  const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
-  const [showResultsLink, setShowResultsLink] = useState(false);
 
   const canLaunchAgent = useMemo(() => Boolean(sid) && Boolean(pin), [sid, pin]);
 
