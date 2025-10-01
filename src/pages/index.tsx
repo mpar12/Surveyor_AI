@@ -104,15 +104,20 @@ export default function HomePage() {
         console.error("Failed to persist session context", contextError);
       });
 
-      const query = {
-        ...form,
-        keyQuestions: sanitizedKeyQuestions,
+      const query: Record<string, string> = {
+        name: form.name,
+        company: form.company,
+        product: form.product,
+        feedbackDesired: form.feedbackDesired,
+        desiredIcp: form.desiredIcp,
+        desiredIcpIndustry: form.desiredIcpIndustry,
+        desiredIcpRegion: form.desiredIcpRegion,
         sid: payload.sessionId,
         pin: payload.pin
       };
 
-      if (!sanitizedKeyQuestions) {
-        delete query.keyQuestions;
+      if (sanitizedKeyQuestions) {
+        query.keyQuestions = sanitizedKeyQuestions;
       }
 
       router.push({
