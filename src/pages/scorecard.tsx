@@ -790,7 +790,7 @@ const contextRows = await db
     });
 
     const questionListRaw = Array.isArray(contextRows[0]?.surveyQuestions)
-      ? (contextRows[0]?.surveyQuestions as (string | null | undefined)[])
+      ? (contextRows[0]?.surveyQuestions as unknown[])
       : [];
     const questionList = questionListRaw
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
