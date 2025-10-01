@@ -32,12 +32,26 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const REQUIRED_FIELDS: Array<keyof FormData> = useMemo(
+    () => [
+      "name",
+      "company",
+      "product",
+      "feedbackDesired",
+      "desiredIcp",
+      "desiredIcpIndustry",
+      "desiredIcpRegion"
+    ],
+    []
+  );
+
   const isFormComplete = useMemo(
     () =>
-      Object.values(form)
-        .map((value) => value.trim())
-        .every((value) => value.length > 0),
-    [form]
+      REQUIRED_FIELDS.every((field) => {
+        const value = form[field];
+        return typeof value === "string" && value.trim().length > 0;
+      }),
+    [form, REQUIRED_FIELDS]
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -62,34 +76,48 @@ export default function HomePage() {
         throw new Error("Session response was incomplete. Please try again.");
       }
 
+      const sanitizedKeyQuestions = form.keyQuestions.trim();
+
+      const contextPayload: Record<string, unknown> = {
+        sessionId: payload.sessionId,
+        requester: form.name,
+        company: form.company,
+        product: form.product,
+        feedbackDesired: form.feedbackDesired,
+        desiredIcp: form.desiredIcp,
+        desiredIcpIndustry: form.desiredIcpIndustry,
+        desiredIcpRegion: form.desiredIcpRegion,
+        surveyQuestions: []
+      };
+
+      if (sanitizedKeyQuestions) {
+        contextPayload.keyQuestions = sanitizedKeyQuestions;
+      }
+
       await fetch("/api/sessions/context", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          sessionId: payload.sessionId,
-          requester: form.name,
-          company: form.company,
-          product: form.product,
-          feedbackDesired: form.feedbackDesired,
-          desiredIcp: form.desiredIcp,
-          desiredIcpIndustry: form.desiredIcpIndustry,
-          desiredIcpRegion: form.desiredIcpRegion,
-          keyQuestions: form.keyQuestions,
-          surveyQuestions: []
-        })
+        body: JSON.stringify(contextPayload)
       }).catch((contextError) => {
         console.error("Failed to persist session context", contextError);
       });
 
+      const query = {
+        ...form,
+        keyQuestions: sanitizedKeyQuestions,
+        sid: payload.sessionId,
+        pin: payload.pin
+      };
+
+      if (!sanitizedKeyQuestions) {
+        delete query.keyQuestions;
+      }
+
       router.push({
         pathname: "/brief",
-        query: {
-          ...form,
-          sid: payload.sessionId,
-          pin: payload.pin
-        }
+        query
       });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Something went wrong. Please retry.");
@@ -190,7 +218,7 @@ export default function HomePage() {
           <div className={styles.fieldGroup}>
             <div className={styles.labelRow}>
               <label htmlFor="keyQuestions">Key Questions</label>
-              <span className={styles.requiredTag}>Required *</span>
+              <span className={styles.optionalTag}>Optional</span>
             </div>
             <input
               id="keyQuestions"
@@ -201,7 +229,6 @@ export default function HomePage() {
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, keyQuestions: event.target.value }))
               }
-              required
             />
           </div>
 

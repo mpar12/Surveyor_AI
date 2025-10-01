@@ -1,5 +1,4 @@
 ## TODO: For sure
-## Improvements needed --> CGPT questions suck
 ## Scorecard - table for each question for sure
 
 ## TODO Optional:

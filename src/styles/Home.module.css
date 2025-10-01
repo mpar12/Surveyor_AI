@@ -70,6 +70,12 @@
   font-size: 0.8rem;
 }
 
+.optionalTag {
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
 .input {
   width: 100%;
   background: #f9fafb;

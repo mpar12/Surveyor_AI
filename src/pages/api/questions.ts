@@ -39,8 +39,7 @@ export default async function handler(
     !product.trim() ||
     !desiredIcp.trim() ||
     !desiredIcpIndustry.trim() ||
-    !feedbackDesired.trim() ||
-    !keyQuestions.trim()
+    !feedbackDesired.trim()
   ) {
     return res.status(400).json({ error: "All fields must be non-empty." });
   }
@@ -50,6 +49,9 @@ export default async function handler(
   }
 
   try {
+    const trimmedKeyQuestions = keyQuestions.trim();
+    const keyQuestionsSection = trimmedKeyQuestions || "None provided.";
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       response_format: { type: "json_object" },
@@ -61,7 +63,7 @@ export default async function handler(
         },
         {
           role: "user",
-          content: `Company: ${company}\nProduct: ${product}\nIdeal customer persona (ICP): ${desiredIcp}\nICP industry: ${desiredIcpIndustry}\nWhat the customer is trying to understand: ${feedbackDesired}\nKey questions from requester: ${keyQuestions}\n\nGenerate 10 thoughtful survey questions that help assess the company's and product's market position from the perspective of this ICP. \nQuestions should:\n - The first 3 questions should collect demographic survey data about the user\n - Help reach the goal of understanding ${feedbackDesired}\n- Phrase questions as simply as possible.\n- incorporate the provided key questions within the list (avoid duplicates).\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
+          content: `Company: ${company}\nProduct: ${product}\nIdeal customer persona (ICP): ${desiredIcp}\nICP industry: ${desiredIcpIndustry}\nWhat the customer is trying to understand: ${feedbackDesired}\nKey questions from requester: ${keyQuestionsSection}\n\nGenerate 10 thoughtful survey questions that help assess the company's and product's market position from the perspective of this ICP. \nQuestions should:\n - The first 3 questions should collect demographic survey data about the user\n - Help reach the goal of understanding ${feedbackDesired}\n- Phrase questions as simply as possible.\n- If key questions are provided, weave them into the list without duplicating them.\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
         }
       ]
     });
