@@ -103,7 +103,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "invalid_transcript" });
   }
 
-  const sidCandidate = dynamicVariables.sid;
+  const sidCandidate =
+    dynamicVariables.sid ??
+    dynamicVariables.session_id ??
+    dynamicVariables.sessionId ??
+    dynamicVariables.sessionID;
   const pinCandidate = dynamicVariables.PIN ?? dynamicVariables.pin;
   const participantEmail = typeof dynamicVariables.email_address === "string"
     ? dynamicVariables.email_address.trim()
