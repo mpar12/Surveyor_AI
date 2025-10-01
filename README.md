@@ -1,7 +1,5 @@
 ## Next to-do: Only display and accept information if the email_address variable is not blank and not "replace_this"
 ## TODO: For sure
-## Pass List of Questions to 11Labs Agent
-## Tag specific call to specific email
 ## Improvements needed --> CGPT questions suck
 ## Scorecard - table for each question for sure
 
