@@ -1,45 +1,42 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "Inter", "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.55;
   font-weight: 400;
   letter-spacing: 0.01em;
 
   /* Palette */
-  --color-bg: #050506;
-  --color-bg-muted: #09090c;
-  --color-surface-0: rgba(13, 15, 20, 0.9);
-  --color-surface-1: rgba(18, 19, 26, 0.95);
-  --color-surface-2: rgba(24, 26, 34, 0.92);
-  --color-surface-3: rgba(32, 34, 45, 0.9);
-  --color-border: rgba(92, 102, 125, 0.22);
-  --color-border-strong: rgba(140, 150, 180, 0.32);
+  --color-bg: #fefefe;
+  --color-bg-muted: #f7f8fc;
+  --color-surface-0: #ffffff;
+  --color-surface-1: #f3f5fd;
+  --color-surface-2: #e9edfc;
+  --color-surface-3: #dfe3f7;
+  --color-border: rgba(34, 45, 82, 0.12);
+  --color-border-strong: rgba(34, 45, 82, 0.22);
 
-  --color-text-primary: #f5f6fb;
-  --color-text-secondary: #9da6c1;
-  --color-text-muted: #6f7691;
-  --color-text-inverse: #09090c;
+  --color-text-primary: #070b1a;
+  --color-text-secondary: #424b68;
+  --color-text-muted: #6c7590;
+  --color-text-inverse: #ffffff;
 
-  --color-accent: #ff6f91;
-  --color-accent-strong: #f97316;
-  --gradient-accent: linear-gradient(135deg, #ff6f61 0%, #ff3f88 45%, #7f53f3 100%);
-  --gradient-surface: linear-gradient(160deg, rgba(30, 38, 63, 0.95) 0%, rgba(12, 16, 28, 0.97) 100%);
-  --gradient-hero: radial-gradient(circle at 15% 15%, rgba(255, 111, 145, 0.18) 0%, rgba(5, 7, 13, 0) 40%),
-    radial-gradient(circle at 85% 5%, rgba(127, 83, 243, 0.2) 0%, rgba(5, 7, 13, 0) 45%),
-    radial-gradient(circle at 50% 100%, rgba(249, 115, 22, 0.08) 0%, rgba(5, 7, 13, 0) 55%),
-    var(--color-bg);
+  --color-accent: #5449ff;
+  --color-accent-strong: #ff6a8b;
+  --gradient-accent: linear-gradient(135deg, #5449ff 0%, #7e6bff 55%, #ff6a8b 100%);
+  --gradient-surface: linear-gradient(170deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 246, 255, 0.96) 100%);
+  --gradient-hero: linear-gradient(180deg, #ffffff 0%, #f6f7fb 70%, #eef1fb 100%);
 
-  --shadow-card: 0 36px 90px rgba(5, 9, 22, 0.65);
-  --shadow-soft: 0 24px 60px rgba(8, 12, 24, 0.5);
-  --shadow-hover: 0 32px 80px rgba(10, 14, 28, 0.6);
-  --shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
-  --focus-ring: 0 0 0 3px rgba(255, 111, 145, 0.28);
+  --shadow-card: 0 26px 60px rgba(17, 29, 72, 0.12);
+  --shadow-soft: 0 20px 50px rgba(17, 29, 72, 0.1);
+  --shadow-hover: 0 32px 72px rgba(17, 29, 72, 0.14);
+  --shadow-border: 0 0 0 1px rgba(50, 64, 120, 0.08) inset;
+  --focus-ring: 0 0 0 3px rgba(90, 59, 238, 0.25);
 
-  --color-success: #4ade80;
-  --color-warning: #facc15;
-  --color-error: #f87171;
-  --color-error-surface: rgba(248, 113, 113, 0.12);
-  --color-error-border: rgba(248, 113, 113, 0.32);
+  --color-success: #2ba678;
+  --color-warning: #f6a609;
+  --color-error: #e5484d;
+  --color-error-surface: rgba(229, 72, 77, 0.12);
+  --color-error-border: rgba(229, 72, 77, 0.32);
 }
 
 * {
@@ -90,8 +87,8 @@ select {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 10% 20%, rgba(255, 111, 145, 0.18) 0%, rgba(8, 12, 21, 0) 45%),
-    radial-gradient(circle at 80% 15%, rgba(121, 90, 255, 0.18) 0%, rgba(8, 12, 21, 0) 50%),
+  background: radial-gradient(circle at 18% 25%, rgba(90, 59, 238, 0.16) 0%, rgba(247, 249, 255, 0) 45%),
+    radial-gradient(circle at 82% 10%, rgba(255, 111, 80, 0.14) 0%, rgba(247, 249, 255, 0) 45%),
     var(--color-bg-muted);
   padding: clamp(1.5rem, 4vw, 3rem);
 }
@@ -99,5 +96,5 @@ select {
 elevenlabs-convai {
   width: 100%;
   max-width: 720px;
-  filter: drop-shadow(0 24px 64px rgba(8, 10, 24, 0.65));
+  filter: drop-shadow(0 18px 45px rgba(15, 24, 70, 0.18));
 }
