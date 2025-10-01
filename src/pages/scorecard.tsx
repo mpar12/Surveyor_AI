@@ -10,7 +10,7 @@ interface QuestionAnswerRow {
   conversationId: string;
 }
 
-interface QuestionBreakdown {
+interface ScriptedQuestionBlock {
   question: string;
   answers: QuestionAnswerRow[];
 }
@@ -39,8 +39,7 @@ interface ScorecardProps {
     receivedAt: string | null;
     email: string | null;
   }>;
-  primaryQuestions: QuestionBreakdown[];
-  followUpQuestions: QuestionBreakdown[];
+  primaryQuestions: ScriptedQuestionBlock[];
   error?: string;
 }
 
@@ -181,13 +180,11 @@ function normalizeTranscript(raw: unknown): TranscriptTurn[] {
 function buildQuestionBreakdown(
   questions: string[],
   transcripts: Array<{ conversationId: string; email: string | null; transcript: unknown }>
-): { primary: QuestionBreakdown[]; followUps: QuestionBreakdown[] } {
-  const primary: QuestionBreakdown[] = questions.map((question) => ({
+): ScriptedQuestionBlock[] {
+  const blocks: ScriptedQuestionBlock[] = questions.map((question) => ({
     question,
     answers: []
   }));
-
-  const followUpMap = new Map<string, QuestionBreakdown>();
 
   const normalizedQuestions = questions.map((question) => ({
     raw: question,
@@ -237,11 +234,7 @@ function buildQuestionBreakdown(
       return;
     }
 
-    type ActivePointer =
-      | { type: "primary"; index: number }
-      | { type: "followUp"; key: string };
-
-    let currentQuestion: ActivePointer | null = null;
+    let currentQuestion: number | null = null;
     let pendingAnswer = "";
 
     const commitAnswer = () => {
@@ -254,22 +247,11 @@ function buildQuestionBreakdown(
         return;
       }
 
-      if (currentQuestion.type === "primary") {
-        primary[currentQuestion.index].answers.push({
-          answer: text,
-          email,
-          conversationId
-        });
-      } else {
-        const bucket = followUpMap.get(currentQuestion.key);
-        if (bucket) {
-          bucket.answers.push({
-            answer: text,
-            email,
-            conversationId
-          });
-        }
-      }
+      blocks[currentQuestion].answers.push({
+        answer: text,
+        email,
+        conversationId
+      });
     };
 
     for (const turn of turns) {
@@ -281,37 +263,11 @@ function buildQuestionBreakdown(
 
         const matched = matchQuestion(turn.text);
         if (matched !== null) {
-          currentQuestion = { type: "primary", index: matched };
+          currentQuestion = matched;
           pendingAnswer = "";
-          continue;
-        }
-
-        const rawFollowUp = turn.text.replace(/\s+/g, " ").trim();
-        if (!rawFollowUp) {
+        } else {
           currentQuestion = null;
-          continue;
         }
-
-        const lowerFollowUp = rawFollowUp.toLowerCase();
-        const shouldSkip = ["time to chat", "have a moment", "hello", "hi there", "how are you"].some(
-          (fragment) => lowerFollowUp.includes(fragment)
-        );
-
-        if (shouldSkip) {
-          currentQuestion = null;
-          continue;
-        }
-
-        const followUpKey = sanitizeForMatch(rawFollowUp);
-        if (!followUpMap.has(followUpKey)) {
-          followUpMap.set(followUpKey, {
-            question: rawFollowUp,
-            answers: []
-          });
-        }
-
-        currentQuestion = { type: "followUp", key: followUpKey };
-        pendingAnswer = "";
       } else if (turn.speaker === "participant") {
         if (currentQuestion !== null) {
           pendingAnswer = pendingAnswer ? `${pendingAnswer} ${turn.text}` : turn.text;
@@ -324,12 +280,7 @@ function buildQuestionBreakdown(
     }
   });
 
-  const followUps = Array.from(followUpMap.values()).filter((entry) => entry.answers.length);
-
-  return {
-    primary,
-    followUps
-  };
+  return blocks;
 }
 
 export default function ScorecardPage({
@@ -342,7 +293,6 @@ export default function ScorecardPage({
   responders,
   callSummaries,
   primaryQuestions,
-  followUpQuestions,
   error
 }: ScorecardProps) {
   return (
@@ -592,79 +542,6 @@ export default function ScorecardPage({
             </div>
           ) : null}
 
-          {followUpQuestions.length ? (
-            <div
-              style={{
-                background: "#ffffff",
-                borderRadius: "20px",
-                padding: "1.5rem",
-                boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
-                border: "1px solid #e5e7eb"
-              }}
-            >
-              <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "#111827", marginBottom: "1rem" }}>
-                Follow-up questions
-              </h2>
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    background: "#fff",
-                    borderRadius: "16px",
-                    overflow: "hidden",
-                    border: "1px solid #e5e7eb"
-                  }}
-                >
-                  <thead style={{ background: "#f3f4f6", color: "#1f2937", textAlign: "left" }}>
-                    <tr>
-                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "40%" }}>
-                        Question
-                      </th>
-                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem" }}>Answer</th>
-                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "22%" }}>Participant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {followUpQuestions.map((block, index) => {
-                      const label = `F${index + 1}: ${block.question}`;
-
-                      if (!block.answers.length) {
-                        return (
-                          <tr key={label} style={{ borderTop: "1px solid #e5e7eb" }}>
-                            <td style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "#111827" }}>{label}</td>
-                            <td style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>No responses captured yet.</td>
-                            <td style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>—</td>
-                          </tr>
-                        );
-                      }
-
-                      return block.answers.map((answer, answerIndex) => (
-                        <tr key={`${label}-${answer.conversationId}-${answerIndex}`} style={{ borderTop: "1px solid #e5e7eb" }}>
-                          {answerIndex === 0 ? (
-                            <td
-                              style={{
-                                padding: "0.85rem 1rem",
-                                fontWeight: 600,
-                                color: "#111827"
-                              }}
-                              rowSpan={block.answers.length}
-                            >
-                              {label}
-                            </td>
-                          ) : null}
-                          <td style={{ padding: "0.85rem 1rem", color: "#1f2937" }}>{answer.answer}</td>
-                          <td style={{ padding: "0.85rem 1rem", color: "#2563eb", fontWeight: 600 }}>
-                            {answer.email || "Unknown participant"}
-                          </td>
-                        </tr>
-                      ));
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : null}
         </section>
       ) : null}
     </div>
@@ -810,10 +687,7 @@ const contextRows = await db
       };
     });
 
-    const { primary: primaryQuestions, followUps: followUpQuestions } = buildQuestionBreakdown(
-      questionList,
-      transcriptsForBreakdown
-    );
+    const primaryQuestions = buildQuestionBreakdown(questionList, transcriptsForBreakdown);
 
     const rawContext = contextRows[0] ?? null;
     const normalizedContext = rawContext
@@ -833,8 +707,7 @@ const contextRows = await db
         emailsSent: uniqueRecipients.size,
         responders: summaries.length,
         callSummaries: summaries,
-        primaryQuestions,
-        followUpQuestions
+        primaryQuestions
       }
     };
   } catch (error) {
@@ -850,7 +723,6 @@ const contextRows = await db
         responders: 0,
         callSummaries: [],
         primaryQuestions: [],
-        followUpQuestions: [],
         error: "Unable to load scorecard right now."
       }
     };

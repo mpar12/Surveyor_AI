@@ -50,7 +50,6 @@ export default function BriefPage() {
   const [questions, setQuestions] = useState<string[] | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
-  const [showResultsLink, setShowResultsLink] = useState(false);
 
   const encodedSurveyQuestions = useMemo(() => {
     if (!questions || !questions.length) {
@@ -117,7 +116,6 @@ export default function BriefPage() {
     }
 
     window.open(launchHref, "_blank", "noopener,noreferrer");
-    setShowResultsLink(true);
   }, [router.isReady, canLaunchAgent, launchHref]);
 
   useEffect(() => {
@@ -405,7 +403,7 @@ export default function BriefPage() {
             onClick={handleLaunchAgent}
             disabled={!canLaunchAgent}
           >
-            Launch agent in new window
+            Preview AI Agent
           </button>
 
           <Link
@@ -431,18 +429,6 @@ export default function BriefPage() {
           </Link>
         </div>
 
-        {showResultsLink ? (
-          <div className={styles.resultsContainer}>
-            <Link
-              className={styles.resultsLink}
-              href="/results_tester"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View latest transcripts →
-            </Link>
-          </div>
-        ) : null}
       </div>
     </div>
   );

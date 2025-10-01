@@ -91,6 +91,12 @@ export default function PopulationPage() {
     const isChecked = event.target.checked;
     setManualSelected(isChecked);
 
+    if (isChecked) {
+      setScrapeSelected(false);
+      setSearchError(null);
+      setIsSearching(false);
+    }
+
     if (!isChecked) {
       setEmailCsv("");
       setEmailError(null);
@@ -99,9 +105,17 @@ export default function PopulationPage() {
   };
 
   const handleScrapeToggle = (event: ChangeEvent<HTMLInputElement>) => {
-    setScrapeSelected(event.target.checked);
+    const isChecked = event.target.checked;
+    setScrapeSelected(isChecked);
 
-    if (!event.target.checked) {
+    if (isChecked) {
+      setManualSelected(false);
+      setEmailCsv("");
+      setEmailError(null);
+      setHasValidEmails(false);
+    }
+
+    if (!isChecked) {
       setSearchError(null);
       setIsSearching(false);
       if (typeof window !== "undefined") {
