@@ -12,7 +12,11 @@ export default function ReturnPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "2rem"
+        padding: "clamp(2rem, 5vw, 4rem)",
+        background:
+          "radial-gradient(circle at 20% 10%, rgba(255, 111, 145, 0.18) 0%, rgba(5, 7, 13, 0) 45%), " +
+          "radial-gradient(circle at 80% 0%, rgba(127, 83, 243, 0.2) 0%, rgba(5, 7, 13, 0) 45%)",
+        color: "var(--color-text-primary)"
       }}
     >
       <Head>
@@ -23,18 +27,21 @@ export default function ReturnPage() {
         style={{
           width: "100%",
           maxWidth: "420px",
-          background: "#ffffff",
-          borderRadius: "20px",
-          boxShadow: "0 20px 60px rgba(15, 23, 42, 0.12)",
+          background: "var(--gradient-surface)",
+          borderRadius: "22px",
+          boxShadow: "var(--shadow-card)",
           padding: "2.5rem",
           display: "flex",
           flexDirection: "column",
-          gap: "1.5rem"
+          gap: "1.5rem",
+          border: "1px solid var(--color-border)"
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#111827" }}>Access your scorecard</h1>
-          <p style={{ color: "#4b5563", marginTop: "0.5rem" }}>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "var(--color-text-primary)" }}>
+            Access your scorecard
+          </h1>
+          <p style={{ color: "var(--color-text-secondary)", marginTop: "0.5rem" }}>
             Enter the 4-digit PIN you received when you created your SurvAgent session.
           </p>
         </div>
@@ -42,9 +49,9 @@ export default function ReturnPage() {
         {showError ? (
           <div
             style={{
-              background: "#fee2e2",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              background: "var(--color-error-surface)",
+              border: "1px solid var(--color-error-border)",
+              color: "var(--color-error)",
               borderRadius: "12px",
               padding: "0.85rem 1rem",
               textAlign: "center",
@@ -61,7 +68,7 @@ export default function ReturnPage() {
           style={{ display: "grid", gap: "1.25rem" }}
         >
           <div style={{ display: "grid", gap: "0.6rem" }}>
-            <label style={{ color: "#374151", fontWeight: 600 }} htmlFor="pin">
+            <label style={{ color: "var(--color-text-secondary)", fontWeight: 600 }} htmlFor="pin">
               Please enter your 4-digit PIN
             </label>
             <input
@@ -75,15 +82,15 @@ export default function ReturnPage() {
               placeholder="0000"
               style={{
                 width: "100%",
-                borderRadius: "12px",
-                border: "1px solid #d1d5db",
+                borderRadius: "16px",
+                border: "1px solid rgba(132, 144, 190, 0.24)",
                 padding: "0.9rem 1rem",
                 textAlign: "center",
                 letterSpacing: "0.35rem",
                 fontSize: "1.5rem",
                 fontWeight: 600,
-                color: "#111827",
-                background: "#ffffff"
+                color: "var(--color-text-primary)",
+                background: "rgba(24, 30, 50, 0.92)"
               }}
             />
           </div>
@@ -96,10 +103,10 @@ export default function ReturnPage() {
               padding: "0.95rem 1.5rem",
               fontWeight: 600,
               fontSize: "1rem",
-              color: "#ffffff",
-              background: "linear-gradient(135deg, #6366f1 0%, #2563eb 100%)",
+              color: "var(--color-text-primary)",
+              background: "var(--gradient-accent)",
               cursor: "pointer",
-              boxShadow: "0 18px 40px rgba(99, 102, 241, 0.35)",
+              boxShadow: "0 24px 48px rgba(255, 111, 145, 0.28)",
               transition: "transform 0.2s ease, box-shadow 0.2s ease"
             }}
           >

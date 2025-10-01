@@ -2,17 +2,19 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: 2rem 1.5rem 4rem;
+  padding: clamp(2rem, 4vw, 3.5rem) clamp(1.5rem, 4vw, 3rem) clamp(3rem, 6vw, 5rem);
   max-width: 960px;
   margin: 0 auto;
+  color: var(--color-text-primary);
 }
 
 .title {
   text-align: center;
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 700;
-  margin-bottom: 3rem;
-  color: #1a1a1a;
+  margin-bottom: clamp(2rem, 5vw, 3.5rem);
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
 }
 
 .panel {
@@ -24,10 +26,12 @@
 
 .formCard {
   width: min(100%, 640px);
-  background: #fff;
-  padding: 2rem;
-  border-radius: 20px;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  background: var(--gradient-surface);
+  padding: clamp(2rem, 4vw, 2.75rem);
+  border-radius: 22px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(22px);
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
@@ -41,7 +45,7 @@
 }
 
 .formHeader p {
-  color: #4b5563;
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
 }
 
@@ -60,40 +64,40 @@
 
 .labelRow label {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   font-size: 0.95rem;
 }
 
 .requiredTag {
-  color: #ef4444;
+  color: var(--color-accent);
   font-weight: 600;
   font-size: 0.8rem;
 }
 
 .optionalTag {
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-weight: 500;
   font-size: 0.8rem;
 }
 
 .input {
   width: 100%;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--color-surface-0);
+  border: 1px solid rgba(132, 144, 190, 0.18);
+  border-radius: 14px;
   padding: 0.9rem 1rem;
   font-size: 1rem;
-  color: #111827;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color: var(--color-text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .input::placeholder {
-  color: #9ca3af;
+  color: rgba(166, 178, 217, 0.4);
 }
 
 .input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  border-color: rgba(255, 111, 145, 0.45);
+  box-shadow: var(--focus-ring);
   outline: none;
 }
 
@@ -110,28 +114,29 @@
   padding: 0.85rem 1.75rem;
   border-radius: 999px;
   border: none;
-  background: #2563eb;
-  color: #fff;
+  background: var(--gradient-accent);
+  color: var(--color-text-primary);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: 0 20px 40px rgba(255, 111, 145, 0.25);
 }
 
 .submitButton:disabled {
-  background: #cbd5f5;
+  background: rgba(118, 130, 187, 0.35);
   cursor: not-allowed;
   box-shadow: none;
 }
 
 .submitButton:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.3);
+  box-shadow: var(--shadow-hover);
 }
 
 .errorBanner {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
+  background: var(--color-error-surface);
+  border: 1px solid var(--color-error-border);
+  color: var(--color-error);
   border-radius: 12px;
   padding: 0.85rem 1rem;
   font-weight: 600;
@@ -140,7 +145,7 @@
 
 @media (max-width: 640px) {
   .formCard {
-    padding: 1.5rem;
-    border-radius: 16px;
+    padding: 1.75rem;
+    border-radius: 18px;
   }
 }

@@ -60,6 +60,19 @@ const formatTimestamp = (value?: number) => {
   }
 };
 
+const SURFACE_CARD = "var(--gradient-surface)";
+const SURFACE_PANEL = "rgba(20, 26, 44, 0.92)";
+const SURFACE_LIST = "rgba(24, 30, 50, 0.88)";
+const BORDER_SOFT = "var(--color-border)";
+const BORDER_MUTED = "rgba(132, 144, 190, 0.22)";
+const TEXT_PRIMARY = "var(--color-text-primary)";
+const TEXT_SECONDARY = "var(--color-text-secondary)";
+const TEXT_MUTED = "var(--color-text-muted)";
+const ACCENT = "var(--color-accent)";
+const TABLE_BG = "rgba(15, 20, 36, 0.88)";
+const TABLE_HEADER_BG = "rgba(33, 40, 65, 0.75)";
+const TABLE_BORDER = "rgba(128, 142, 187, 0.26)";
+
 export default function PeopleResultsPage() {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
@@ -199,7 +212,7 @@ export default function PeopleResultsPage() {
 
   const renderContent = () => {
     if (state.status === "loading") {
-      return <p style={{ color: "#6b7280" }}>Loading saved results…</p>;
+      return <p style={{ color: TEXT_MUTED }}>Loading saved results…</p>;
     }
 
     if (state.status === "error") {
@@ -208,9 +221,9 @@ export default function PeopleResultsPage() {
           style={{
             padding: "1rem 1.25rem",
             borderRadius: "14px",
-            border: "1px solid #fecaca",
-            background: "#fee2e2",
-            color: "#991b1b",
+            border: "1px solid var(--color-error-border)",
+            background: "var(--color-error-surface)",
+            color: "var(--color-error)",
             fontWeight: 600
           }}
         >
@@ -221,7 +234,7 @@ export default function PeopleResultsPage() {
 
     if (state.status === "empty") {
       return (
-        <div style={{ color: "#6b7280" }}>
+        <div style={{ color: TEXT_MUTED }}>
           No stored results found. Please rerun the search from the population page.
         </div>
       );
@@ -237,13 +250,13 @@ export default function PeopleResultsPage() {
             onClick={handlePrepareEmail}
             style={{
               borderRadius: "999px",
-              background: "#2563eb",
-              color: "#ffffff",
+              background: ACCENT,
+              color: TEXT_PRIMARY,
               fontWeight: 600,
               padding: "0.6rem 1.6rem",
               border: "none",
               cursor: "pointer",
-              boxShadow: "0 12px 24px rgba(37, 99, 235, 0.25)"
+              boxShadow: "0 20px 45px rgba(255, 111, 145, 0.28)"
             }}
           >
             Prepare Email
@@ -255,9 +268,9 @@ export default function PeopleResultsPage() {
             style={{
               padding: "0.9rem 1.1rem",
               borderRadius: "12px",
-              border: "1px solid #fecaca",
-              background: "#fee2e2",
-              color: "#b91c1c",
+              border: "1px solid var(--color-error-border)",
+              background: "var(--color-error-surface)",
+              color: "var(--color-error)",
               fontWeight: 600
             }}
           >
@@ -270,22 +283,23 @@ export default function PeopleResultsPage() {
             display: "grid",
             gap: "0.45rem",
             padding: "1.25rem 1.5rem",
-            borderRadius: "16px",
-            border: "1px solid #e5e7eb",
-            background: "#f9fafb"
+            borderRadius: "18px",
+            border: `1px solid ${BORDER_MUTED}`,
+            background: SURFACE_PANEL,
+            boxShadow: "var(--shadow-soft)"
           }}
         >
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "#111827" }}>Search summary</h2>
-          <div style={{ color: "#374151" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: TEXT_PRIMARY }}>Search summary</h2>
+          <div style={{ color: TEXT_SECONDARY }}>
             <strong>Title:</strong> {title || "—"}
           </div>
-          <div style={{ color: "#374151" }}>
+          <div style={{ color: TEXT_SECONDARY }}>
             <strong>Location:</strong> {location || "—"}
           </div>
-          <div style={{ color: "#374151" }}>
+          <div style={{ color: TEXT_SECONDARY }}>
             <strong>Industry:</strong> {industry || "—"}
           </div>
-          <div style={{ color: "#6b7280", fontSize: "0.85rem" }}>
+          <div style={{ color: TEXT_MUTED, fontSize: "0.85rem" }}>
             Generated at {formatTimestamp(generatedAt) || "unknown time"}
           </div>
         </section>
@@ -296,38 +310,39 @@ export default function PeopleResultsPage() {
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                background: "#ffffff",
+                background: TABLE_BG,
                 borderRadius: "16px",
                 overflow: "hidden",
-                boxShadow: "0 20px 50px rgba(15, 23, 42, 0.12)"
+                boxShadow: "var(--shadow-soft)",
+                border: `1px solid ${TABLE_BORDER}`
               }}
             >
-              <thead style={{ background: "#f3f4f6", textAlign: "left" }}>
+              <thead style={{ background: TABLE_HEADER_BG, textAlign: "left", color: TEXT_PRIMARY }}>
                 <tr>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem", color: "#1f2937" }}>Name</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem", color: "#1f2937" }}>Title</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem", color: "#1f2937" }}>Email</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem", color: "#1f2937" }}>Company</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem", color: "#1f2937" }}>Location</th>
+                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Name</th>
+                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Title</th>
+                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Email</th>
+                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Company</th>
+                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Location</th>
                 </tr>
               </thead>
               <tbody>
                 {contacts.map((contact) => (
-                  <tr key={`${contact.email}-${contact.name}`} style={{ borderTop: "1px solid #f3f4f6" }}>
-                    <td style={{ padding: "0.85rem 1.1rem", color: "#111827" }}>{contact.name || "—"}</td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: "#374151" }}>{contact.title || "—"}</td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: "#2563eb", fontWeight: 600 }}>
+                  <tr key={`${contact.email}-${contact.name}`} style={{ borderTop: `1px solid ${TABLE_BORDER}` }}>
+                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_PRIMARY }}>{contact.name || "—"}</td>
+                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_SECONDARY }}>{contact.title || "—"}</td>
+                    <td style={{ padding: "0.85rem 1.1rem", color: ACCENT, fontWeight: 600 }}>
                       {contact.email}
                     </td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: "#111827" }}>{contact.company || "—"}</td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: "#374151" }}>{contact.location || "—"}</td>
+                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_PRIMARY }}>{contact.company || "—"}</td>
+                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_SECONDARY }}>{contact.location || "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </section>
         ) : (
-          <div style={{ color: "#6b7280" }}>
+          <div style={{ color: TEXT_MUTED }}>
             The search completed successfully, but no verified contacts were returned.
           </div>
         )}
@@ -338,13 +353,13 @@ export default function PeopleResultsPage() {
               display: "grid",
               gap: "1rem",
               padding: "1.25rem 1.5rem",
-              borderRadius: "16px",
-              border: "1px solid #e5e7eb",
-              background: "#ffffff",
-              boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)"
+              borderRadius: "18px",
+              border: `1px solid ${BORDER_MUTED}`,
+              background: SURFACE_CARD,
+              boxShadow: "var(--shadow-card)"
             }}
           >
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "#111827" }}>
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: TEXT_PRIMARY }}>
               Raw API responses
             </h2>
             {debug?.search ? (
@@ -355,8 +370,8 @@ export default function PeopleResultsPage() {
                     marginTop: "0.75rem",
                     padding: "1rem",
                     borderRadius: "12px",
-                    background: "#0f172a",
-                    color: "#f8fafc",
+                    background: "rgba(15, 20, 36, 0.92)",
+                    color: TEXT_SECONDARY,
                     overflowX: "auto"
                   }}
                 >
@@ -372,8 +387,8 @@ export default function PeopleResultsPage() {
                     marginTop: "0.75rem",
                     padding: "1rem",
                     borderRadius: "12px",
-                    background: "#0f172a",
-                    color: "#f8fafc",
+                    background: "rgba(15, 20, 36, 0.92)",
+                    color: TEXT_SECONDARY,
                     overflowX: "auto"
                   }}
                 >
@@ -389,8 +404,8 @@ export default function PeopleResultsPage() {
                     marginTop: "0.75rem",
                     padding: "1rem",
                     borderRadius: "12px",
-                    background: "#0f172a",
-                    color: "#f8fafc",
+                    background: "rgba(15, 20, 36, 0.92)",
+                    color: TEXT_SECONDARY,
                     overflowX: "auto"
                   }}
                 >
@@ -407,33 +422,34 @@ export default function PeopleResultsPage() {
               display: "grid",
               gap: "0.75rem",
               padding: "1.25rem 1.5rem",
-              borderRadius: "16px",
-              border: "1px solid #e5e7eb",
-              background: "#ffffff",
-              boxShadow: "0 12px 28px rgba(15, 23, 42, 0.08)"
+              borderRadius: "18px",
+              border: `1px solid ${BORDER_MUTED}`,
+              background: SURFACE_CARD,
+              boxShadow: "var(--shadow-card)"
             }}
           >
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: "#111827" }}>
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: TEXT_PRIMARY }}>
               Bulk Match contacts
             </h2>
             <table
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                background: "#ffffff",
+                background: TABLE_BG,
                 borderRadius: "16px",
                 overflow: "hidden",
-                boxShadow: "0 18px 40px rgba(15, 23, 42, 0.1)"
+                boxShadow: "var(--shadow-soft)",
+                border: `1px solid ${TABLE_BORDER}`
               }}
             >
-              <thead style={{ background: "#f3f4f6", textAlign: "left" }}>
+              <thead style={{ background: TABLE_HEADER_BG, textAlign: "left", color: TEXT_PRIMARY }}>
                 <tr>
-                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>Name</th>
-                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>Title</th>
-                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>
+                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>Name</th>
+                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>Title</th>
+                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>
                     Organization
                   </th>
-                  <th style={{ padding: "0.85rem 1rem", color: "#1f2937", fontSize: "0.95rem" }}>Email</th>
+                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>Email</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,7 +468,7 @@ export default function PeopleResultsPage() {
                   if (!entries.length) {
                     return (
                       <tr>
-                        <td colSpan={4} style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>
+                        <td colSpan={4} style={{ padding: "0.85rem 1rem", color: TEXT_MUTED }}>
                           No contacts returned by bulk match.
                         </td>
                       </tr>
@@ -486,11 +502,11 @@ export default function PeopleResultsPage() {
                       (emails.find((item: any) => item?.email)?.email ?? "");
 
                     return (
-                      <tr key={`${index}-${name}-${email}`} style={{ borderTop: "1px solid #f3f4f6" }}>
-                        <td style={{ padding: "0.8rem 1rem", color: "#111827" }}>{name || "—"}</td>
-                        <td style={{ padding: "0.8rem 1rem", color: "#374151" }}>{title || "—"}</td>
-                        <td style={{ padding: "0.8rem 1rem", color: "#111827" }}>{organizationName || "—"}</td>
-                        <td style={{ padding: "0.8rem 1rem", color: "#2563eb", fontWeight: 600 }}>{email || "—"}</td>
+                      <tr key={`${index}-${name}-${email}`} style={{ borderTop: `1px solid ${TABLE_BORDER}` }}>
+                        <td style={{ padding: "0.8rem 1rem", color: TEXT_PRIMARY }}>{name || "—"}</td>
+                        <td style={{ padding: "0.8rem 1rem", color: TEXT_SECONDARY }}>{title || "—"}</td>
+                        <td style={{ padding: "0.8rem 1rem", color: TEXT_PRIMARY }}>{organizationName || "—"}</td>
+                        <td style={{ padding: "0.8rem 1rem", color: ACCENT, fontWeight: 600 }}>{email || "—"}</td>
                       </tr>
                     );
                   });
@@ -504,7 +520,14 @@ export default function PeopleResultsPage() {
   };
 
   return (
-    <div style={{ maxWidth: "960px", margin: "0 auto", padding: "3rem 1.5rem" }}>
+    <div
+      style={{
+        maxWidth: "960px",
+        margin: "0 auto",
+        padding: "clamp(2.5rem, 6vw, 4rem) clamp(1.5rem, 5vw, 3rem)",
+        color: TEXT_PRIMARY
+      }}
+    >
       <Head>
         <title>Search Results | SurvAgent</title>
         <meta name="description" content="Review the verified contacts sourced from Apollo." />
@@ -519,8 +542,8 @@ export default function PeopleResultsPage() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: "2rem", fontWeight: 700, color: "#111827" }}>Verified contacts</h1>
-          <p style={{ color: "#6b7280", marginTop: "0.35rem" }}>
+          <h1 style={{ fontSize: "2rem", fontWeight: 700, color: TEXT_PRIMARY }}>Verified contacts</h1>
+          <p style={{ color: TEXT_MUTED, marginTop: "0.35rem" }}>
             These leads were collected from the most recent population search.
           </p>
         </div>
@@ -528,13 +551,15 @@ export default function PeopleResultsPage() {
           type="button"
           onClick={handleBack}
           style={{
-            border: "1px solid #d1d5db",
-            background: "#ffffff",
-            color: "#1f2937",
+            border: `1px solid ${BORDER_MUTED}`,
+            background: SURFACE_PANEL,
+            color: TEXT_PRIMARY,
             borderRadius: "999px",
             padding: "0.55rem 1.4rem",
             fontWeight: 600,
-            cursor: "pointer"
+            cursor: "pointer",
+            boxShadow: "0 16px 35px rgba(8, 12, 24, 0.35)",
+            transition: "background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease"
           }}
         >
           ← Back to population
@@ -562,13 +587,13 @@ export default function PeopleResultsPage() {
               onClick={handleViewScorecard}
               style={{
                 borderRadius: "999px",
-                background: "#0ea5e9",
-                color: "#ffffff",
+                background: ACCENT,
+                color: TEXT_PRIMARY,
                 fontWeight: 600,
                 padding: "0.65rem 1.8rem",
                 border: "none",
                 cursor: "pointer",
-                boxShadow: "0 12px 24px rgba(14, 165, 233, 0.25)"
+                boxShadow: "0 20px 45px rgba(255, 111, 145, 0.28)"
               }}
             >
               View session scorecard
@@ -577,7 +602,7 @@ export default function PeopleResultsPage() {
         );
       })()}
 
-      <div style={{ marginTop: "2.5rem", color: "#6b7280", fontSize: "0.9rem" }}>
+      <div style={{ marginTop: "2.5rem", color: TEXT_MUTED, fontSize: "0.9rem" }}>
         Need a fresh search? <Link href="/population">Run it again from the population page.</Link>
       </div>
     </div>
