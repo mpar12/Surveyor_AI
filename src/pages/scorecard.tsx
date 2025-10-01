@@ -722,7 +722,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
 
     const sessionRecord = sessionRows[0];
 
-    const contextRows = await db
+const contextRows = await db
       .select({
         requester: sessionContexts.requester,
         company: sessionContexts.company,
@@ -789,12 +789,12 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
       };
     });
 
-    const questionListRaw = contextRows[0]?.surveyQuestions;
-    const questionList = Array.isArray(questionListRaw)
-      ? (questionListRaw as unknown[])
-          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-          .filter((entry) => entry)
+    const questionListRaw = Array.isArray(contextRows[0]?.surveyQuestions)
+      ? (contextRows[0]?.surveyQuestions as (string | null | undefined)[])
       : [];
+    const questionList = questionListRaw
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter((entry) => entry);
 
     const transcriptsForBreakdown = transcriptRows.map((row, index) => {
       const dynamicVars =
