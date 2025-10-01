@@ -1,32 +1,41 @@
 import Head from "next/head";
 import Link from "next/link";
+import styles from "@/styles/Placeholder.module.css";
 
 export default function AgentPage() {
   return (
     <>
       <Head>
         <title>Agent Setup | SurvAgent</title>
+        <meta
+          name="description"
+          content="Configure the ElevenLabs agent using the details collected on your intake."
+        />
       </Head>
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.5rem",
-          justifyContent: "center",
-          alignItems: "center",
-          textAlign: "center",
-          fontFamily: "Inter, system-ui, sans-serif"
-        }}
-      >
-        <h1 style={{ fontSize: "2rem", fontWeight: 700 }}>ElevenLabs Agent Integration</h1>
-        <p style={{ maxWidth: "520px", color: "#4b5563" }}>
-          This page will invite you to configure the ElevenLabs AI Agent with your intake details.
-          We will wire up the real integration in a follow-up iteration.
-        </p>
-        <Link href="/">
-          <span style={{ color: "#2563eb" }}>Return to intake</span>
-        </Link>
+      <main className={styles.container}>
+        <div className={styles.hero}>
+          <span className={styles.badge}>Coming soon</span>
+          <h1 className={styles.title}>ElevenLabs agent integration</h1>
+          <p className={styles.subtitle}>
+            We&apos;ll soon guide you through connecting your intake context, dynamic variables, and
+            voice preferences to an ElevenLabs agent so SurvAgent can run live interviews.
+          </p>
+        </div>
+
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>What to expect</h2>
+          <p className={styles.cardBody}>
+            This setup flow will provision an agent, map the variables you captured on the intake
+            form, and collect any additional prompts or guardrails required by your research team.
+            Once ready, you&apos;ll be able to launch the agent directly from your research brief.
+          </p>
+        </section>
+
+        <div className={styles.actions}>
+          <Link href="/" className={styles.link}>
+            ← Back to intake
+          </Link>
+        </div>
       </main>
     </>
   );
