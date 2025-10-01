@@ -6,19 +6,19 @@
   letter-spacing: 0.01em;
 
   /* Palette */
-  --color-bg: #05070d;
-  --color-bg-muted: #080c15;
-  --color-surface-0: rgba(10, 14, 23, 0.92);
-  --color-surface-1: rgba(14, 18, 30, 0.96);
-  --color-surface-2: rgba(18, 23, 38, 0.92);
-  --color-surface-3: rgba(26, 32, 51, 0.9);
-  --color-border: rgba(128, 142, 187, 0.16);
-  --color-border-strong: rgba(168, 182, 224, 0.32);
+  --color-bg: #050506;
+  --color-bg-muted: #09090c;
+  --color-surface-0: rgba(13, 15, 20, 0.9);
+  --color-surface-1: rgba(18, 19, 26, 0.95);
+  --color-surface-2: rgba(24, 26, 34, 0.92);
+  --color-surface-3: rgba(32, 34, 45, 0.9);
+  --color-border: rgba(92, 102, 125, 0.22);
+  --color-border-strong: rgba(140, 150, 180, 0.32);
 
-  --color-text-primary: #f4f6ff;
-  --color-text-secondary: #a6b2d9;
-  --color-text-muted: #7684b2;
-  --color-text-inverse: #06070c;
+  --color-text-primary: #f5f6fb;
+  --color-text-secondary: #9da6c1;
+  --color-text-muted: #6f7691;
+  --color-text-inverse: #09090c;
 
   --color-accent: #ff6f91;
   --color-accent-strong: #f97316;
