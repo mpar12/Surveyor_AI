@@ -61,19 +61,19 @@ function sanitizeForMatch(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-const SURFACE_CARD = "var(--gradient-surface)";
-const SURFACE_PANEL = "rgba(20, 26, 44, 0.92)";
-const SURFACE_LIST = "rgba(24, 30, 50, 0.88)";
+const SURFACE_CARD = "var(--color-surface-0)";
+const SURFACE_PANEL = "var(--color-surface-0)";
+const SURFACE_LIST = "var(--gradient-hero)";
 const BORDER_SOFT = "var(--color-border)";
-const BORDER_MUTED = "rgba(132, 144, 190, 0.2)";
+const BORDER_MUTED = "rgba(28, 39, 64, 0.16)";
 const TEXT_PRIMARY = "var(--color-text-primary)";
 const TEXT_SECONDARY = "var(--color-text-secondary)";
 const TEXT_MUTED = "var(--color-text-muted)";
 const METRIC_ACCENT = "var(--color-accent)";
 const METRIC_SUCCESS = "#4ade80";
-const TABLE_BG = "rgba(15, 20, 36, 0.88)";
-const TABLE_HEADER_BG = "rgba(33, 40, 65, 0.75)";
-const TABLE_BORDER = "rgba(128, 142, 187, 0.26)";
+const TABLE_BG = "var(--color-surface-0)";
+const TABLE_HEADER_BG = "rgba(16, 19, 34, 0.04)";
+const TABLE_BORDER = "rgba(28, 39, 64, 0.12)";
 
 function detectSpeaker(entry: unknown): "agent" | "participant" | null {
   if (!entry || typeof entry !== "object") {

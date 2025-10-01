@@ -1,12 +1,13 @@
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   EMAIL_PREVIEW_RECIPIENTS_KEY,
   PEOPLE_SEARCH_STORAGE_KEY,
   SURVEY_QUESTIONS_STORAGE_KEY
 } from "@/lib/storageKeys";
+import styles from "@/styles/PeopleResults.module.css";
 
 interface Contact {
   name: string;
@@ -59,19 +60,6 @@ const formatTimestamp = (value?: number) => {
     return "";
   }
 };
-
-const SURFACE_CARD = "var(--gradient-surface)";
-const SURFACE_PANEL = "rgba(20, 26, 44, 0.92)";
-const SURFACE_LIST = "rgba(24, 30, 50, 0.88)";
-const BORDER_SOFT = "var(--color-border)";
-const BORDER_MUTED = "rgba(132, 144, 190, 0.22)";
-const TEXT_PRIMARY = "var(--color-text-primary)";
-const TEXT_SECONDARY = "var(--color-text-secondary)";
-const TEXT_MUTED = "var(--color-text-muted)";
-const ACCENT = "var(--color-accent)";
-const TABLE_BG = "rgba(15, 20, 36, 0.88)";
-const TABLE_HEADER_BG = "rgba(33, 40, 65, 0.75)";
-const TABLE_BORDER = "rgba(128, 142, 187, 0.26)";
 
 export default function PeopleResultsPage() {
   const router = useRouter();
@@ -212,29 +200,16 @@ export default function PeopleResultsPage() {
 
   const renderContent = () => {
     if (state.status === "loading") {
-      return <p style={{ color: TEXT_MUTED }}>Loading saved results…</p>;
+      return <p className={styles.statusText}>Loading saved results…</p>;
     }
 
     if (state.status === "error") {
-      return (
-        <div
-          style={{
-            padding: "1rem 1.25rem",
-            borderRadius: "14px",
-            border: "1px solid var(--color-error-border)",
-            background: "var(--color-error-surface)",
-            color: "var(--color-error)",
-            fontWeight: 600
-          }}
-        >
-          {state.message}
-        </div>
-      );
+      return <div className={styles.errorBanner}>{state.message}</div>;
     }
 
     if (state.status === "empty") {
       return (
-        <div style={{ color: TEXT_MUTED }}>
+        <div className={styles.statusText}>
           No stored results found. Please rerun the search from the population page.
         </div>
       );
@@ -243,368 +218,191 @@ export default function PeopleResultsPage() {
     const { contacts, title, location, industry, generatedAt, debug } = state.data;
 
     return (
-      <div style={{ display: "grid", gap: "1.25rem" }}>
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button
-            type="button"
-            onClick={handlePrepareEmail}
-            style={{
-              borderRadius: "999px",
-              background: ACCENT,
-              color: TEXT_PRIMARY,
-              fontWeight: 600,
-              padding: "0.6rem 1.6rem",
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 20px 45px rgba(255, 111, 145, 0.28)"
-            }}
-          >
+      <>
+        <div className={styles.toolbar}>
+          <button type="button" onClick={handlePrepareEmail} className={styles.primaryButton}>
             Prepare Email
           </button>
         </div>
 
-        {prepareError ? (
-          <div
-            style={{
-              padding: "0.9rem 1.1rem",
-              borderRadius: "12px",
-              border: "1px solid var(--color-error-border)",
-              background: "var(--color-error-surface)",
-              color: "var(--color-error)",
-              fontWeight: 600
-            }}
-          >
-            {prepareError}
-          </div>
-        ) : null}
+        {prepareError ? <div className={styles.errorBanner}>{prepareError}</div> : null}
 
-        <section
-          style={{
-            display: "grid",
-            gap: "0.45rem",
-            padding: "1.25rem 1.5rem",
-            borderRadius: "18px",
-            border: `1px solid ${BORDER_MUTED}`,
-            background: SURFACE_PANEL,
-            boxShadow: "var(--shadow-soft)"
-          }}
-        >
-          <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: TEXT_PRIMARY }}>Search summary</h2>
-          <div style={{ color: TEXT_SECONDARY }}>
+        <section className={styles.summaryCard}>
+          <h2 className={styles.summaryHeading}>Search summary</h2>
+          <div className={styles.summaryMeta}>
             <strong>Title:</strong> {title || "—"}
           </div>
-          <div style={{ color: TEXT_SECONDARY }}>
+          <div className={styles.summaryMeta}>
             <strong>Location:</strong> {location || "—"}
           </div>
-          <div style={{ color: TEXT_SECONDARY }}>
+          <div className={styles.summaryMeta}>
             <strong>Industry:</strong> {industry || "—"}
           </div>
-          <div style={{ color: TEXT_MUTED, fontSize: "0.85rem" }}>
+          <div className={styles.summaryTimestamp}>
             Generated at {formatTimestamp(generatedAt) || "unknown time"}
           </div>
         </section>
 
         {contacts.length ? (
-          <section>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                background: TABLE_BG,
-                borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow: "var(--shadow-soft)",
-                border: `1px solid ${TABLE_BORDER}`
-              }}
-            >
-              <thead style={{ background: TABLE_HEADER_BG, textAlign: "left", color: TEXT_PRIMARY }}>
+          <section className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
                 <tr>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Name</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Title</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Email</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Company</th>
-                  <th style={{ padding: "0.9rem 1.1rem", fontSize: "0.95rem" }}>Location</th>
+                  <th>Name</th>
+                  <th>Title</th>
+                  <th>Email</th>
+                  <th>Company</th>
+                  <th>Location</th>
                 </tr>
               </thead>
               <tbody>
                 {contacts.map((contact) => (
-                  <tr key={`${contact.email}-${contact.name}`} style={{ borderTop: `1px solid ${TABLE_BORDER}` }}>
-                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_PRIMARY }}>{contact.name || "—"}</td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_SECONDARY }}>{contact.title || "—"}</td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: ACCENT, fontWeight: 600 }}>
-                      {contact.email}
-                    </td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_PRIMARY }}>{contact.company || "—"}</td>
-                    <td style={{ padding: "0.85rem 1.1rem", color: TEXT_SECONDARY }}>{contact.location || "—"}</td>
+                  <tr key={`${contact.email}-${contact.name}`}>
+                    <td>{contact.name || "—"}</td>
+                    <td>{contact.title || "—"}</td>
+                    <td className={styles.emailCell}>{contact.email}</td>
+                    <td>{contact.company || "—"}</td>
+                    <td>{contact.location || "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </section>
         ) : (
-          <div style={{ color: TEXT_MUTED }}>
+          <div className={styles.emptyState}>
             The search completed successfully, but no verified contacts were returned.
           </div>
         )}
 
         {Boolean(debug && (debug.search || debug.enrichment || debug.bulkDetails)) && (
-          <section
-            style={{
-              display: "grid",
-              gap: "1rem",
-              padding: "1.25rem 1.5rem",
-              borderRadius: "18px",
-              border: `1px solid ${BORDER_MUTED}`,
-              background: SURFACE_CARD,
-              boxShadow: "var(--shadow-card)"
-            }}
-          >
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: TEXT_PRIMARY }}>
-              Raw API responses
-            </h2>
+          <section className={styles.debugSection}>
+            <h2 className={styles.summaryHeading}>Raw API responses</h2>
             {debug?.search ? (
               <details open>
-                <summary style={{ cursor: "pointer", fontWeight: 600 }}>Mixed People Search</summary>
-                <pre
-                  style={{
-                    marginTop: "0.75rem",
-                    padding: "1rem",
-                    borderRadius: "12px",
-                    background: "rgba(15, 20, 36, 0.92)",
-                    color: TEXT_SECONDARY,
-                    overflowX: "auto"
-                  }}
-                >
-                  {JSON.stringify(debug.search, null, 2)}
-                </pre>
+                <summary>Mixed People Search</summary>
+                <pre className={styles.debugPre}>{JSON.stringify(debug.search, null, 2)}</pre>
               </details>
             ) : null}
             {debug?.bulkDetails ? (
               <details open>
-                <summary style={{ cursor: "pointer", fontWeight: 600 }}>Bulk Match Payload</summary>
-                <pre
-                  style={{
-                    marginTop: "0.75rem",
-                    padding: "1rem",
-                    borderRadius: "12px",
-                    background: "rgba(15, 20, 36, 0.92)",
-                    color: TEXT_SECONDARY,
-                    overflowX: "auto"
-                  }}
-                >
-                  {JSON.stringify(debug.bulkDetails, null, 2)}
-                </pre>
+                <summary>Bulk Match Payload</summary>
+                <pre className={styles.debugPre}>{JSON.stringify(debug.bulkDetails, null, 2)}</pre>
               </details>
             ) : null}
             {debug?.enrichment ? (
               <details open>
-                <summary style={{ cursor: "pointer", fontWeight: 600 }}>Bulk Match Results</summary>
-                <pre
-                  style={{
-                    marginTop: "0.75rem",
-                    padding: "1rem",
-                    borderRadius: "12px",
-                    background: "rgba(15, 20, 36, 0.92)",
-                    color: TEXT_SECONDARY,
-                    overflowX: "auto"
-                  }}
-                >
-                  {JSON.stringify(debug.enrichment, null, 2)}
-                </pre>
+                <summary>Bulk Match Results</summary>
+                <pre className={styles.debugPre}>{JSON.stringify(debug.enrichment, null, 2)}</pre>
               </details>
             ) : null}
           </section>
         )}
 
         {debug?.enrichment ? (
-          <section
-            style={{
-              display: "grid",
-              gap: "0.75rem",
-              padding: "1.25rem 1.5rem",
-              borderRadius: "18px",
-              border: `1px solid ${BORDER_MUTED}`,
-              background: SURFACE_CARD,
-              boxShadow: "var(--shadow-card)"
-            }}
-          >
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 600, color: TEXT_PRIMARY }}>
-              Bulk Match contacts
-            </h2>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                background: TABLE_BG,
-                borderRadius: "16px",
-                overflow: "hidden",
-                boxShadow: "var(--shadow-soft)",
-                border: `1px solid ${TABLE_BORDER}`
-              }}
-            >
-              <thead style={{ background: TABLE_HEADER_BG, textAlign: "left", color: TEXT_PRIMARY }}>
-                <tr>
-                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>Name</th>
-                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>Title</th>
-                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>
-                    Organization
-                  </th>
-                  <th style={{ padding: "0.85rem 1rem", fontSize: "0.95rem" }}>Email</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const payload = debug.enrichment as any;
-                  const entries = Array.isArray(payload?.matches)
-                    ? payload.matches
-                    : Array.isArray(payload?.people)
-                      ? payload.people
-                      : Array.isArray(payload?.matched_people)
-                        ? payload.matched_people
-                        : Array.isArray(payload?.contacts)
-                          ? payload.contacts
-                          : [];
+          <section className={styles.bulkSection}>
+            <h2 className={styles.summaryHeading}>Bulk Match contacts</h2>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Title</th>
+                    <th>Organization</th>
+                    <th>Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const payload = debug.enrichment as any;
+                    const entries = Array.isArray(payload?.matches)
+                      ? payload.matches
+                      : Array.isArray(payload?.people)
+                        ? payload.people
+                        : Array.isArray(payload?.matched_people)
+                          ? payload.matched_people
+                          : Array.isArray(payload?.contacts)
+                            ? payload.contacts
+                            : [];
 
-                  if (!entries.length) {
-                    return (
-                      <tr>
-                        <td colSpan={4} style={{ padding: "0.85rem 1rem", color: TEXT_MUTED }}>
-                          No contacts returned by bulk match.
-                        </td>
-                      </tr>
-                    );
-                  }
+                    if (!entries.length) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className={styles.emptyState}>
+                            No contacts returned by bulk match.
+                          </td>
+                        </tr>
+                      );
+                    }
 
-                  return entries.map((entry: any, index: number) => {
-                    const person = entry.person ?? entry ?? {};
-                    const organization = person.organization ?? entry.organization ?? {};
-                    const employment = Array.isArray(person.employment_history)
-                      ? person.employment_history
-                      : Array.isArray(entry.employment_history)
-                        ? entry.employment_history
-                        : [];
+                    return entries.map((entry: any, index: number) => {
+                      const person = entry.person ?? entry ?? {};
+                      const organization = person.organization ?? entry.organization ?? {};
+                      const companyName =
+                        organization.name ?? organization.organization_name ?? entry.organization_name;
+                      const email = entry.email ?? person.email ?? entry.work_email ?? "";
+                      const fullName =
+                        person.name ??
+                        person.full_name ??
+                        `${person.first_name ?? ""} ${person.last_name ?? ""}`.trim();
+                      const titleValue =
+                        person.title ?? person.job_title ?? entry.title ?? entry.job_title ?? "—";
 
-                    const primaryEmployment = employment.find((job: any) => job?.is_primary) ?? employment[0] ?? {};
-
-                    const name = person.name ?? [person.first_name, person.last_name].filter(Boolean).join(" ");
-                    const title = person.title ?? person.headline ?? primaryEmployment?.title ?? entry.title;
-                    const organizationName =
-                      organization.name ?? primaryEmployment?.organization_name ?? entry.organization_name ?? "";
-
-                    const emails = [
-                      ...(entry.emails ?? []),
-                      ...(person.emails ?? [])
-                    ];
-
-                    const email =
-                      entry.email ??
-                      person.email ??
-                      (emails.find((item: any) => item?.email)?.email ?? "");
-
-                    return (
-                      <tr key={`${index}-${name}-${email}`} style={{ borderTop: `1px solid ${TABLE_BORDER}` }}>
-                        <td style={{ padding: "0.8rem 1rem", color: TEXT_PRIMARY }}>{name || "—"}</td>
-                        <td style={{ padding: "0.8rem 1rem", color: TEXT_SECONDARY }}>{title || "—"}</td>
-                        <td style={{ padding: "0.8rem 1rem", color: TEXT_PRIMARY }}>{organizationName || "—"}</td>
-                        <td style={{ padding: "0.8rem 1rem", color: ACCENT, fontWeight: 600 }}>{email || "—"}</td>
-                      </tr>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
+                      return (
+                        <tr key={`bulk-${index}`}>
+                          <td>{fullName || "—"}</td>
+                          <td>{titleValue || "—"}</td>
+                          <td>{companyName || "—"}</td>
+                          <td className={styles.emailCell}>{email || "—"}</td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
           </section>
         ) : null}
-      </div>
+      </>
     );
   };
 
+  const storedSid = state.status === "ready" ? state.data.sid : undefined;
+  const sessionId = storedSid ?? sidFromQuery;
+
+  const handleViewScorecard = () => {
+    if (!sessionId) {
+      return;
+    }
+
+    router.push({ pathname: "/scorecard", query: { sid: sessionId } });
+  };
+
   return (
-    <div
-      style={{
-        maxWidth: "960px",
-        margin: "0 auto",
-        padding: "clamp(2.5rem, 6vw, 4rem) clamp(1.5rem, 5vw, 3rem)",
-        color: TEXT_PRIMARY
-      }}
-    >
+    <div className={styles.container}>
       <Head>
-        <title>Search Results | SurvAgent</title>
-        <meta name="description" content="Review the verified contacts sourced from Apollo." />
+        <title>People results | SurvAgent</title>
       </Head>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.75rem"
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: "2rem", fontWeight: 700, color: TEXT_PRIMARY }}>Verified contacts</h1>
-          <p style={{ color: TEXT_MUTED, marginTop: "0.35rem" }}>
-            These leads were collected from the most recent population search.
-          </p>
+      <header className={styles.header}>
+        <h1>Sourced contacts</h1>
+        <Link href="/population" className={styles.backLink}>
+          ← Back to sourcing options
+        </Link>
+      </header>
+
+      <div className={styles.card}>{renderContent()}</div>
+
+      {sessionId ? (
+        <div className={styles.ctaRow}>
+          <button type="button" onClick={handleViewScorecard} className={styles.secondaryButton}>
+            View session scorecard
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleBack}
-          style={{
-            border: `1px solid ${BORDER_MUTED}`,
-            background: SURFACE_PANEL,
-            color: TEXT_PRIMARY,
-            borderRadius: "999px",
-            padding: "0.55rem 1.4rem",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 16px 35px rgba(8, 12, 24, 0.35)",
-            transition: "background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease"
-          }}
-        >
-          ← Back to population
-        </button>
-      </div>
+      ) : null}
 
-      {renderContent()}
-
-      {(() => {
-        const storedSid = state.status === "ready" ? state.data.sid : undefined;
-        const sessionId = storedSid ?? sidFromQuery;
-
-        if (!sessionId) {
-          return null;
-        }
-
-        const handleViewScorecard = () => {
-          router.push({ pathname: "/scorecard", query: { sid: sessionId } });
-        };
-
-        return (
-          <div style={{ marginTop: "2.5rem", display: "flex", justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={handleViewScorecard}
-              style={{
-                borderRadius: "999px",
-                background: ACCENT,
-                color: TEXT_PRIMARY,
-                fontWeight: 600,
-                padding: "0.65rem 1.8rem",
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 20px 45px rgba(255, 111, 145, 0.28)"
-              }}
-            >
-              View session scorecard
-            </button>
-          </div>
-        );
-      })()}
-
-      <div style={{ marginTop: "2.5rem", color: TEXT_MUTED, fontSize: "0.9rem" }}>
+      <p className={styles.footerNote}>
         Need a fresh search? <Link href="/population">Run it again from the population page.</Link>
-      </div>
+      </p>
     </div>
   );
 }

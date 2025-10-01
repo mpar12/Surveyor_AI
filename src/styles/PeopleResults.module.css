@@ -1,0 +1,229 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: min(1040px, 100%);
+  margin: 0 auto;
+  padding: clamp(3rem, 7vw, 4.5rem) clamp(2rem, 6vw, 4rem) clamp(3rem, 7vw, 5rem);
+  color: var(--color-text-primary);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.header h1 {
+  font-size: clamp(2rem, 4vw, 2.85rem);
+  font-weight: 700;
+  letter-spacing: -0.016em;
+}
+
+.backLink {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.card {
+  display: grid;
+  gap: clamp(1.5rem, 3.5vw, 2.5rem);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.primaryButton {
+  border-radius: 999px;
+  background: #101322;
+  color: #f8f9ff;
+  font-weight: 600;
+  padding: 0.8rem 1.8rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(16, 19, 34, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 44px rgba(16, 19, 34, 0.22);
+  background: #181c2d;
+}
+
+.secondaryButton {
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-accent);
+  font-weight: 600;
+  padding: 0.75rem 1.8rem;
+  border: 1px solid rgba(84, 73, 255, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.secondaryButton:hover {
+  transform: translateY(-1px);
+  background: rgba(84, 73, 255, 0.08);
+  box-shadow: var(--shadow-soft);
+}
+
+.errorBanner {
+  padding: 0.9rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-error-border);
+  background: var(--color-error-surface);
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.statusText {
+  color: var(--color-text-muted);
+}
+
+.summaryCard {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.35rem 1.6rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  box-shadow: var(--shadow-card);
+}
+
+.summaryHeading {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.summaryMeta {
+  color: var(--color-text-secondary);
+}
+
+.summaryTimestamp {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+}
+
+.tableWrapper {
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface-0);
+}
+
+.table thead {
+  background: rgba(16, 19, 34, 0.04);
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 0.85rem 1.1rem;
+  border-top: 1px solid rgba(28, 39, 64, 0.12);
+  font-size: 0.96rem;
+}
+
+.table th:first-child,
+.table td:first-child {
+  border-left: none;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-top: none;
+}
+
+.table td {
+  color: var(--color-text-secondary);
+}
+
+.table td strong,
+.table td a {
+  color: var(--color-text-primary);
+}
+
+.emailCell {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.emptyState {
+  color: var(--color-text-muted);
+}
+
+.debugSection {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem 1.6rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  box-shadow: var(--shadow-card);
+}
+
+.debugSection summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.debugPre {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: rgba(16, 19, 34, 0.05);
+  color: var(--color-text-secondary);
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.bulkSection {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.35rem 1.6rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  box-shadow: var(--shadow-card);
+}
+
+.ctaRow {
+  margin-top: 2.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.footerNote {
+  margin-top: 2rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .toolbar {
+    justify-content: stretch;
+  }
+
+  .primaryButton {
+    width: 100%;
+    text-align: center;
+  }
+}

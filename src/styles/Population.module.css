@@ -1,22 +1,18 @@
 .container {
-  min-height: 100vh;
-  background: var(--gradient-hero);
-  padding: clamp(2.75rem, 6vw, 4.75rem) clamp(1.75rem, 5vw, 4rem);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  min-height: 100vh;
+  width: min(1024px, 100%);
+  margin: 0 auto;
+  padding: clamp(3rem, 7vw, 4.75rem) clamp(2rem, 6vw, 4rem) clamp(3.5rem, 8vw, 5.5rem);
+  gap: clamp(2.25rem, 5vw, 3rem);
+  color: var(--color-text-primary);
 }
 
 .card {
-  width: min(1024px, 100%);
-  background: var(--color-surface-0);
-  border-radius: 24px;
-  box-shadow: var(--shadow-soft);
-  padding: clamp(2.5rem, 5vw, 3.25rem);
   display: flex;
   flex-direction: column;
-  gap: 2.25rem;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  gap: clamp(1.75rem, 3vw, 2.4rem);
 }
 
 .header {
@@ -27,37 +23,45 @@
 }
 
 .header h1 {
-  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  font-size: clamp(2rem, 4.2vw, 2.85rem);
   font-weight: 700;
+  letter-spacing: -0.015em;
   color: var(--color-text-primary);
 }
 
 .header p {
   color: var(--color-text-secondary);
-  font-size: 1.05rem;
-  line-height: 1.6;
+  font-size: 1.02rem;
+  line-height: 1.55;
 }
 
+.section {
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  padding: clamp(1.6rem, 4vw, 2.1rem);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.5rem, 3vw, 2rem);
+}
 
 .contextPanel {
-  background: var(--gradient-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  padding: 1.5rem 1.75rem;
-  box-shadow: var(--shadow-border);
+  display: grid;
+  gap: 1.5rem;
 }
 
-.contextPanel h2 {
-  font-size: 1.1rem;
+.contextPanel h2,
+.optionsSection h2 {
+  font-size: 1.18rem;
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: 1.25rem;
 }
 
 .contextPanel dl {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem;
+  gap: 1.35rem;
 }
 
 .contextPanel dt {
@@ -72,37 +76,32 @@
   margin-top: 0.25rem;
   color: var(--color-text-primary);
   font-weight: 500;
+  line-height: 1.45;
 }
 
 .optionsSection {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-}
-
-.optionsSection h2 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  gap: 1.6rem;
 }
 
 .optionRow {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
-  padding: 1.25rem 1.5rem;
+  padding: 1.2rem 1.4rem;
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 18px;
   background: var(--color-surface-0);
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 14px 28px rgba(16, 27, 60, 0.08);
 }
 
 .optionRow:hover {
   border-color: rgba(84, 73, 255, 0.35);
   box-shadow: var(--shadow-hover);
-  background: rgba(243, 245, 255, 0.96);
+  background: rgba(244, 246, 255, 0.92);
 }
 
 .optionRow input {
@@ -118,7 +117,7 @@
 }
 
 .optionRow p {
-  margin-top: 0.4rem;
+  margin-top: 0.35rem;
   color: var(--color-text-secondary);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -134,20 +133,21 @@
 .manualInput textarea {
   width: 100%;
   min-height: 140px;
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
-  padding: 1rem 1.1rem;
-  font-size: 0.98rem;
+  border: none;
+  border-bottom: 1px solid rgba(28, 39, 64, 0.22);
+  border-radius: 0;
+  padding: 0.5rem 0;
+  font-size: 1.02rem;
   line-height: 1.55;
   resize: vertical;
-  background: var(--color-surface-0);
+  background: transparent;
   color: var(--color-text-primary);
 }
 
 .manualInput textarea:focus {
-  border-color: rgba(84, 73, 255, 0.45);
+  border-bottom-color: rgba(84, 73, 255, 0.55);
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 12px 24px rgba(84, 73, 255, 0.08);
 }
 
 .helperRow {
@@ -163,11 +163,11 @@
 }
 
 .actions {
-  margin-top: 1rem;
+  margin-top: 1.75rem;
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .primaryButton,
@@ -182,20 +182,21 @@
 }
 
 .primaryButton {
-  background: var(--gradient-accent);
-  color: var(--color-text-primary);
-  box-shadow: 0 22px 52px rgba(255, 111, 145, 0.28);
+  background: #101322;
+  color: #f8f9ff;
+  box-shadow: 0 18px 36px rgba(16, 19, 34, 0.18);
 }
 
 .primaryButton:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-hover);
+  box-shadow: 0 22px 44px rgba(16, 19, 34, 0.22);
+  background: #181c2d;
 }
 
 .secondaryButton {
   background: transparent;
   color: var(--color-accent);
-  border: 1px solid rgba(84, 73, 255, 0.35);
+  border: 1px solid rgba(84, 73, 255, 0.3);
   box-shadow: none;
 }
 
@@ -221,18 +222,12 @@
   font-weight: 600;
 }
 
-
 @media (max-width: 768px) {
-  .card {
-    padding: 2.25rem 1.5rem;
-    border-radius: 18px;
-  }
-
   .manualInput {
     margin-left: 0;
   }
 
   .actions {
-    justify-content: center;
+    justify-content: flex-start;
   }
 }

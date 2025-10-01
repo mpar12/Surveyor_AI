@@ -333,7 +333,7 @@ export default function PopulationPage() {
           </p>
         </header>
 
-        <section className={styles.contextPanel}>
+        <section className={`${styles.section} ${styles.contextPanel}`}>
           <h2>Survey context</h2>
           <dl>
             <div>
@@ -367,7 +367,7 @@ export default function PopulationPage() {
           </dl>
         </section>
 
-        <section className={styles.optionsSection}>
+        <section className={`${styles.section} ${styles.optionsSection}`}>
           <h2>Select sourcing method</h2>
 
           <label className={styles.optionRow}>
@@ -421,7 +421,7 @@ export default function PopulationPage() {
           {scrapeSelected ? (
             <button
               type="button"
-              className={styles.secondaryButton}
+              className={styles.primaryButton}
               onClick={handleConductSearch}
               disabled={isSearching}
             >
