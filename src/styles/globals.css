@@ -6,30 +6,30 @@
   letter-spacing: 0.01em;
 
   /* Palette */
-  --color-bg: #fefefe;
-  --color-bg-muted: #f7f8fc;
+  --color-bg: #f7f7f8;
+  --color-bg-muted: #f0f1f5;
   --color-surface-0: #ffffff;
-  --color-surface-1: #f3f5fd;
-  --color-surface-2: #e9edfc;
-  --color-surface-3: #dfe3f7;
-  --color-border: rgba(34, 45, 82, 0.12);
-  --color-border-strong: rgba(34, 45, 82, 0.22);
+  --color-surface-1: #fafbff;
+  --color-surface-2: #f2f4fb;
+  --color-surface-3: #e6e9f5;
+  --color-border: rgba(28, 39, 64, 0.12);
+  --color-border-strong: rgba(28, 39, 64, 0.2);
 
-  --color-text-primary: #070b1a;
-  --color-text-secondary: #424b68;
-  --color-text-muted: #6c7590;
+  --color-text-primary: #101322;
+  --color-text-secondary: #454c5f;
+  --color-text-muted: #758095;
   --color-text-inverse: #ffffff;
 
   --color-accent: #5449ff;
   --color-accent-strong: #ff6a8b;
   --gradient-accent: linear-gradient(135deg, #5449ff 0%, #7e6bff 55%, #ff6a8b 100%);
   --gradient-surface: linear-gradient(170deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 246, 255, 0.96) 100%);
-  --gradient-hero: linear-gradient(180deg, #ffffff 0%, #f6f7fb 70%, #eef1fb 100%);
+  --gradient-hero: var(--color-bg);
 
-  --shadow-card: 0 26px 60px rgba(17, 29, 72, 0.12);
-  --shadow-soft: 0 20px 50px rgba(17, 29, 72, 0.1);
-  --shadow-hover: 0 32px 72px rgba(17, 29, 72, 0.14);
-  --shadow-border: 0 0 0 1px rgba(50, 64, 120, 0.08) inset;
+  --shadow-card: 0 24px 45px rgba(16, 27, 60, 0.08);
+  --shadow-soft: 0 16px 32px rgba(16, 27, 60, 0.06);
+  --shadow-hover: 0 26px 55px rgba(16, 27, 60, 0.12);
+  --shadow-border: 0 0 0 1px rgba(36, 46, 76, 0.06) inset;
   --focus-ring: 0 0 0 3px rgba(90, 59, 238, 0.25);
 
   --color-success: #2ba678;
@@ -87,9 +87,7 @@ select {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 18% 25%, rgba(90, 59, 238, 0.16) 0%, rgba(247, 249, 255, 0) 45%),
-    radial-gradient(circle at 82% 10%, rgba(255, 111, 80, 0.14) 0%, rgba(247, 249, 255, 0) 45%),
-    var(--color-bg-muted);
+  background: linear-gradient(180deg, var(--color-bg-muted) 0%, var(--color-bg) 100%);
   padding: clamp(1.5rem, 4vw, 3rem);
 }
 
