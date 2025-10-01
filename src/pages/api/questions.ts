@@ -20,13 +20,15 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { company, product, desiredIcp, desiredIcpIndustry, keyQuestions } = req.body ?? {};
+  const { company, product, desiredIcp, desiredIcpIndustry, feedbackDesired, keyQuestions } =
+    req.body ?? {};
 
   if (
     typeof company !== "string" ||
     typeof product !== "string" ||
     typeof desiredIcp !== "string" ||
     typeof desiredIcpIndustry !== "string" ||
+    typeof feedbackDesired !== "string" ||
     typeof keyQuestions !== "string"
   ) {
     return res.status(400).json({ error: "Invalid payload. Expect string fields." });
@@ -37,6 +39,7 @@ export default async function handler(
     !product.trim() ||
     !desiredIcp.trim() ||
     !desiredIcpIndustry.trim() ||
+    !feedbackDesired.trim() ||
     !keyQuestions.trim()
   ) {
     return res.status(400).json({ error: "All fields must be non-empty." });
@@ -58,11 +61,7 @@ export default async function handler(
         },
         {
           role: "user",
-          content: `Company: ${company}\nProduct: ${product}\nIdeal customer persona (ICP): ${desiredIcp}\nICP industry: ${desiredIcpIndustry}\nKey questions from requester: ${keyQuestions}\n\nGenerate 10 thoughtful survey/questions that help assess the company's and product's market position from the perspective of this ICP. Questions should:
-- stay focused on market perception, differentiation, buying triggers, and adoption barriers.
-- Phrase questions as simply as possible.
-- incorporate the provided key questions within the list (avoid duplicates).
-Return JSON with an array field named questions containing exactly 10 unique strings.`
+          content: `Company: ${company}\nProduct: ${product}\nIdeal customer persona (ICP): ${desiredIcp}\nICP industry: ${desiredIcpIndustry}\nWhat the customer is trying to understand: ${feedbackDesired}\nKey questions from requester: ${keyQuestions}\n\nGenerate 10 thoughtful survey questions that help assess the company's and product's market position from the perspective of this ICP. \nQuestions should:\n - The first 3 questions should collect demographic survey data about the user\n - Help reach the goal of understanding ${feedbackDesired}\n- Phrase questions as simply as possible.\n- incorporate the provided key questions within the list (avoid duplicates).\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
         }
       ]
     });

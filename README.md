@@ -1,4 +1,3 @@
-## Next to-do: Only display and accept information if the email_address variable is not blank and not "replace_this"
 ## TODO: For sure
 ## Improvements needed --> CGPT questions suck
 ## Scorecard - table for each question for sure

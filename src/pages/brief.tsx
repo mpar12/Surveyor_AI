@@ -191,7 +191,14 @@ export default function BriefPage() {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ company, product, desiredIcp, desiredIcpIndustry, keyQuestions }),
+          body: JSON.stringify({
+            company,
+            product,
+            desiredIcp,
+            desiredIcpIndustry,
+            feedbackDesired,
+            keyQuestions
+          }),
           signal: controller.signal
         });
 
@@ -233,7 +240,7 @@ export default function BriefPage() {
     fetchQuestions();
 
     return () => controller.abort();
-  }, [router.isReady, company, product, desiredIcp, desiredIcpIndustry, keyQuestions]);
+  }, [router.isReady, company, product, desiredIcp, desiredIcpIndustry, feedbackDesired, keyQuestions]);
 
   useEffect(() => {
     if (!questions || !sid) {
