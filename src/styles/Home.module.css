@@ -26,12 +26,15 @@
 
 .formCard {
   width: min(100%, 640px);
-  background: var(--gradient-surface);
-  padding: clamp(2rem, 4vw, 2.75rem);
-  border-radius: 22px;
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--color-border);
-  backdrop-filter: blur(22px);
+  background: linear-gradient(155deg, rgba(22, 27, 43, 0.92) 0%, rgba(12, 16, 28, 0.98) 100%);
+  padding: clamp(2.25rem, 5vw, 3rem);
+  border-radius: 26px;
+  border: 1px solid rgba(132, 144, 190, 0.32);
+  box-shadow:
+    0 48px 120px rgba(5, 7, 13, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 12px 32px rgba(127, 83, 243, 0.08);
+  backdrop-filter: blur(26px);
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
