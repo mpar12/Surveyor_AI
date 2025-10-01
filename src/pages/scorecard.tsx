@@ -815,13 +815,21 @@ const contextRows = await db
       transcriptsForBreakdown
     );
 
+    const rawContext = contextRows[0] ?? null;
+    const normalizedContext = rawContext
+      ? {
+          ...rawContext,
+          surveyQuestions: questionList.length ? questionList : null
+        }
+      : null;
+
     return {
       props: {
         sessionId: sessionRecord.sessionId,
         status: sessionRecord.status,
         createdAt: sessionRecord.createdAt ? sessionRecord.createdAt.toISOString() : null,
         pin: pin ?? null,
-        context: contextRows[0] ?? null,
+        context: normalizedContext,
         emailsSent: uniqueRecipients.size,
         responders: summaries.length,
         callSummaries: summaries,
