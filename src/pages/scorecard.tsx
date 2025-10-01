@@ -4,6 +4,17 @@ import { db } from "@/db/client";
 import { convaiTranscripts, emailSends, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
 
+interface QuestionAnswerRow {
+  answer: string;
+  email: string | null;
+  conversationId: string;
+}
+
+interface QuestionBreakdown {
+  question: string;
+  answers: QuestionAnswerRow[];
+}
+
 interface ScorecardProps {
   sessionId: string | null;
   status: string | null;
@@ -18,6 +29,7 @@ interface ScorecardProps {
     desiredIcpIndustry?: string | null;
     desiredIcpRegion?: string | null;
     keyQuestions?: string | null;
+    surveyQuestions?: string[] | null;
   } | null;
   emailsSent: number;
   responders: number;
@@ -27,6 +39,8 @@ interface ScorecardProps {
     receivedAt: string | null;
     email: string | null;
   }>;
+  primaryQuestions: QuestionBreakdown[];
+  followUpQuestions: QuestionBreakdown[];
   error?: string;
 }
 
@@ -39,6 +53,285 @@ function formatDate(value: string | null) {
   }
 }
 
+type TranscriptTurn = {
+  speaker: "agent" | "participant";
+  text: string;
+};
+
+function sanitizeForMatch(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function detectSpeaker(entry: unknown): "agent" | "participant" | null {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const obj = entry as Record<string, unknown>;
+  const candidateKeys = ["speaker", "role", "from", "actor", "entity"];
+
+  for (const key of candidateKeys) {
+    const raw = obj[key];
+    if (typeof raw !== "string") {
+      continue;
+    }
+
+    const normalized = raw.trim().toLowerCase();
+
+    if (
+      normalized.includes("agent") ||
+      normalized.includes("assistant") ||
+      normalized.includes("ai") ||
+      normalized.includes("survagent") ||
+      normalized.includes("system")
+    ) {
+      return "agent";
+    }
+
+    if (
+      normalized.includes("user") ||
+      normalized.includes("participant") ||
+      normalized.includes("customer") ||
+      normalized.includes("caller") ||
+      normalized.includes("prospect") ||
+      normalized.includes("client") ||
+      normalized.includes("human")
+    ) {
+      return "participant";
+    }
+  }
+
+  if (typeof obj.agent === "boolean") {
+    return obj.agent ? "agent" : "participant";
+  }
+
+  if (typeof obj.is_user === "boolean") {
+    return obj.is_user ? "participant" : "agent";
+  }
+
+  return null;
+}
+
+function valueToText(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => valueToText(item))
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const keys = ["text", "content", "value", "utterance", "message", "transcript"];
+
+    for (const key of keys) {
+      if (key in obj) {
+        const nested = valueToText(obj[key]);
+        if (nested) {
+          return nested;
+        }
+      }
+    }
+
+    if (Array.isArray(obj.segments)) {
+      const joined = obj.segments
+        .map((segment) => valueToText(segment))
+        .filter(Boolean)
+        .join(" ");
+      if (joined) {
+        return joined;
+      }
+    }
+  }
+
+  return "";
+}
+
+function normalizeTranscript(raw: unknown): TranscriptTurn[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const turns: TranscriptTurn[] = [];
+
+  for (const entry of raw) {
+    const speaker = detectSpeaker(entry);
+    if (!speaker) {
+      continue;
+    }
+
+    const text = valueToText(entry);
+    if (!text) {
+      continue;
+    }
+
+    turns.push({
+      speaker,
+      text: text.replace(/\s+/g, " ").trim()
+    });
+  }
+
+  return turns;
+}
+
+function buildQuestionBreakdown(
+  questions: string[],
+  transcripts: Array<{ conversationId: string; email: string | null; transcript: unknown }>
+): { primary: QuestionBreakdown[]; followUps: QuestionBreakdown[] } {
+  const primary: QuestionBreakdown[] = questions.map((question) => ({
+    question,
+    answers: []
+  }));
+
+  const followUpMap = new Map<string, QuestionBreakdown>();
+
+  const normalizedQuestions = questions.map((question) => ({
+    raw: question,
+    full: question.toLowerCase(),
+    sanitized: sanitizeForMatch(question),
+    prefix: sanitizeForMatch(question)
+      .split(" ")
+      .slice(0, 6)
+      .join(" "),
+    suffix: sanitizeForMatch(question)
+      .split(" ")
+      .slice(-6)
+      .join(" ")
+  }));
+
+  const matchQuestion = (text: string): number | null => {
+    if (!text) {
+      return null;
+    }
+
+    const lower = text.toLowerCase();
+    const sanitized = sanitizeForMatch(text);
+
+    for (let index = 0; index < normalizedQuestions.length; index += 1) {
+      const target = normalizedQuestions[index];
+
+      if (target.full && lower.includes(target.full)) {
+        return index;
+      }
+
+      if (target.prefix && sanitized.includes(target.prefix)) {
+        return index;
+      }
+
+      if (target.suffix && sanitized.includes(target.suffix)) {
+        return index;
+      }
+    }
+
+    return null;
+  };
+
+  transcripts.forEach(({ conversationId, email, transcript }) => {
+    const turns = normalizeTranscript(transcript);
+
+    if (!turns.length) {
+      return;
+    }
+
+    type ActivePointer =
+      | { type: "primary"; index: number }
+      | { type: "followUp"; key: string };
+
+    let currentQuestion: ActivePointer | null = null;
+    let pendingAnswer = "";
+
+    const commitAnswer = () => {
+      if (currentQuestion === null) {
+        return;
+      }
+
+      const text = pendingAnswer.trim();
+      if (!text) {
+        return;
+      }
+
+      if (currentQuestion.type === "primary") {
+        primary[currentQuestion.index].answers.push({
+          answer: text,
+          email,
+          conversationId
+        });
+      } else {
+        const bucket = followUpMap.get(currentQuestion.key);
+        if (bucket) {
+          bucket.answers.push({
+            answer: text,
+            email,
+            conversationId
+          });
+        }
+      }
+    };
+
+    for (const turn of turns) {
+      if (turn.speaker === "agent") {
+        if (pendingAnswer.trim()) {
+          commitAnswer();
+          pendingAnswer = "";
+        }
+
+        const matched = matchQuestion(turn.text);
+        if (matched !== null) {
+          currentQuestion = { type: "primary", index: matched };
+          pendingAnswer = "";
+          continue;
+        }
+
+        const rawFollowUp = turn.text.replace(/\s+/g, " ").trim();
+        if (!rawFollowUp) {
+          currentQuestion = null;
+          continue;
+        }
+
+        const lowerFollowUp = rawFollowUp.toLowerCase();
+        const shouldSkip = ["time to chat", "have a moment", "hello", "hi there", "how are you"].some(
+          (fragment) => lowerFollowUp.includes(fragment)
+        );
+
+        if (shouldSkip) {
+          currentQuestion = null;
+          continue;
+        }
+
+        const followUpKey = sanitizeForMatch(rawFollowUp);
+        if (!followUpMap.has(followUpKey)) {
+          followUpMap.set(followUpKey, {
+            question: rawFollowUp,
+            answers: []
+          });
+        }
+
+        currentQuestion = { type: "followUp", key: followUpKey };
+        pendingAnswer = "";
+      } else if (turn.speaker === "participant") {
+        if (currentQuestion !== null) {
+          pendingAnswer = pendingAnswer ? `${pendingAnswer} ${turn.text}` : turn.text;
+        }
+      }
+    }
+
+    if (pendingAnswer.trim()) {
+      commitAnswer();
+    }
+  });
+
+  const followUps = Array.from(followUpMap.values()).filter((entry) => entry.answers.length);
+
+  return {
+    primary,
+    followUps
+  };
+}
+
 export default function ScorecardPage({
   sessionId,
   status,
@@ -48,6 +341,8 @@ export default function ScorecardPage({
   emailsSent,
   responders,
   callSummaries,
+  primaryQuestions,
+  followUpQuestions,
   error
 }: ScorecardProps) {
   return (
@@ -224,6 +519,152 @@ export default function ScorecardPage({
               </ul>
             )}
           </div>
+
+          {primaryQuestions.length ? (
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: "20px",
+                padding: "1.5rem",
+                boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
+                border: "1px solid #e5e7eb"
+              }}
+            >
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "#111827", marginBottom: "1rem" }}>
+                Responses by scripted question
+              </h2>
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    background: "#fff",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    border: "1px solid #e5e7eb"
+                  }}
+                >
+                  <thead style={{ background: "#f3f4f6", color: "#1f2937", textAlign: "left" }}>
+                    <tr>
+                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "40%" }}>Question</th>
+                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem" }}>Answer</th>
+                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "22%" }}>Participant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {primaryQuestions.map((block, index) => {
+                      const label = `Q${index + 1}: ${block.question}`;
+
+                      if (!block.answers.length) {
+                        return (
+                          <tr key={label} style={{ borderTop: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "#111827" }}>{label}</td>
+                            <td style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>No responses captured yet.</td>
+                            <td style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>—</td>
+                          </tr>
+                        );
+                      }
+
+                      return block.answers.map((answer, answerIndex) => (
+                        <tr key={`${label}-${answer.conversationId}-${answerIndex}`} style={{ borderTop: "1px solid #e5e7eb" }}>
+                          {answerIndex === 0 ? (
+                            <td
+                              style={{
+                                padding: "0.85rem 1rem",
+                                fontWeight: 600,
+                                color: "#111827"
+                              }}
+                              rowSpan={block.answers.length}
+                            >
+                              {label}
+                            </td>
+                          ) : null}
+                          <td style={{ padding: "0.85rem 1rem", color: "#1f2937" }}>{answer.answer}</td>
+                          <td style={{ padding: "0.85rem 1rem", color: "#2563eb", fontWeight: 600 }}>
+                            {answer.email || "Unknown participant"}
+                          </td>
+                        </tr>
+                      ));
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          {followUpQuestions.length ? (
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: "20px",
+                padding: "1.5rem",
+                boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
+                border: "1px solid #e5e7eb"
+              }}
+            >
+              <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "#111827", marginBottom: "1rem" }}>
+                Follow-up questions
+              </h2>
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    background: "#fff",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    border: "1px solid #e5e7eb"
+                  }}
+                >
+                  <thead style={{ background: "#f3f4f6", color: "#1f2937", textAlign: "left" }}>
+                    <tr>
+                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "40%" }}>
+                        Question
+                      </th>
+                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem" }}>Answer</th>
+                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "22%" }}>Participant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {followUpQuestions.map((block, index) => {
+                      const label = `F${index + 1}: ${block.question}`;
+
+                      if (!block.answers.length) {
+                        return (
+                          <tr key={label} style={{ borderTop: "1px solid #e5e7eb" }}>
+                            <td style={{ padding: "0.85rem 1rem", fontWeight: 600, color: "#111827" }}>{label}</td>
+                            <td style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>No responses captured yet.</td>
+                            <td style={{ padding: "0.85rem 1rem", color: "#6b7280" }}>—</td>
+                          </tr>
+                        );
+                      }
+
+                      return block.answers.map((answer, answerIndex) => (
+                        <tr key={`${label}-${answer.conversationId}-${answerIndex}`} style={{ borderTop: "1px solid #e5e7eb" }}>
+                          {answerIndex === 0 ? (
+                            <td
+                              style={{
+                                padding: "0.85rem 1rem",
+                                fontWeight: 600,
+                                color: "#111827"
+                              }}
+                              rowSpan={block.answers.length}
+                            >
+                              {label}
+                            </td>
+                          ) : null}
+                          <td style={{ padding: "0.85rem 1rem", color: "#1f2937" }}>{answer.answer}</td>
+                          <td style={{ padding: "0.85rem 1rem", color: "#2563eb", fontWeight: 600 }}>
+                            {answer.email || "Unknown participant"}
+                          </td>
+                        </tr>
+                      ));
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
     </div>
@@ -247,6 +688,8 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         emailsSent: 0,
         responders: 0,
         callSummaries: [],
+        primaryQuestions: [],
+        followUpQuestions: [],
         error: "Missing session identifier."
       }
     };
@@ -270,6 +713,8 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
           emailsSent: 0,
           responders: 0,
           callSummaries: [],
+          primaryQuestions: [],
+          followUpQuestions: [],
           error: "Session not found."
         }
       };
@@ -286,7 +731,8 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         desiredIcp: sessionContexts.desiredIcp,
         desiredIcpIndustry: sessionContexts.desiredIcpIndustry,
         desiredIcpRegion: sessionContexts.desiredIcpRegion,
-        keyQuestions: sessionContexts.keyQuestions
+        keyQuestions: sessionContexts.keyQuestions,
+        surveyQuestions: sessionContexts.surveyQuestions
       })
       .from(sessionContexts)
       .where(eq(sessionContexts.sessionId, sid))
@@ -316,7 +762,8 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         conversationId: convaiTranscripts.conversationId,
         summary: convaiTranscripts.analysis,
         receivedAt: convaiTranscripts.receivedAt,
-        dynamicVariables: convaiTranscripts.dynamicVariables
+        dynamicVariables: convaiTranscripts.dynamicVariables,
+        transcript: convaiTranscripts.transcript
       })
       .from(convaiTranscripts)
       .where(transcriptCondition)
@@ -342,6 +789,32 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
       };
     });
 
+    const questionListRaw = contextRows[0]?.surveyQuestions;
+    const questionList = Array.isArray(questionListRaw)
+      ? (questionListRaw as unknown[])
+          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+          .filter((entry) => entry)
+      : [];
+
+    const transcriptsForBreakdown = transcriptRows.map((row, index) => {
+      const dynamicVars =
+        row.dynamicVariables && typeof row.dynamicVariables === "object"
+          ? (row.dynamicVariables as Record<string, unknown>)
+          : {};
+      const emailValue = dynamicVars.email_address;
+
+      return {
+        conversationId: row.conversationId,
+        email: typeof emailValue === "string" && emailValue.trim() ? emailValue.trim() : null,
+        transcript: row.transcript
+      };
+    });
+
+    const { primary: primaryQuestions, followUps: followUpQuestions } = buildQuestionBreakdown(
+      questionList,
+      transcriptsForBreakdown
+    );
+
     return {
       props: {
         sessionId: sessionRecord.sessionId,
@@ -351,7 +824,9 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         context: contextRows[0] ?? null,
         emailsSent: uniqueRecipients.size,
         responders: summaries.length,
-        callSummaries: summaries
+        callSummaries: summaries,
+        primaryQuestions,
+        followUpQuestions
       }
     };
   } catch (error) {
@@ -366,6 +841,8 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         emailsSent: 0,
         responders: 0,
         callSummaries: [],
+        primaryQuestions: [],
+        followUpQuestions: [],
         error: "Unable to load scorecard right now."
       }
     };
