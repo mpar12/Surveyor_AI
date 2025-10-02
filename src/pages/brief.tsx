@@ -321,7 +321,7 @@ export default function BriefPage() {
           </div>
         ) : null}
 
-        <div className={styles.metaList}>
+       {/* { <div className={styles.metaList}>
           <div className={styles.metaItem}>
             <span>Requester</span>
             <p>{name || "—"}</p>
@@ -346,8 +346,8 @@ export default function BriefPage() {
             <span>Key Questions</span>
             <p>{keyQuestions || "—"}</p>
           </div>
-        </div>
-
+        </div> }
+ */}
         {isLoading && !error ? (
           <div className={styles.status}>Generating research insights…</div>
         ) : null}
@@ -387,7 +387,8 @@ export default function BriefPage() {
             <h2>Survey Questions</h2>
             <p>
               Tailored for {desiredIcp || "your ICP"}
-              {desiredIcpIndustry ? ` in the ${desiredIcpIndustry} space.` : "."}
+              {desiredIcpIndustry ? ` in the ${desiredIcpIndustry} space.` : "."} \n
+              Please edit the questions as desired. 
             </p>
           </div>
 
