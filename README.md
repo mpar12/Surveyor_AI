@@ -1,9 +1,9 @@
 ## TODO: For sure
-## Scorecard - table for each question for sure
+## Link Clean-up??
+
 
 ## TODO Optional:
 ## Re-add authentication for 11Labs Webhook
-## Link Clean-up??
 ## Steps to not fall into SPAM
 ## 
 ##

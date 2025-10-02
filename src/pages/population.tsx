@@ -435,9 +435,11 @@ export default function PopulationPage() {
         {searchError ? <div className={styles.errorBanner}>{searchError}</div> : null}
       </div>
 
-      <Link href="/brief" className={styles.backLink}>
-        ← Back to research brief
-      </Link>
+      <div className={styles.actions}>
+        <Link href="/brief" className={styles.backLink}>
+          ← Back to research brief
+        </Link>
+      </div>
     </div>
   );
 }
