@@ -3,6 +3,7 @@ import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, emailSends, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
+import styles from "@/styles/Scorecard.module.css";
 
 interface QuestionAnswerRow {
   answer: string;
@@ -60,20 +61,6 @@ type TranscriptTurn = {
 function sanitizeForMatch(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
-
-const SURFACE_CARD = "var(--color-surface-0)";
-const SURFACE_PANEL = "var(--color-surface-0)";
-const SURFACE_LIST = "var(--gradient-hero)";
-const BORDER_SOFT = "var(--color-border)";
-const BORDER_MUTED = "rgba(28, 39, 64, 0.16)";
-const TEXT_PRIMARY = "var(--color-text-primary)";
-const TEXT_SECONDARY = "var(--color-text-secondary)";
-const TEXT_MUTED = "var(--color-text-muted)";
-const METRIC_ACCENT = "var(--color-accent)";
-const METRIC_SUCCESS = "#4ade80";
-const TABLE_BG = "var(--color-surface-0)";
-const TABLE_HEADER_BG = "rgba(16, 19, 34, 0.04)";
-const TABLE_BORDER = "rgba(28, 39, 64, 0.12)";
 
 function detectSpeaker(entry: unknown): "agent" | "participant" | null {
   if (!entry || typeof entry !== "object") {
@@ -310,23 +297,16 @@ export default function ScorecardPage({
   error
 }: ScorecardProps) {
   return (
-    <div
-      style={{
-        padding: "clamp(2.5rem, 6vw, 4rem) clamp(1.5rem, 5vw, 3rem)",
-        maxWidth: "960px",
-        margin: "0 auto",
-        color: TEXT_PRIMARY
-      }}
-    >
+    <div className={styles.container}>
       <Head>
         <title>Scorecard | SurvAgent</title>
         <meta name="description" content="Review responses captured for your SurvAgent session." />
       </Head>
 
-      <header style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, color: TEXT_PRIMARY }}>Scorecard</h1>
+      <header className={styles.lead}>
+        <h1 className={styles.pageTitle}>Scorecard</h1>
         {pin || createdAt || status ? (
-          <p style={{ color: TEXT_SECONDARY, marginTop: "0.5rem" }}>
+          <p className={styles.metaLine}>
             PIN <strong>{pin ?? "—"}</strong>
             {createdAt ? <> · Created {formatDate(createdAt)}</> : null}
             {status ? <> · Status: {status}</> : null}
@@ -334,192 +314,87 @@ export default function ScorecardPage({
         ) : null}
       </header>
 
-      {error ? (
-        <div
-          style={{
-            background: "var(--color-error-surface)",
-            border: "1px solid var(--color-error-border)",
-            borderRadius: "12px",
-            padding: "1rem 1.25rem",
-            color: "var(--color-error)",
-            fontWeight: 600
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
+      {error ? <div className={styles.errorBox}>{error}</div> : null}
 
-      {!error && status === "closed" ? (
-        <div
-          style={{
-            background: "rgba(255, 196, 111, 0.12)",
-            border: "1px solid rgba(255, 196, 111, 0.38)",
-            borderRadius: "12px",
-            padding: "1rem 1.25rem",
-            color: "#facc15",
-            fontWeight: 600,
-            marginBottom: "1.5rem"
-          }}
-        >
-          This session has been closed.
-        </div>
-      ) : null}
+      {!error && status === "closed" ? <div className={styles.noticeBox}>This session has been closed.</div> : null}
 
       {!error ? (
-        <section style={{ display: "grid", gap: "1.5rem" }}>
-          <div
-            style={{
-              background: SURFACE_CARD,
-              borderRadius: "22px",
-              padding: "1.5rem",
-              boxShadow: "var(--shadow-card)",
-              border: `1px solid ${BORDER_SOFT}`,
-              display: "grid",
-              gap: "1rem"
-            }}
-          >
-            <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: TEXT_PRIMARY }}>Survey context</h2>
-            <dl style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-              <div>
-                <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.08em", color: TEXT_MUTED, fontWeight: 600 }}>
-                  Requester
-                </dt>
-                <dd style={{ margin: 0, color: TEXT_PRIMARY, fontWeight: 500 }}>{context?.requester || "—"}</dd>
+        <div className={styles.card}>
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Survey context</h2>
+            <dl className={styles.contextGrid}>
+              <div className={styles.contextItem}>
+                <dt className={styles.contextLabel}>Requester</dt>
+                <dd className={styles.contextValue}>{context?.requester || "—"}</dd>
               </div>
-              <div>
-                <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.08em", color: TEXT_MUTED, fontWeight: 600 }}>
-                  Desired ICP
-                </dt>
-                <dd style={{ margin: 0, color: TEXT_PRIMARY, fontWeight: 500 }}>{context?.desiredIcp || "—"}</dd>
+              <div className={styles.contextItem}>
+                <dt className={styles.contextLabel}>Desired ICP</dt>
+                <dd className={styles.contextValue}>{context?.desiredIcp || "—"}</dd>
               </div>
-              <div>
-                <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.08em", color: TEXT_MUTED, fontWeight: 600 }}>
-                  ICP Industry
-                </dt>
-                <dd style={{ margin: 0, color: TEXT_PRIMARY, fontWeight: 500 }}>{context?.desiredIcpIndustry || "—"}</dd>
+              <div className={styles.contextItem}>
+                <dt className={styles.contextLabel}>ICP Industry</dt>
+                <dd className={styles.contextValue}>{context?.desiredIcpIndustry || "—"}</dd>
               </div>
-              <div>
-                <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.08em", color: TEXT_MUTED, fontWeight: 600 }}>
-                  ICP Region
-                </dt>
-                <dd style={{ margin: 0, color: TEXT_PRIMARY, fontWeight: 500 }}>{context?.desiredIcpRegion || "—"}</dd>
+              <div className={styles.contextItem}>
+                <dt className={styles.contextLabel}>ICP Region</dt>
+                <dd className={styles.contextValue}>{context?.desiredIcpRegion || "—"}</dd>
               </div>
-              <div>
-                <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.08em", color: TEXT_MUTED, fontWeight: 600 }}>
-                  Feedback desired
-                </dt>
-                <dd style={{ margin: 0, color: TEXT_PRIMARY, fontWeight: 500 }}>{context?.feedbackDesired || "—"}</dd>
+              <div className={styles.contextItem}>
+                <dt className={styles.contextLabel}>Feedback desired</dt>
+                <dd className={styles.contextValue}>{context?.feedbackDesired || "—"}</dd>
               </div>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <dt style={{ fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.08em", color: TEXT_MUTED, fontWeight: 600 }}>
-                  Key questions
-                </dt>
-                <dd style={{ margin: 0, color: TEXT_PRIMARY, fontWeight: 500 }}>{context?.keyQuestions || "—"}</dd>
+              <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
+                <dt className={styles.contextLabel}>Key questions</dt>
+                <dd className={styles.contextValue}>{context?.keyQuestions || "—"}</dd>
               </div>
             </dl>
-          </div>
+          </section>
 
-          <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-            <div
-              style={{
-                background: SURFACE_PANEL,
-                borderRadius: "20px",
-                padding: "1.5rem",
-                boxShadow: "var(--shadow-soft)",
-                border: `1px solid ${BORDER_MUTED}`
-              }}
-            >
-              <h3 style={{ fontSize: "1rem", fontWeight: 600, color: TEXT_PRIMARY }}>Surveys sent</h3>
-              <p style={{ fontSize: "2rem", fontWeight: 700, color: METRIC_ACCENT, margin: "0.25rem 0 0" }}>{emailsSent}</p>
-              <p style={{ color: TEXT_MUTED, marginTop: "0.4rem" }}>Unique recipients emailed across this session.</p>
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Performance metrics</h2>
+            <div className={styles.metricsGrid}>
+              <div className={styles.metricCard}>
+                <span className={styles.metricTitle}>Surveys sent</span>
+                <span className={styles.metricValue}>{emailsSent}</span>
+                <span className={styles.metricHint}>Unique recipients emailed across this session.</span>
+              </div>
+              <div className={styles.metricCard}>
+                <span className={styles.metricTitle}>Responders</span>
+                <span className={`${styles.metricValue} ${styles.metricValueSuccess}`}>{responders}</span>
+                <span className={styles.metricHint}>Completed conversations with the AI agent.</span>
+              </div>
             </div>
-            <div
-              style={{
-                background: SURFACE_PANEL,
-                borderRadius: "20px",
-                padding: "1.5rem",
-                boxShadow: "var(--shadow-soft)",
-                border: `1px solid ${BORDER_MUTED}`
-              }}
-            >
-              <h3 style={{ fontSize: "1rem", fontWeight: 600, color: TEXT_PRIMARY }}>Responders</h3>
-              <p style={{ fontSize: "2rem", fontWeight: 700, color: METRIC_SUCCESS, margin: "0.25rem 0 0" }}>{responders}</p>
-              <p style={{ color: TEXT_MUTED, marginTop: "0.4rem" }}>Completed conversations with the AI agent.</p>
-            </div>
-          </div>
+          </section>
 
-          <div
-            style={{
-              background: SURFACE_CARD,
-              borderRadius: "22px",
-              padding: "1.5rem",
-              boxShadow: "var(--shadow-card)",
-              border: `1px solid ${BORDER_SOFT}`
-            }}
-          >
-            <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: TEXT_PRIMARY, marginBottom: "1rem" }}>
-              Summary of each call
-            </h2>
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Summary of each call</h2>
             {callSummaries.length === 0 ? (
-              <p style={{ color: TEXT_MUTED }}>No completed calls yet.</p>
+              <p className={styles.emptyState}>No completed calls yet.</p>
             ) : (
-              <ul style={{ display: "grid", gap: "1rem", padding: 0, listStyle: "none" }}>
+              <ul className={styles.callList}>
                 {callSummaries.map((summary) => (
-                  <li
-                    key={summary.conversationId}
-                    style={{
-                      background: SURFACE_LIST,
-                      border: `1px solid ${BORDER_MUTED}`,
-                      borderRadius: "18px",
-                      padding: "1.1rem"
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>
-                        {summary.email ? summary.email : "Unknown participant"}
-                      </div>
-                      <div style={{ color: TEXT_MUTED, fontSize: "0.85rem" }}>
-                        {formatDate(summary.receivedAt)}
-                      </div>
+                  <li key={summary.conversationId} className={styles.callCard}>
+                    <div className={styles.callHeader}>
+                      <span>{summary.email ? summary.email : "Unknown participant"}</span>
+                      <span className={styles.callMeta}>{formatDate(summary.receivedAt)}</span>
                     </div>
-                    <div style={{ color: TEXT_SECONDARY, lineHeight: 1.55 }}>
-                      {summary.summary || "Summary not available."}
-                    </div>
+                    <p className={styles.callSummary}>{summary.summary || "Summary not available."}</p>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </section>
 
           {primaryQuestions.length ? (
-            <div
-              style={{
-                background: SURFACE_CARD,
-                borderRadius: "22px",
-                padding: "1.5rem",
-                boxShadow: "var(--shadow-card)",
-                border: `1px solid ${BORDER_SOFT}`
-              }}
-            >
-              <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: TEXT_PRIMARY, marginBottom: "1rem" }}>
-                Responses by scripted question
-              </h2>
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    background: TABLE_BG,
-                    borderRadius: "16px",
-                    overflow: "hidden",
-                    border: `1px solid ${TABLE_BORDER}`
-                  }}
-                >
-                  <thead style={{ background: TABLE_HEADER_BG, color: TEXT_PRIMARY, textAlign: "left" }}>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Responses by scripted question</h2>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
                     <tr>
-                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "40%" }}>Question</th>
-                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem" }}>Answer</th>
-                      <th style={{ padding: "0.85rem 1rem", fontSize: "0.9rem", width: "22%" }}>Participant</th>
+                      <th className={styles.tableHeadQuestion}>Question</th>
+                      <th>Answer</th>
+                      <th className={styles.tableHeadParticipant}>Participant</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -528,31 +403,28 @@ export default function ScorecardPage({
 
                       if (!block.answers.length) {
                         return (
-                          <tr key={label} style={{ borderTop: `1px solid ${TABLE_BORDER}` }}>
-                            <td style={{ padding: "0.85rem 1rem", fontWeight: 600, color: TEXT_PRIMARY }}>{label}</td>
-                            <td style={{ padding: "0.85rem 1rem", color: TEXT_MUTED }}>No responses captured yet.</td>
-                            <td style={{ padding: "0.85rem 1rem", color: TEXT_MUTED }}>—</td>
+                          <tr key={label}>
+                            <td className={styles.questionCell}>{label}</td>
+                            <td className={`${styles.answerCell} ${styles.emptyState}`}>
+                              No responses captured yet.
+                            </td>
+                            <td className={styles.participantCellEmpty}>—</td>
                           </tr>
                         );
                       }
 
                       return block.answers.map((answer, answerIndex) => (
-                        <tr key={`${label}-${answer.conversationId}-${answerIndex}`} style={{ borderTop: `1px solid ${TABLE_BORDER}` }}>
+                        <tr key={`${label}-${answer.conversationId}-${answerIndex}`}>
                           {answerIndex === 0 ? (
-                            <td
-                              style={{
-                                padding: "0.85rem 1rem",
-                                fontWeight: 600,
-                                color: TEXT_PRIMARY
-                              }}
-                              rowSpan={block.answers.length}
-                            >
+                            <td className={styles.questionCell} rowSpan={block.answers.length}>
                               {label}
                             </td>
                           ) : null}
-                          <td style={{ padding: "0.85rem 1rem", color: TEXT_SECONDARY }}>{answer.answer}</td>
-                          <td style={{ padding: "0.85rem 1rem", color: METRIC_ACCENT, fontWeight: 600 }}>
-                            {answer.email || "Unknown participant"}
+                          <td className={styles.answerCell}>{answer.answer}</td>
+                          <td className={styles.participantCell}>
+                            <span className={styles.answerParticipant}>
+                              {answer.email || "Unknown participant"}
+                            </span>
                           </td>
                         </tr>
                       ));
@@ -560,10 +432,9 @@ export default function ScorecardPage({
                   </tbody>
                 </table>
               </div>
-            </div>
+            </section>
           ) : null}
-
-        </section>
+        </div>
       ) : null}
     </div>
   );
