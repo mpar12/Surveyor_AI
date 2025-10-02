@@ -62,6 +62,10 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.metaItemFull {
+  grid-column: span 2;
+}
+
 .metaItem {
   background: var(--color-surface-0);
   border: 1px solid var(--color-border);

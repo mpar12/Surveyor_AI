@@ -416,7 +416,7 @@ export default function PopulationPage() {
         <div className={styles.actions}>
           {manualSelected && hasValidEmails ? (
             <button type="button" className={styles.primaryButton} onClick={handlePrepareEmailManual}>
-              Prepare Email
+              Draft Email
             </button>
           ) : null}
 

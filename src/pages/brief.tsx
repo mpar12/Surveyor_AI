@@ -323,11 +323,11 @@ export default function BriefPage() {
             <span>Desired ICP Region</span>
             <p>{desiredIcpRegion || "—"}</p>
           </div>
-          <div className={styles.metaItem}>
+          <div className={`${styles.metaItem} ${styles.metaItemFull}`}>
             <span>Feedback Desired</span>
             <p>{feedbackDesired || "—"}</p>
           </div>
-          <div className={styles.metaItem}>
+          <div className={`${styles.metaItem} ${styles.metaItemFull}`}>
             <span>Key Questions</span>
             <p>{keyQuestions || "—"}</p>
           </div>
