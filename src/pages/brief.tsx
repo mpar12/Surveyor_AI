@@ -302,8 +302,8 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Research brief preview</h1>
       <p className={styles.pageSubtitle}>
-        We logged your intake details and are drafting the outreach overview. Confirm the
-        generated context below before you move forward with agent setup and sourcing prospects.
+        We logged your intake details and are drafting the outreach overview. Edit the
+        generated survey below before you move forward with survey population selection.
       </p>
 
       <div className={styles.card}>
@@ -387,7 +387,7 @@ export default function BriefPage() {
             <h2>Survey Questions</h2>
             <p>
               Tailored for {desiredIcp || "your ICP"}
-              {desiredIcpIndustry ? ` in the ${desiredIcpIndustry} space.` : "."} \n
+              {desiredIcpIndustry ? ` in the ${desiredIcpIndustry} space.` : "."} <br />
               Please edit the questions as desired. 
             </p>
           </div>

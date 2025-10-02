@@ -61,6 +61,63 @@ const formatTimestamp = (value?: number) => {
   }
 };
 
+const extractBulkEntries = (debug: StoredPeopleSearch["debug"]) => {
+  const payload = debug?.enrichment as any;
+  if (!payload) {
+    return [] as any[];
+  }
+
+  const candidates = [payload?.matches, payload?.people, payload?.matched_people, payload?.contacts];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  return [] as any[];
+};
+
+const pullEmail = (entry: any) => {
+  if (!entry || typeof entry !== "object") {
+    return "";
+  }
+
+  const directEmail = typeof entry.email === "string" ? entry.email.trim() : "";
+  if (directEmail) {
+    return directEmail;
+  }
+
+  const workEmail = typeof entry.work_email === "string" ? entry.work_email.trim() : "";
+  if (workEmail) {
+    return workEmail;
+  }
+
+  const person = entry.person;
+  if (person && typeof person === "object") {
+    const personEmail = typeof person.email === "string" ? person.email.trim() : "";
+    if (personEmail) {
+      return personEmail;
+    }
+
+    const personWorkEmail = typeof person.work_email === "string" ? person.work_email.trim() : "";
+    if (personWorkEmail) {
+      return personWorkEmail;
+    }
+  }
+
+  return "";
+};
+
+const isVerifiedEmail = (entry: any) => {
+  const statusCandidate =
+    (entry && typeof entry === "object" && (entry.email_status as string | undefined)) ??
+    (entry?.person && typeof entry.person === "object"
+      ? ((entry.person as Record<string, unknown>).email_status as string | undefined)
+      : undefined);
+
+  return typeof statusCandidate === "string" && statusCandidate.toLowerCase() === "verified";
+};
+
 export default function PeopleResultsPage() {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
@@ -135,9 +192,20 @@ export default function PeopleResultsPage() {
       return;
     }
 
-    const recipients = Array.from(
-      new Set(state.data.contacts.map((contact) => contact.email).filter((email) => Boolean(email)))
-    );
+    const bulkEntries = extractBulkEntries(state.data.debug);
+    const primaryRecipients = state.data.contacts
+      .filter((contact) => contact.email_status?.toLowerCase() === "verified")
+      .map((contact) => pullEmail(contact))
+      .filter(Boolean);
+
+    const fallbackRecipients = bulkEntries
+      .filter((entry) => isVerifiedEmail(entry))
+      .map((entry) => pullEmail(entry))
+      .filter(Boolean);
+
+    const candidateEmails = primaryRecipients.length ? primaryRecipients : fallbackRecipients;
+
+    const recipients = Array.from(new Set(candidateEmails.map((email) => email.trim()).filter(Boolean)));
 
     if (!recipients.length) {
       setPrepareError("No verified email addresses available to email.");
@@ -216,19 +284,7 @@ export default function PeopleResultsPage() {
     }
 
     const { contacts, title, location, industry, generatedAt, debug } = state.data;
-
-    const bulkEntries = (() => {
-      const payload = debug?.enrichment as any;
-      if (!payload) {
-        return [] as any[];
-      }
-
-      if (Array.isArray(payload?.matches)) return payload.matches;
-      if (Array.isArray(payload?.people)) return payload.people;
-      if (Array.isArray(payload?.matched_people)) return payload.matched_people;
-      if (Array.isArray(payload?.contacts)) return payload.contacts;
-      return [] as any[];
-    })();
+    const bulkEntries = extractBulkEntries(debug);
 
     return (
       <>
@@ -291,7 +347,7 @@ export default function PeopleResultsPage() {
 
         {debug?.enrichment ? (
           <section className={styles.bulkSection}>
-            <h2 className={styles.summaryHeading}>Bulk Match contacts</h2>
+            <h2 className={styles.summaryHeading}>Returned Contacts</h2>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
@@ -369,16 +425,6 @@ export default function PeopleResultsPage() {
 
       <div className={styles.card}>{renderContent()}</div>
 
-      <div className={styles.actionsRow}>
-        <Link href="/population" className={styles.backLink}>
-          ← Back to sourcing options
-        </Link>
-        {sessionId ? (
-          <button type="button" onClick={handleViewScorecard} className={styles.secondaryButton}>
-            View session scorecard
-          </button>
-        ) : null}
-      </div>
     </div>
   );
 }
