@@ -302,8 +302,7 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Research brief preview</h1>
       <p className={styles.pageSubtitle}>
-        We logged your intake details and are drafting the outreach overview. Edit the
-        generated survey below before you move forward with survey population selection.
+        We logged your intake details and are drafting the outreach overview. 
       </p>
 
       <div className={styles.card}>
@@ -348,9 +347,6 @@ export default function BriefPage() {
           </div>
         </div> }
  */}
-        {isLoading && !error ? (
-          <div className={styles.status}>Generating research insights…</div>
-        ) : null}
 
         {error ? <div className={styles.errorMessage}>{error}</div> : null}
 

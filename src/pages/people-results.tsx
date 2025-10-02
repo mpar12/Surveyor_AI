@@ -297,7 +297,7 @@ export default function PeopleResultsPage() {
         {prepareError ? <div className={styles.errorBanner}>{prepareError}</div> : null}
 
         <section className={styles.summaryCard}>
-          <h2 className={styles.summaryHeading}>Search summary</h2>
+          <h2 className={styles.summaryHeading}>Search Criteria</h2>
           <div className={styles.summaryMeta}>
             <strong>Title:</strong> {title || "—"}
           </div>

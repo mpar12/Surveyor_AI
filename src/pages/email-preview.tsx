@@ -1,7 +1,6 @@
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/EmailPreview.module.css";
 import {
   EMAIL_PREVIEW_LAST_SEND_KEY,
@@ -76,6 +75,7 @@ export default function EmailPreviewPage() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [newRecipient, setNewRecipient] = useState("");
 
   useEffect(() => {
     if (!router.isReady) {
@@ -192,14 +192,67 @@ export default function EmailPreviewPage() {
     setBody(event.target.value);
   };
 
+  const handleRecipientChange = (index: number, value: string) => {
+    setRecipients((previous) => {
+      const next = [...previous];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const handleRecipientBlur = (index: number) => {
+    setRecipients((previous) => {
+      const next = [...previous];
+      next[index] = next[index].trim();
+      return next;
+    });
+  };
+
+  const handleRecipientRemove = (index: number) => {
+    setRecipients((previous) => previous.filter((_, position) => position !== index));
+  };
+
+  const handleAddRecipient = () => {
+    const candidate = newRecipient.trim();
+
+    if (!candidate) {
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(candidate)) {
+      setError(`"${candidate}" is not a valid email address.`);
+      return;
+    }
+
+    if (recipients.some((existing) => existing.toLowerCase() === candidate.toLowerCase())) {
+      setError("Recipient already added.");
+      return;
+    }
+
+    setRecipients((previous) => [...previous, candidate]);
+    setNewRecipient("");
+    setError(null);
+  };
+
+  const handleNewRecipientKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleAddRecipient();
+    }
+  };
+
   const handleSend = async () => {
-    if (!recipients.length) {
+    const normalizedRecipients = Array.from(
+      new Set(recipients.map((email) => email.trim()).filter(Boolean))
+    );
+
+    if (!normalizedRecipients.length) {
       setError("Add at least one recipient before sending.");
       setSuccess(null);
       return;
     }
 
-    const invalidEmail = recipients.find((email) => !EMAIL_REGEX.test(email));
+    const invalidEmail = normalizedRecipients.find((email) => !EMAIL_REGEX.test(email));
     if (invalidEmail) {
       setError(`"${invalidEmail}" is not a valid email address.`);
       setSuccess(null);
@@ -232,7 +285,7 @@ export default function EmailPreviewPage() {
         },
         body: JSON.stringify({
           sessionId: context.sid || null,
-          recipients,
+          recipients: normalizedRecipients,
           subject: subject.trim(),
           body,
           agentLink,
@@ -257,7 +310,7 @@ export default function EmailPreviewPage() {
         sessionStorage.setItem(
           EMAIL_PREVIEW_LAST_SEND_KEY,
           JSON.stringify({
-            recipients,
+            recipients: normalizedRecipients,
             subject: subject.trim(),
             sentAt: Date.now(),
             sessionId: context.sid ?? null,
@@ -266,7 +319,7 @@ export default function EmailPreviewPage() {
         );
       }
 
-      router.push({ pathname: "/email-success", query: { sid: context.sid ?? "", pin: context.pin ?? "" } });
+    router.push({ pathname: "/email-success", query: { sid: context.sid ?? "", pin: context.pin ?? "" } });
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "Failed to send email.");
       setSuccess(null);
@@ -282,11 +335,15 @@ export default function EmailPreviewPage() {
         <meta name="description" content="Review and send the survey invitation email." />
       </Head>
 
+      <div className={styles.lead}>
+        <h1 className={styles.pageTitle}>Send survey invitation</h1>
+        <p className={styles.pageSubtitle}>
+          Review the message below and confirm before sending your AI agent to the selected recipients.
+          You can edit the subject, message, and BCC recipients before sending.
+        </p>
+      </div>
+
       <div className={styles.card}>
-        <header className={styles.header}>
-          <h1>Send survey invitation</h1>
-          <p>Review the message below and confirm before sending your AI agent to the selected recipients.</p>
-        </header>
 
         <section className={styles.section}>
           <div>
@@ -296,16 +353,41 @@ export default function EmailPreviewPage() {
 
           <div>
             <div className={styles.label}>Bcc</div>
-            <div className={styles.recipientsBox}>
+            <div className={styles.recipientsEditable}>
               {recipients.length ? (
-                recipients.map((recipient) => (
-                  <span key={recipient} className={styles.recipientChip}>
-                    {recipient}
-                  </span>
+                recipients.map((recipient, index) => (
+                  <div key={index} className={styles.recipientRow}>
+                    <input
+                      value={recipient}
+                      onChange={(event) => handleRecipientChange(index, event.target.value)}
+                      onBlur={() => handleRecipientBlur(index)}
+                      className={styles.recipientInput}
+                      aria-label={`Recipient ${index + 1}`}
+                    />
+                    <button
+                      type="button"
+                      className={styles.removeRecipientButton}
+                      onClick={() => handleRecipientRemove(index)}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 ))
               ) : (
                 <span className={styles.helperText}>No recipients selected yet.</span>
               )}
+              <div className={styles.addRecipientRow}>
+                <input
+                  value={newRecipient}
+                  onChange={(event) => setNewRecipient(event.target.value)}
+                  onKeyDown={handleNewRecipientKeyDown}
+                  className={styles.recipientInput}
+                  placeholder="Add another email"
+                />
+                <button type="button" className={styles.addRecipientButton} onClick={handleAddRecipient}>
+                  Add
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -356,10 +438,6 @@ export default function EmailPreviewPage() {
           >
             {isSending ? "Sending…" : "Send email"}
           </button>
-
-          <Link className={styles.secondaryLink} href={{ pathname: "/population", query: { sid: context.sid ?? "", pin: context.pin ?? "" } }}>
-            Back to population
-          </Link>
         </div>
       </div>
     </div>
