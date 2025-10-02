@@ -2,6 +2,7 @@ import Head from "next/head";
 import Script from "next/script";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
+import styles from "@/styles/Assistant.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 
 export default function AssistantPage() {
@@ -168,35 +169,47 @@ export default function AssistantPage() {
         />
       </Head>
 
-      <div className="fullscreen-center">
-        {agentId ? (
-          <>
-            <elevenlabs-convai
-              agent-id={agentId}
-              variant="expanded"
-              action-text=""
-              start-call-text="Start"
-              end-call-text="End"
-              listening-text="Listening…"
-              speaking-text="Speaking…"
-              dynamic-variables={JSON.stringify(dynamicVariables)}
-            />
-            <Script
-              src="https://unpkg.com/@elevenlabs/convai-widget-embed"
-              strategy="afterInteractive"
-              async
-            />
-          </>
-        ) : (
-          <div style={{ color: "#f9fafb", textAlign: "center", maxWidth: "28rem" }}>
-            <h1 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Configuration required</h1>
-            <p>
-              Set the `NEXT_PUBLIC_ELEVENLABS_AGENT_ID` environment variable to enable the ElevenLabs
-              assistant.
-            </p>
-          </div>
-        )}
-      </div>
+      <main className={styles.container}>
+        <section className={styles.hero}>
+          <h1 className={styles.heroTitle}>Welcome to your AI Agent interview</h1>
+          <p className={styles.heroBody}>
+            Please click the call button to get started. Our agent will be happy to answer any questions
+            you have and guide you through the interview.
+          </p>
+        </section>
+
+        <section className={styles.widgetColumn}>
+          {agentId ? (
+            <>
+              <elevenlabs-convai
+                agent-id={agentId}
+                variant="expanded"
+                action-text=""
+                start-call-text="Start"
+                end-call-text="End"
+                listening-text="Listening…"
+                speaking-text="Speaking…"
+                dynamic-variables={JSON.stringify(dynamicVariables)}
+              />
+              <Script
+                src="https://unpkg.com/@elevenlabs/convai-widget-embed"
+                strategy="afterInteractive"
+                async
+              />
+            </>
+          ) : (
+            <div>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 600, marginBottom: "0.75rem" }}>
+                Configuration required
+              </h2>
+              <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                Set the `NEXT_PUBLIC_ELEVENLABS_AGENT_ID` environment variable to enable the ElevenLabs
+                assistant.
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
     </>
   );
 }

@@ -168,6 +168,24 @@
   padding-left: 0.2rem;
 }
 
+.questionInput {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid rgba(28, 39, 64, 0.22);
+  border-radius: 0;
+  background: transparent;
+  font-size: 1.02rem;
+  color: var(--color-text-primary);
+  padding: 0.35rem 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s.ease;
+}
+
+.questionInput:focus {
+  outline: none;
+  border-bottom-color: rgba(84, 73, 255, 0.65);
+  box-shadow: 0 12px 24px rgba(84, 73, 255, 0.08);
+}
+
 .actionsRow {
   display: flex;
   flex-wrap: wrap;

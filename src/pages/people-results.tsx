@@ -217,6 +217,19 @@ export default function PeopleResultsPage() {
 
     const { contacts, title, location, industry, generatedAt, debug } = state.data;
 
+    const bulkEntries = (() => {
+      const payload = debug?.enrichment as any;
+      if (!payload) {
+        return [] as any[];
+      }
+
+      if (Array.isArray(payload?.matches)) return payload.matches;
+      if (Array.isArray(payload?.people)) return payload.people;
+      if (Array.isArray(payload?.matched_people)) return payload.matched_people;
+      if (Array.isArray(payload?.contacts)) return payload.contacts;
+      return [] as any[];
+    })();
+
     return (
       <>
         <div className={styles.toolbar}>
@@ -268,35 +281,13 @@ export default function PeopleResultsPage() {
               </tbody>
             </table>
           </section>
-        ) : (
+        ) : null}
+
+        {bulkEntries.length < 10 ? (
           <div className={styles.emptyState}>
             The search completed successfully, but no verified contacts were returned.
           </div>
-        )}
-
-        {Boolean(debug && (debug.search || debug.enrichment || debug.bulkDetails)) && (
-          <section className={styles.debugSection}>
-            <h2 className={styles.summaryHeading}>Raw API responses</h2>
-            {debug?.search ? (
-              <details open>
-                <summary>Mixed People Search</summary>
-                <pre className={styles.debugPre}>{JSON.stringify(debug.search, null, 2)}</pre>
-              </details>
-            ) : null}
-            {debug?.bulkDetails ? (
-              <details open>
-                <summary>Bulk Match Payload</summary>
-                <pre className={styles.debugPre}>{JSON.stringify(debug.bulkDetails, null, 2)}</pre>
-              </details>
-            ) : null}
-            {debug?.enrichment ? (
-              <details open>
-                <summary>Bulk Match Results</summary>
-                <pre className={styles.debugPre}>{JSON.stringify(debug.enrichment, null, 2)}</pre>
-              </details>
-            ) : null}
-          </section>
-        )}
+        ) : null}
 
         {debug?.enrichment ? (
           <section className={styles.bulkSection}>
@@ -312,29 +303,8 @@ export default function PeopleResultsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(() => {
-                    const payload = debug.enrichment as any;
-                    const entries = Array.isArray(payload?.matches)
-                      ? payload.matches
-                      : Array.isArray(payload?.people)
-                        ? payload.people
-                        : Array.isArray(payload?.matched_people)
-                          ? payload.matched_people
-                          : Array.isArray(payload?.contacts)
-                            ? payload.contacts
-                            : [];
-
-                    if (!entries.length) {
-                      return (
-                        <tr>
-                          <td colSpan={4} className={styles.emptyState}>
-                            No contacts returned by bulk match.
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    return entries.map((entry: any, index: number) => {
+                  {bulkEntries.length ? (
+                    bulkEntries.map((entry: any, index: number) => {
                       const person = entry.person ?? entry ?? {};
                       const organization = person.organization ?? entry.organization ?? {};
                       const companyName =
@@ -355,8 +325,14 @@ export default function PeopleResultsPage() {
                           <td className={styles.emailCell}>{email || "—"}</td>
                         </tr>
                       );
-                    });
-                  })()}
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className={styles.emptyState}>
+                        No contacts returned by bulk match.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -383,26 +359,26 @@ export default function PeopleResultsPage() {
         <title>People results | SurvAgent</title>
       </Head>
 
-      <header className={styles.header}>
-        <h1>Sourced contacts</h1>
-        <Link href="/population" className={styles.backLink}>
-          ← Back to sourcing options
-        </Link>
-      </header>
+      <div className={styles.lead}>
+        <h1 className={styles.pageTitle}>Sourced contacts</h1>
+        <p className={styles.pageSubtitle}>
+          Review the verified prospects SurvAgent collected based on your intake criteria. Download the
+          list or jump back to sourcing to refine your search.
+        </p>
+      </div>
 
       <div className={styles.card}>{renderContent()}</div>
 
-      {sessionId ? (
-        <div className={styles.ctaRow}>
+      <div className={styles.actionsRow}>
+        <Link href="/population" className={styles.backLink}>
+          ← Back to sourcing options
+        </Link>
+        {sessionId ? (
           <button type="button" onClick={handleViewScorecard} className={styles.secondaryButton}>
             View session scorecard
           </button>
-        </div>
-      ) : null}
-
-      <p className={styles.footerNote}>
-        Need a fresh search? <Link href="/population">Run it again from the population page.</Link>
-      </p>
+        ) : null}
+      </div>
     </div>
   );
 }

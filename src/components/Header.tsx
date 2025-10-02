@@ -22,11 +22,11 @@ export default function Header() {
         style={{
           fontSize: "0.95rem",
           fontWeight: 600,
-          color: "#2563eb",
+          color: "#101322",
           textDecoration: "none",
           padding: "0.6rem 1.2rem",
           borderRadius: "999px",
-          border: "1px solid rgba(37, 99, 235, 0.35)",
+          border: "1px solid rgba(16, 19, 34, 0.6)",
           transition: "background 0.2s ease, color 0.2s ease"
         }}
       >

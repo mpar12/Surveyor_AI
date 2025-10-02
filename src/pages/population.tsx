@@ -351,10 +351,6 @@ export default function PopulationPage() {
               <dd>{contextSummary.product || "—"}</dd>
             </div>
             <div>
-              <dt>Desired feedback</dt>
-              <dd>{contextSummary.feedbackDesired || "—"}</dd>
-            </div>
-            <div>
               <dt>Target ICP</dt>
               <dd>{contextSummary.desiredIcp || "—"}</dd>
             </div>

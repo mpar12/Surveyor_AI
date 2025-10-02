@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Brief.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 
@@ -278,6 +278,21 @@ export default function BriefPage() {
   const productCopy = descriptions?.productDescription;
   const companyCopy = descriptions?.companyDescription;
 
+  const handleQuestionChange = useCallback(
+    (index: number, event: ChangeEvent<HTMLInputElement>) => {
+      const nextValue = event.target.value;
+      setQuestions((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        const updated = [...previous];
+        updated[index] = nextValue;
+        return updated;
+      });
+    },
+    []
+  );
+
   return (
     <div className={styles.container}>
       <Head>
@@ -287,8 +302,8 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Research brief preview</h1>
       <p className={styles.pageSubtitle}>
-        We logged your intake details and are drafting the outreach overview with ChatGPT. Confirm the
-        generated context below before you move forward with agent setup or sourcing prospects.
+        We logged your intake details and are drafting the outreach overview. Confirm the
+        generated context below before you move forward with agent setup and sourcing prospects.
       </p>
 
       <div className={styles.card}>
@@ -346,7 +361,7 @@ export default function BriefPage() {
               {productCopy
                 ? productCopy
                 : isLoading
-                  ? "ChatGPT is synthesizing the product research."
+                  ? "Product research is being generated..."
                   : error
                     ? "Product research is unavailable right now."
                     : "Product research will appear here once generated."}
@@ -359,7 +374,7 @@ export default function BriefPage() {
               {companyCopy
                 ? companyCopy
                 : isLoading
-                  ? "ChatGPT is synthesizing the company research."
+                  ? "Company research is being generated..."
                   : error
                     ? "Company research is unavailable right now."
                     : "Company research will appear here once generated."}
@@ -385,7 +400,14 @@ export default function BriefPage() {
           {questions && questions.length ? (
             <ol className={styles.questionsList}>
               {questions.map((question, index) => (
-                <li key={index}>{question}</li>
+                <li key={index}>
+                  <input
+                    value={question}
+                    onChange={(event) => handleQuestionChange(index, event)}
+                    className={styles.questionInput}
+                    aria-label={`Survey question ${index + 1}`}
+                  />
+                </li>
               ))}
             </ol>
           ) : !areQuestionsLoading && !questionsError ? (
