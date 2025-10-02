@@ -285,14 +285,13 @@ export default function BriefPage() {
         <meta name="description" content="Review AI-generated context for your survey outreach." />
       </Head>
 
+      <h1 className={styles.pageTitle}>Research brief preview</h1>
+      <p className={styles.pageSubtitle}>
+        We logged your intake details and are drafting the outreach overview with ChatGPT. Confirm the
+        generated context below before you move forward with agent setup or sourcing prospects.
+      </p>
+
       <div className={styles.card}>
-        <div className={styles.header}>
-          <h1>Research Brief Preview</h1>
-          <p>
-            We have logged your intake details and are drafting the outreach research using ChatGPT.
-            Review the generated context below before proceeding to the agent setup.
-          </p>
-        </div>
 
         {pin ? (
           <div className={styles.pinNotice}>
