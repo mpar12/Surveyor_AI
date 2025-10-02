@@ -34,11 +34,10 @@
 .pinNotice {
   background: var(--color-surface-0);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 12px;
   padding: 1.3rem 1.5rem;
   display: grid;
   gap: 0.6rem;
-  box-shadow: var(--shadow-soft);
 }
 
 .pinNotice h3 {
@@ -52,7 +51,7 @@
     "Liberation Mono", "Courier New", monospace;
   font-size: 0.95rem;
   padding: 0.3rem 0.55rem;
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(16, 19, 34, 0.06);
 }
 
@@ -69,12 +68,11 @@
 .metaItem {
   background: var(--color-surface-0);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 1rem 1.15rem;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  box-shadow: var(--shadow-soft);
 }
 
 .metaItem span {
@@ -101,7 +99,7 @@
   background: var(--color-error-surface);
   border: 1px solid var(--color-error-border);
   padding: 0.9rem 1rem;
-  border-radius: 14px;
+  border-radius: 10px;
   text-align: left;
   font-weight: 500;
 }
@@ -115,13 +113,12 @@
 .summaryBlock {
   background: var(--color-surface-0);
   border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border-radius: 10px;
   padding: 1.35rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
   min-height: 200px;
-  box-shadow: var(--shadow-soft);
 }
 
 .summaryBlock h2 {
@@ -140,9 +137,8 @@
   gap: 1.4rem;
   background: var(--color-surface-0);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 10px;
   padding: clamp(1.6rem, 4vw, 2.1rem);
-  box-shadow: var(--shadow-soft);
 }
 
 .questionsHeader {

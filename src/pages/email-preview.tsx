@@ -319,7 +319,7 @@ export default function EmailPreviewPage() {
         );
       }
 
-    router.push({ pathname: "/email-success", query: { sid: context.sid ?? "", pin: context.pin ?? "" } });
+      router.push({ pathname: "/email-success", query: { sid: context.sid ?? "", pin: context.pin ?? "" } });
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "Failed to send email.");
       setSuccess(null);
