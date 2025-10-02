@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Population.module.css";
@@ -324,14 +325,15 @@ export default function PopulationPage() {
         />
       </Head>
 
+      <div className={styles.lead}>
+        <h1 className={styles.pageTitle}>Determine survey population</h1>
+        <p className={styles.pageSubtitle}>
+          Choose how you would like SurvAgent to assemble the outreach list. You can paste a prepared set
+          of email addresses or let the agent search for prospects based on your intake details.
+        </p>
+      </div>
+
       <div className={styles.card}>
-        <header className={styles.header}>
-          <h1>Determine survey population</h1>
-          <p>
-            Choose how you would like SurvAgent to assemble the outreach list. You can paste a prepared
-            set of email addresses or let the agent search for prospects based on your intake details.
-          </p>
-        </header>
 
         <section className={`${styles.section} ${styles.contextPanel}`}>
           <h2>Survey context</h2>
@@ -432,6 +434,10 @@ export default function PopulationPage() {
 
         {searchError ? <div className={styles.errorBanner}>{searchError}</div> : null}
       </div>
+
+      <Link href="/brief" className={styles.backLink}>
+        ← Back to research brief
+      </Link>
     </div>
   );
 }

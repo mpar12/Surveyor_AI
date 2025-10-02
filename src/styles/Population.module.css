@@ -2,45 +2,47 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  width: min(1024px, 100%);
-  margin: 0 auto;
-  padding: clamp(3rem, 7vw, 4.75rem) clamp(2rem, 6vw, 4rem) clamp(3.5rem, 8vw, 5.5rem);
-  gap: clamp(2.25rem, 5vw, 3rem);
+  width: 100%;
+  max-width: 1120px;
+  margin: 0;
+  padding: clamp(3.2rem, 7vw, 4.8rem) clamp(1.75rem, 6vw, 3rem) clamp(3.4rem, 8vw, 5.2rem);
+  gap: clamp(2rem, 4vw, 3rem);
   color: var(--color-text-primary);
+}
+
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pageTitle {
+  font-size: clamp(2.1rem, 4.2vw, 2.9rem);
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.pageSubtitle {
+  color: var(--color-text-secondary);
+  font-size: 1.03rem;
+  line-height: 1.6;
+  max-width: 65ch;
 }
 
 .card {
   display: flex;
   flex-direction: column;
   gap: clamp(1.75rem, 3vw, 2.4rem);
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  text-align: left;
-}
-
-.header h1 {
-  font-size: clamp(2rem, 4.2vw, 2.85rem);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--color-text-primary);
-}
-
-.header p {
-  color: var(--color-text-secondary);
-  font-size: 1.02rem;
-  line-height: 1.55;
+  border-left: 4px solid rgba(84, 73, 255, 0.45);
+  padding-left: clamp(1.6rem, 4vw, 2.4rem);
 }
 
 .section {
   background: var(--color-surface-0);
   border: 1px solid var(--color-border);
-  border-radius: 22px;
+  border-radius: 20px;
   padding: clamp(1.6rem, 4vw, 2.1rem);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-soft);
   display: flex;
   flex-direction: column;
   gap: clamp(1.5rem, 3vw, 2rem);
@@ -85,6 +87,7 @@
   gap: 1.6rem;
 }
 
+
 .optionRow {
   display: flex;
   gap: 1rem;
@@ -95,7 +98,7 @@
   background: var(--color-surface-0);
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: 0 14px 28px rgba(16, 27, 60, 0.08);
+  box-shadow: var(--shadow-soft);
 }
 
 .optionRow:hover {
@@ -168,6 +171,20 @@
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: flex-start;
+}
+
+.backLink {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(84, 73, 255, 0.3);
+  transition: opacity 0.15s ease;
+}
+
+.backLink:hover {
+  opacity: 0.85;
 }
 
 .primaryButton,
