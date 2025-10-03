@@ -315,7 +315,7 @@ export default function PopulationPage() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Survey Population | SurvAgent</title>
+        <title> Choose Participants | SurvAgent</title>
         <meta
           name="description"
           content="Decide how SurvAgent should source the outreach population for your survey."
@@ -330,7 +330,7 @@ export default function PopulationPage() {
 
       <div className={styles.card}>
 
-        <section className={`${styles.section} ${styles.contextPanel}`}>
+        {/* <section className={`${styles.section} ${styles.contextPanel}`}>
           <h2>Survey context</h2>
           <dl>
             <div>
@@ -358,7 +358,7 @@ export default function PopulationPage() {
               <dd>{contextSummary.desiredIcpRegion || "—"}</dd>
             </div>
           </dl>
-        </section>
+        </section> */}
 
         <section className={`${styles.section} ${styles.optionsSection}`}>
           <h2>Would you like to...</h2>
@@ -398,7 +398,7 @@ export default function PopulationPage() {
               onChange={handleScrapeToggle}
             />
             <div>
-              <span>Or let us find prospects based on your ICP online via Apollo?</span>
+              <span>Or let us find particpiants based on your ICP for you?</span>
             </div>
           </label>
         </section>

@@ -358,10 +358,9 @@ export default function EmailPreviewPage() {
       </Head>
 
       <div className={styles.lead}>
-        <h1 className={styles.pageTitle}>Send survey invitation</h1>
+        <h1 className={styles.pageTitle}>Send Interview invitation via email</h1>
         <p className={styles.pageSubtitle}>
           Review the message below and confirm before sending your AI agent to the selected recipients.
-          You can edit the subject, message, and BCC recipients before sending.
         </p>
       </div>
 

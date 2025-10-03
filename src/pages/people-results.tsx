@@ -268,7 +268,7 @@ export default function PeopleResultsPage() {
       <>
         <div className={styles.toolbar}>
           <button type="button" onClick={handlePrepareEmail} className={styles.primaryButton}>
-            Prepare Email
+            Draft Email
           </button>
         </div>
 
@@ -284,9 +284,6 @@ export default function PeopleResultsPage() {
           </div>
           <div className={styles.summaryMeta}>
             <strong>Industry:</strong> {industry || "—"}
-          </div>
-          <div className={styles.summaryTimestamp}>
-            Generated at {formatTimestamp(generatedAt) || "unknown time"}
           </div>
         </section>
 
@@ -325,7 +322,7 @@ export default function PeopleResultsPage() {
 
         {debug?.enrichment ? (
           <section className={styles.bulkSection}>
-            <h2 className={styles.summaryHeading}>Returned Contacts</h2>
+            <h2 className={styles.summaryHeading}>Participant List (via Apollo)</h2>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
@@ -394,10 +391,9 @@ export default function PeopleResultsPage() {
       </Head>
 
       <div className={styles.lead}>
-        <h1 className={styles.pageTitle}>Sourced contacts</h1>
+        <h1 className={styles.pageTitle}>Sourced Participants</h1>
         <p className={styles.pageSubtitle}>
-          Review the verified prospects SurvAgent collected based on your intake criteria. Download the
-          list or jump back to sourcing to refine your search.
+          Review the participants we collected based on your desired ICP. 
         </p>
       </div>
 

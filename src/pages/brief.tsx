@@ -314,7 +314,7 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Survey Questions</h1>
       <p className={styles.pageSubtitle}>
-        Based on your infor, we have generated the following survey questions.
+        Based on your information, our AI has generated the below survey questions.
         <br />
         Please edit the questions as desired!
       </p>
@@ -434,7 +434,7 @@ export default function BriefPage() {
               }
             }}
           >
-            Determine survey population →
+            Choose Interview Participants →
           </Link>
         </div>
 
