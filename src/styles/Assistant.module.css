@@ -15,7 +15,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  order: 1;
+  order: 2;
 }
 
 .heroTitle {
@@ -35,7 +35,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  order: 2;
+  order: 1;
 }
 
 .widgetColumn elevenlabs-convai {
@@ -51,10 +51,10 @@
   }
 
   .hero {
-    order: 2;
+    order: 1;
   }
 
   .widgetColumn {
-    order: 1;
+    order: 2;
   }
 }
