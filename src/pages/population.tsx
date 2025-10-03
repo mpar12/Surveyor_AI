@@ -323,10 +323,8 @@ export default function PopulationPage() {
       </Head>
 
       <div className={styles.lead}>
-        <h1 className={styles.pageTitle}>Determine survey population</h1>
+        <h1 className={styles.pageTitle}>Choose Interview Participants</h1>
         <p className={styles.pageSubtitle}>
-          Choose how you would like SurvAgent to assemble the outreach list. You can paste a prepared set
-          of email addresses or let the agent search for prospects based on your intake details.
         </p>
       </div>
 
@@ -363,7 +361,7 @@ export default function PopulationPage() {
         </section>
 
         <section className={`${styles.section} ${styles.optionsSection}`}>
-          <h2>Select sourcing method</h2>
+          <h2>Would you like to...</h2>
 
           <label className={styles.optionRow}>
             <input
@@ -372,7 +370,7 @@ export default function PopulationPage() {
               onChange={handleManualToggle}
             />
             <div>
-              <span>Paste a comma-separated list of email addresses</span>
+              <span>Paste a list of email addresses?</span>
               <p>Provide up to 1000 characters; each entry must be a valid email address.</p>
             </div>
           </label>
@@ -400,8 +398,7 @@ export default function PopulationPage() {
               onChange={handleScrapeToggle}
             />
             <div>
-              <span>Let SurvAgent find prospects online</span>
-              <p>We will compose a scraping brief based on your intake data in a later iteration.</p>
+              <span>Or let us find prospects based on your ICP online via Apollo?</span>
             </div>
           </label>
         </section>

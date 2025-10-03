@@ -312,9 +312,11 @@ export default function BriefPage() {
         <meta name="description" content="Review AI-generated context for your survey outreach." />
       </Head>
 
-      <h1 className={styles.pageTitle}>Research brief preview</h1>
+      <h1 className={styles.pageTitle}>Survey Questions</h1>
       <p className={styles.pageSubtitle}>
-        We logged your intake details and are drafting the outreach overview. 
+        Based on your infor, we have generated the following survey questions.
+        <br />
+        Please edit the questions as desired!
       </p>
 
       <div className={styles.card}>
@@ -356,7 +358,7 @@ export default function BriefPage() {
               {productCopy
                 ? productCopy
                 : isLoading
-                  ? "Product research is being generated..."
+                  ? "Learning about your product..."
                   : error
                     ? "Product research is unavailable right now."
                     : "Product research will appear here once generated."}
@@ -369,7 +371,7 @@ export default function BriefPage() {
               {companyCopy
                 ? companyCopy
                 : isLoading
-                  ? "Company research is being generated..."
+                  ? "Learning about your company..."
                   : error
                     ? "Company research is unavailable right now."
                     : "Company research will appear here once generated."}
@@ -383,7 +385,6 @@ export default function BriefPage() {
             <p>
               Tailored for {desiredIcp || "your ICP"}
               {desiredIcpIndustry ? ` in the ${desiredIcpIndustry} space.` : "."} <br />
-              Please edit the questions as desired. 
             </p>
           </div>
 
