@@ -197,14 +197,6 @@ export default function AssistantPage() {
       </Head>
 
       <main className={styles.container}>
-        <section className={styles.hero}>
-          <h1 className={styles.heroTitle}>Welcome to your AI Agent interview</h1>
-          <p className={styles.heroBody}>
-            Please click the call button to get started. Our agent will be happy to answer any questions
-            you have and guide you through the interview.
-          </p>
-        </section>
-
         <section className={styles.widgetColumn}>
           {agentId ? (
             <>
@@ -235,6 +227,14 @@ export default function AssistantPage() {
               </p>
             </div>
           )}
+        </section>
+
+        <section className={styles.hero}>
+          <h1 className={styles.heroTitle}>Welcome to your AI Agent interview</h1>
+          <p className={styles.heroBody}>
+            Please click the call button to get started. Our agent will be happy to answer any questions
+            you have and guide you through the interview.
+          </p>
         </section>
       </main>
     </>
