@@ -321,9 +321,6 @@ export default function ScorecardPage({
             Save this 4-digit PIN now: <span className={styles.pinHighlight}>{pin}</span>. You&apos;ll need it to revisit your
             scorecard via the &ldquo;Returning?&rdquo; link on the homepage.
           </p>
-          <p>
-            <em>Note:</em> The PIN grants access only after you deploy the email outreach through the AI agent.
-          </p>
         </div>
       ) : null}
 
