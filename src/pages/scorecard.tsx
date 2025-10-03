@@ -314,6 +314,19 @@ export default function ScorecardPage({
         ) : null}
       </header>
 
+      {pin ? (
+        <div className={styles.pinNotice}>
+          <h2 className={styles.pinTitle}>Your session PIN</h2>
+          <p>
+            Save this 4-digit PIN now: <span className={styles.pinHighlight}>{pin}</span>. You&apos;ll need it to revisit your
+            scorecard via the &ldquo;Returning?&rdquo; link on the homepage.
+          </p>
+          <p>
+            <em>Note:</em> The PIN grants access only after you deploy the email outreach through the AI agent.
+          </p>
+        </div>
+      ) : null}
+
       {error ? <div className={styles.errorBox}>{error}</div> : null}
 
       {!error && status === "closed" ? <div className={styles.noticeBox}>This session has been closed.</div> : null}

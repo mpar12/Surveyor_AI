@@ -28,6 +28,26 @@
   line-height: 1.5;
 }
 
+.pinNotice {
+  background: var(--color-surface-0);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1.2rem 1.4rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pinTitle {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.pinHighlight {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
 .card {
   display: grid;
   gap: clamp(1.5rem, 4vw, 2.5rem);

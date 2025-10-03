@@ -79,23 +79,16 @@ export default function EmailSuccessPage() {
           <div className={styles.statusError}>No send details were found for this session.</div>
         )}
 
-        <div className={styles.actions}>
-          <Link
-            className={styles.secondaryLink}
-            href={{ pathname: "/population", query: { sid: sessionId ?? "", pin: pin ?? "" } }}
-          >
-            Back to population
-          </Link>
-
-          {sessionId ? (
+        {sessionId ? (
+          <div className={styles.actions}>
             <Link
               className={styles.secondaryLink}
               href={{ pathname: "/scorecard", query: { sid: sessionId, pin: pin ?? "" } }}
             >
               View results
             </Link>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

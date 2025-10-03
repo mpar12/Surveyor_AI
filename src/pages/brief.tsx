@@ -307,20 +307,7 @@ export default function BriefPage() {
 
       <div className={styles.card}>
 
-        {pin ? (
-          <div className={styles.pinNotice}>
-            <h3>Your session PIN</h3>
-            <p>
-              Save this 4-digit PIN now: <strong>{pin}</strong>. You&apos;ll need it to revisit your scorecard via the
-              “Returning?” button on the homepage.
-            </p>
-            <p>
-              <em>Note:</em> The PIN grants access only after you deploy the email outreach through the AI agent.
-            </p>
-          </div>
-        ) : null}
-
-       {/* { <div className={styles.metaList}>
+        {/* { <div className={styles.metaList}>
           <div className={styles.metaItem}>
             <span>Requester</span>
             <p>{name || "—"}</p>
