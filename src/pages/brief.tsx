@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Brief.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
+import { useSessionContext } from "@/contexts/SessionContext";
 
 type DescriptionResponse = {
   companyDescription: string;
@@ -21,27 +22,49 @@ const getQueryValue = (value: QueryValue) => {
 
 export default function BriefPage() {
   const router = useRouter();
+  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
 
-  const name = useMemo(() => getQueryValue(router.query.name), [router.query.name]);
-  const company = useMemo(() => getQueryValue(router.query.company), [router.query.company]);
-  const product = useMemo(() => getQueryValue(router.query.product), [router.query.product]);
-  const feedbackDesired = useMemo(
-    () => getQueryValue(router.query.feedbackDesired),
-    [router.query.feedbackDesired]
-  );
-  const keyQuestions = useMemo(
-    () => getQueryValue(router.query.keyQuestions),
-    [router.query.keyQuestions]
-  );
-  const desiredIcp = useMemo(() => getQueryValue(router.query.desiredIcp), [router.query.desiredIcp]);
-  const desiredIcpIndustry = useMemo(
-    () => getQueryValue(router.query.desiredIcpIndustry),
-    [router.query.desiredIcpIndustry]
-  );
-  const desiredIcpRegion = useMemo(
-    () => getQueryValue(router.query.desiredIcpRegion),
-    [router.query.desiredIcpRegion]
-  );
+  // Extract data from session context or fallback to URL params for initial load
+  const name = useMemo(() => {
+    if (sessionData?.requester) return sessionData.requester;
+    return getQueryValue(router.query.name);
+  }, [sessionData?.requester, router.query.name]);
+  
+  const company = useMemo(() => {
+    if (sessionData?.company) return sessionData.company;
+    return getQueryValue(router.query.company);
+  }, [sessionData?.company, router.query.company]);
+  
+  const product = useMemo(() => {
+    if (sessionData?.product) return sessionData.product;
+    return getQueryValue(router.query.product);
+  }, [sessionData?.product, router.query.product]);
+  
+  const feedbackDesired = useMemo(() => {
+    if (sessionData?.feedbackDesired) return sessionData.feedbackDesired;
+    return getQueryValue(router.query.feedbackDesired);
+  }, [sessionData?.feedbackDesired, router.query.feedbackDesired]);
+  
+  const keyQuestions = useMemo(() => {
+    if (sessionData?.keyQuestions) return sessionData.keyQuestions;
+    return getQueryValue(router.query.keyQuestions);
+  }, [sessionData?.keyQuestions, router.query.keyQuestions]);
+  
+  const desiredIcp = useMemo(() => {
+    if (sessionData?.desiredIcp) return sessionData.desiredIcp;
+    return getQueryValue(router.query.desiredIcp);
+  }, [sessionData?.desiredIcp, router.query.desiredIcp]);
+  
+  const desiredIcpIndustry = useMemo(() => {
+    if (sessionData?.desiredIcpIndustry) return sessionData.desiredIcpIndustry;
+    return getQueryValue(router.query.desiredIcpIndustry);
+  }, [sessionData?.desiredIcpIndustry, router.query.desiredIcpIndustry]);
+  
+  const desiredIcpRegion = useMemo(() => {
+    if (sessionData?.desiredIcpRegion) return sessionData.desiredIcpRegion;
+    return getQueryValue(router.query.desiredIcpRegion);
+  }, [sessionData?.desiredIcpRegion, router.query.desiredIcpRegion]);
+  
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
   const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
@@ -50,6 +73,24 @@ export default function BriefPage() {
   const [questions, setQuestions] = useState<string[] | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
+
+  // Clean URL after initial load if we have session data
+  useEffect(() => {
+    if (sessionData && router.isReady && sid && pin) {
+      // Check if URL has more than just sid and pin
+      const hasExtraParams = Object.keys(router.query).some(key => 
+        key !== 'sid' && key !== 'pin' && router.query[key]
+      );
+      
+      if (hasExtraParams) {
+        // Replace URL with clean version
+        router.replace({
+          pathname: router.pathname,
+          query: { sid, pin }
+        }, undefined, { shallow: true });
+      }
+    }
+  }, [sessionData, router.isReady, sid, pin, router]);
 
   const encodedSurveyQuestions = useMemo(() => {
     if (!questions || !questions.length) {
@@ -70,43 +111,14 @@ export default function BriefPage() {
   }, [questions]);
 
   const launchHref = useMemo(() => {
+    if (!sid || !pin) return "/assistant";
+    
     const params = new URLSearchParams();
+    params.set("sid", sid);
+    params.set("pin", pin);
 
-    const setParam = (key: string, value: string) => {
-      if (value && value.trim()) {
-        params.set(key, value.trim());
-      }
-    };
-
-    setParam("name", name);
-    setParam("company", company);
-    setParam("product", product);
-    setParam("feedbackDesired", feedbackDesired);
-    setParam("keyQuestions", keyQuestions);
-    setParam("desiredIcp", desiredIcp);
-    setParam("desiredIcpIndustry", desiredIcpIndustry);
-    setParam("desiredIcpRegion", desiredIcpRegion);
-    setParam("sid", sid);
-    setParam("pin", pin);
-    if (encodedSurveyQuestions) {
-      params.set("surveyQuestions", encodedSurveyQuestions);
-    }
-
-    const query = params.toString();
-    return query ? `/assistant?${query}` : "/assistant";
-  }, [
-    name,
-    company,
-    product,
-    feedbackDesired,
-    keyQuestions,
-    desiredIcp,
-    desiredIcpIndustry,
-    desiredIcpRegion,
-    sid,
-    pin,
-    encodedSurveyQuestions
-  ]);
+    return `/assistant?${params.toString()}`;
+  }, [sid, pin]);
 
   const canLaunchAgent = useMemo(() => Boolean(sid) && Boolean(pin), [sid, pin]);
 
@@ -416,17 +428,8 @@ export default function BriefPage() {
             href={{
               pathname: "/population",
               query: {
-                name,
-                company,
-                product,
-                feedbackDesired,
-                desiredIcp,
-                desiredIcpIndustry,
-                desiredIcpRegion,
-                keyQuestions,
                 sid,
-                pin,
-                ...(encodedSurveyQuestions ? { surveyQuestions: encodedSurveyQuestions } : {})
+                pin
               }
             }}
           >

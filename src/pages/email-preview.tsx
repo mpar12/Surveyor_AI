@@ -7,6 +7,7 @@ import {
   EMAIL_PREVIEW_RECIPIENTS_KEY,
   SURVEY_QUESTIONS_STORAGE_KEY
 } from "@/lib/storageKeys";
+import { useSessionContext } from "@/contexts/SessionContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,20 +44,23 @@ const SENDER_NAME = process.env.NEXT_PUBLIC_EMAIL_FROM_NAME ?? "SurvAgent";
 
 export default function EmailPreviewPage() {
   const router = useRouter();
+  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
 
   const context = useMemo(() => {
+    // Use session data if available, fallback to URL params for initial load
     return {
-      name: getQueryValue(router.query.name),
-      company: getQueryValue(router.query.company),
-      product: getQueryValue(router.query.product),
-      feedbackDesired: getQueryValue(router.query.feedbackDesired),
-      desiredIcp: getQueryValue(router.query.desiredIcp),
-      desiredIcpIndustry: getQueryValue(router.query.desiredIcpIndustry),
-      desiredIcpRegion: getQueryValue(router.query.desiredIcpRegion),
+      name: sessionData?.requester || getQueryValue(router.query.name),
+      company: sessionData?.company || getQueryValue(router.query.company),
+      product: sessionData?.product || getQueryValue(router.query.product),
+      feedbackDesired: sessionData?.feedbackDesired || getQueryValue(router.query.feedbackDesired),
+      desiredIcp: sessionData?.desiredIcp || getQueryValue(router.query.desiredIcp),
+      desiredIcpIndustry: sessionData?.desiredIcpIndustry || getQueryValue(router.query.desiredIcpIndustry),
+      desiredIcpRegion: sessionData?.desiredIcpRegion || getQueryValue(router.query.desiredIcpRegion),
       sid: getQueryValue(router.query.sid),
       pin: getQueryValue(router.query.pin)
     };
   }, [
+    sessionData,
     router.query.name,
     router.query.company,
     router.query.product,
@@ -76,6 +80,24 @@ export default function EmailPreviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [newRecipient, setNewRecipient] = useState("");
+
+  // Clean URL after initial load if we have session data
+  useEffect(() => {
+    if (sessionData && router.isReady && context.sid && context.pin) {
+      // Check if URL has more than just sid and pin
+      const hasExtraParams = Object.keys(router.query).some(key => 
+        key !== 'sid' && key !== 'pin' && key !== 'emails' && router.query[key]
+      );
+      
+      if (hasExtraParams) {
+        // Replace URL with clean version
+        router.replace({
+          pathname: router.pathname,
+          query: { sid: context.sid, pin: context.pin, emails: router.query.emails }
+        }, undefined, { shallow: true });
+      }
+    }
+  }, [sessionData, router.isReady, context.sid, context.pin, router]);
 
   useEffect(() => {
     if (!router.isReady) {

@@ -4,9 +4,11 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Assistant.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
+import { useSessionContext } from "@/contexts/SessionContext";
 
 export default function AssistantPage() {
   const router = useRouter();
+  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
   const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
 
   const getQueryValue = (value: string | string[] | undefined) => {
@@ -76,12 +78,36 @@ export default function AssistantPage() {
     }
   }, [router.isReady, router.query.surveyQuestions]);
 
+  // Clean URL after initial load if we have session data
+  useEffect(() => {
+    if (sessionData && router.isReady) {
+      const sid = getQueryValue(router.query.sid);
+      const pin = getQueryValue(router.query.pin);
+      
+      if (sid && pin) {
+        // Check if URL has more than just sid and pin
+        const hasExtraParams = Object.keys(router.query).some(key => 
+          key !== 'sid' && key !== 'pin' && router.query[key]
+        );
+        
+        if (hasExtraParams) {
+          // Replace URL with clean version
+          router.replace({
+            pathname: router.pathname,
+            query: { sid, pin }
+          }, undefined, { shallow: true });
+        }
+      }
+    }
+  }, [sessionData, router.isReady, router.query, router]);
+
   const dynamicVariables = useMemo(() => {
-    const name = getQueryValue(router.query.name);
-    const company = getQueryValue(router.query.company);
-    const product = getQueryValue(router.query.product);
-    const feedbackDesired = getQueryValue(router.query.feedbackDesired);
-    const keyQuestions = getQueryValue(router.query.keyQuestions);
+    // Use session data if available, fallback to URL params for initial load
+    const name = sessionData?.requester || getQueryValue(router.query.name);
+    const company = sessionData?.company || getQueryValue(router.query.company);
+    const product = sessionData?.product || getQueryValue(router.query.product);
+    const feedbackDesired = sessionData?.feedbackDesired || getQueryValue(router.query.feedbackDesired);
+    const keyQuestions = sessionData?.keyQuestions || getQueryValue(router.query.keyQuestions);
     const sessionId = getQueryValue(router.query.sid);
     const pin = getQueryValue(router.query.pin);
     const participantEmail =
@@ -121,6 +147,7 @@ export default function AssistantPage() {
 
     return variables;
   }, [
+    sessionData,
     router.query.name,
     router.query.company,
     router.query.product,

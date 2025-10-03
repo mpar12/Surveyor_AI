@@ -8,6 +8,7 @@ import {
   PEOPLE_SEARCH_STORAGE_KEY,
   SURVEY_QUESTIONS_STORAGE_KEY
 } from "@/lib/storageKeys";
+import { useSessionContext } from "@/contexts/SessionContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,6 +23,7 @@ const getQueryValue = (value: QueryValue) => {
 
 export default function PopulationPage() {
   const router = useRouter();
+  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
   const [manualSelected, setManualSelected] = useState(false);
   const [scrapeSelected, setScrapeSelected] = useState(false);
   const [emailCsv, setEmailCsv] = useState("");
@@ -32,14 +34,15 @@ export default function PopulationPage() {
   const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
 
   const contextSummary = useMemo(() => {
-    const name = getQueryValue(router.query.name);
-    const company = getQueryValue(router.query.company);
-    const product = getQueryValue(router.query.product);
-    const feedbackDesired = getQueryValue(router.query.feedbackDesired);
-    const keyQuestions = getQueryValue(router.query.keyQuestions);
-    const desiredIcp = getQueryValue(router.query.desiredIcp);
-    const desiredIcpIndustry = getQueryValue(router.query.desiredIcpIndustry);
-    const desiredIcpRegion = getQueryValue(router.query.desiredIcpRegion);
+    // Use session data if available, fallback to URL params for initial load
+    const name = sessionData?.requester || getQueryValue(router.query.name);
+    const company = sessionData?.company || getQueryValue(router.query.company);
+    const product = sessionData?.product || getQueryValue(router.query.product);
+    const feedbackDesired = sessionData?.feedbackDesired || getQueryValue(router.query.feedbackDesired);
+    const keyQuestions = sessionData?.keyQuestions || getQueryValue(router.query.keyQuestions);
+    const desiredIcp = sessionData?.desiredIcp || getQueryValue(router.query.desiredIcp);
+    const desiredIcpIndustry = sessionData?.desiredIcpIndustry || getQueryValue(router.query.desiredIcpIndustry);
+    const desiredIcpRegion = sessionData?.desiredIcpRegion || getQueryValue(router.query.desiredIcpRegion);
     const sidValue = getQueryValue(router.query.sid);
     const pinValue = getQueryValue(router.query.pin);
 
@@ -57,6 +60,7 @@ export default function PopulationPage() {
       surveyQuestions
     };
   }, [
+    sessionData,
     router.query.name,
     router.query.company,
     router.query.product,
@@ -87,6 +91,24 @@ export default function PopulationPage() {
       }
     }
   }, []);
+
+  // Clean URL after initial load if we have session data
+  useEffect(() => {
+    if (sessionData && router.isReady && contextSummary.sid && contextSummary.pin) {
+      // Check if URL has more than just sid and pin
+      const hasExtraParams = Object.keys(router.query).some(key => 
+        key !== 'sid' && key !== 'pin' && router.query[key]
+      );
+      
+      if (hasExtraParams) {
+        // Replace URL with clean version
+        router.replace({
+          pathname: router.pathname,
+          query: { sid: contextSummary.sid, pin: contextSummary.pin }
+        }, undefined, { shallow: true });
+      }
+    }
+  }, [sessionData, router.isReady, contextSummary.sid, contextSummary.pin, router]);
 
   const handleManualToggle = (event: ChangeEvent<HTMLInputElement>) => {
     const isChecked = event.target.checked;
@@ -185,33 +207,11 @@ export default function PopulationPage() {
       }
     }
 
-    const query: Record<string, string> = {};
-
-    const assign = (key: string, value: string | undefined) => {
-      if (value && value.trim()) {
-        query[key] = value.trim();
-      }
+    const query: Record<string, string> = {
+      sid: contextSummary.sid,
+      pin: contextSummary.pin,
+      source: "manual"
     };
-
-    assign("name", contextSummary.name);
-    assign("company", contextSummary.company);
-    assign("product", contextSummary.product);
-    assign("feedbackDesired", contextSummary.feedbackDesired);
-    assign("keyQuestions", contextSummary.keyQuestions);
-    assign("desiredIcp", contextSummary.desiredIcp);
-    assign("desiredIcpIndustry", contextSummary.desiredIcpIndustry);
-    assign("desiredIcpRegion", contextSummary.desiredIcpRegion);
-    assign("sid", contextSummary.sid);
-    assign("pin", contextSummary.pin);
-    if (surveyQuestions.length) {
-      try {
-        const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(surveyQuestions))));
-        assign("surveyQuestions", encoded);
-      } catch (error) {
-        console.error("Failed to encode survey questions", error);
-      }
-    }
-    query.source = "manual";
 
     router.push({ pathname: "/email-preview", query });
   };
@@ -299,13 +299,10 @@ export default function PopulationPage() {
         }
       }
 
-      const query: Record<string, string> = {};
-      if (sid) {
-        query.sid = sid;
-      }
-      if (pin) {
-        query.pin = pin;
-      }
+      const query: Record<string, string> = {
+        sid: sid,
+        pin: pin
+      };
 
       router.push({ pathname: "/people-results", query });
     } catch (error) {
@@ -429,12 +426,6 @@ export default function PopulationPage() {
         </div>
 
         {searchError ? <div className={styles.errorBanner}>{searchError}</div> : null}
-      </div>
-
-      <div className={styles.actions}>
-        <Link href="/brief" className={styles.backLink}>
-          ← Back to research brief
-        </Link>
       </div>
     </div>
   );

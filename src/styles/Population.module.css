@@ -170,20 +170,6 @@
   justify-content: flex-start;
 }
 
-.backLink {
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 999px;
-  border: 1px solid rgba(84, 73, 255, 0.3);
-  transition: opacity 0.15s ease;
-}
-
-.backLink:hover {
-  opacity: 0.85;
-}
-
 .primaryButton,
 .secondaryButton {
   border: none;

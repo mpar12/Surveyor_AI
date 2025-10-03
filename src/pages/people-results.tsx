@@ -7,6 +7,7 @@ import {
   PEOPLE_SEARCH_STORAGE_KEY,
   SURVEY_QUESTIONS_STORAGE_KEY
 } from "@/lib/storageKeys";
+import { useSessionContext } from "@/contexts/SessionContext";
 import styles from "@/styles/PeopleResults.module.css";
 
 interface Contact {
@@ -233,34 +234,11 @@ export default function PeopleResultsPage() {
       }
     }
 
-    const query: Record<string, string> = { source: "search" };
-
-    const assign = (key: string, value?: string) => {
-      if (value && value.trim()) {
-        query[key] = value.trim();
-      }
+    const query: Record<string, string> = {
+      source: "search",
+      sid: state.data.sid ?? sidFromQuery ?? "",
+      pin: state.data.pin ?? ""
     };
-
-    assign("name", state.data.requester);
-    assign("company", state.data.company);
-    assign("product", state.data.product);
-    assign("feedbackDesired", state.data.feedbackDesired);
-    assign("desiredIcp", state.data.desiredIcp);
-    assign("desiredIcpIndustry", state.data.desiredIcpIndustry);
-    assign("desiredIcpRegion", state.data.desiredIcpRegion);
-    assign("sid", state.data.sid ?? sidFromQuery);
-    assign("pin", state.data.pin);
-    if (Array.isArray(state.data.surveyQuestions) && state.data.surveyQuestions.length) {
-      try {
-        const payload = JSON.stringify(state.data.surveyQuestions);
-        if (typeof window !== "undefined") {
-          const encoded = window.btoa(unescape(encodeURIComponent(payload)));
-          assign("surveyQuestions", encoded);
-        }
-      } catch (encodingError) {
-        console.error("Failed to encode survey questions for email preview", encodingError);
-      }
-    }
 
     setPrepareError(null);
     router.push({ pathname: "/email-preview", query });
@@ -402,11 +380,11 @@ export default function PeopleResultsPage() {
   const sessionId = storedSid ?? sidFromQuery;
 
   const handleViewScorecard = () => {
-    if (!sessionId) {
+    if (!sessionId || state.status !== "ready" || !state.data.pin) {
       return;
     }
 
-    router.push({ pathname: "/scorecard", query: { sid: sessionId } });
+    router.push({ pathname: "/scorecard", query: { sid: sessionId, pin: state.data.pin } });
   };
 
   return (
