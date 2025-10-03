@@ -5,7 +5,7 @@
   margin: 0;
   padding: clamp(3.2rem, 7vw, 4.8rem) clamp(1.75rem, 6vw, 3rem) clamp(3.2rem, 8vw, 5.2rem);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
+  grid-template-columns: 1fr 540px;
   gap: clamp(2rem, 5vw, 3.5rem);
   align-items: start;
   color: var(--color-text-primary);
@@ -32,7 +32,8 @@
 
 .widgetColumn {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: center;
 }
 
 .widgetColumn elevenlabs-convai {
@@ -44,9 +45,10 @@
 @media (max-width: 960px) {
   .container {
     grid-template-columns: 1fr;
+    gap: 2rem;
   }
 
   .widgetColumn {
-    justify-content: center;
+    order: -1;
   }
 }
