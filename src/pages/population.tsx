@@ -398,7 +398,7 @@ export default function PopulationPage() {
               onChange={handleScrapeToggle}
             />
             <div>
-              <span>Or let us find particpiants based on your ICP for you?</span>
+              <span>Or let us find particpiants based on your desired ICP for you?</span>
             </div>
           </label>
         </section>

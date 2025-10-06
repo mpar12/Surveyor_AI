@@ -143,12 +143,16 @@ export default function HomePage() {
       <main className={styles.panel}>
         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
           <div className={styles.formHeader}>
-            <h2>Please fill out our intake form:</h2>
+            <h2>Tell us about you:</h2>
           </div>
 
           {submitError ? (
             <div className={styles.errorBanner}>{submitError}</div>
           ) : null}
+
+          <div className={styles.sectionHeader}>
+            <h3>Section I: Who are you?</h3>
+          </div>
 
           <div className={styles.fieldGroup}>
             <div className={styles.labelRow}>
@@ -202,6 +206,10 @@ export default function HomePage() {
             />
           </div>
 
+          <div className={styles.sectionHeader}>
+            <h3>Section II: What are you trying to understand?</h3>
+          </div>
+
           <div className={styles.fieldGroup}>
             <div className={styles.labelRow}>
               <label htmlFor="feedbackDesired">Feedback Desired</label>
@@ -235,6 +243,10 @@ export default function HomePage() {
                 setForm((previous) => ({ ...previous, keyQuestions: event.target.value }))
               }
             />
+          </div>
+
+          <div className={styles.sectionHeader}>
+            <h3>Section III: Who is your desired ICP?</h3>
           </div>
 
           <div className={styles.fieldGroup}>
