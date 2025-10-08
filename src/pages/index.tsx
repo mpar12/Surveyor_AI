@@ -137,8 +137,7 @@ export default function HomePage() {
         <meta name="description" content="Kick off your AI-powered survey with SurvAgent." />
       </Head>
 
-      <h1 className={styles.title}>Be Customer Obsessed: Listen to your customers every step along the way. 1000 at a time.</h1>
-      <h3 className={styles.title}>Introducing SurvAgent: AI Interviews to understand your customers at scale.</h3>
+      <h3 className={styles.title}> Surveyor: AI Interviews to understand your customers at scale.</h3>
 
       <main className={styles.panel}>
         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>

@@ -314,7 +314,7 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Survey Questions</h1>
       <p className={styles.pageSubtitle}>
-        Our AI has painstakingly researched your company and product, and has generated the below survey questions.
+        Our AI has painstakingly researched your company and product, to generate the below survey questions.
         <br />
         Please edit the questions as desired!
       </p>
@@ -389,7 +389,7 @@ export default function BriefPage() {
           </div>
 
           {areQuestionsLoading && !questionsError ? (
-            <div className={styles.status}>Assembling market positioning questions…</div>
+            <div className={styles.status}>Drafting market positioning questions…</div>
           ) : null}
 
           {questionsError ? <div className={styles.errorMessage}>{questionsError}</div> : null}

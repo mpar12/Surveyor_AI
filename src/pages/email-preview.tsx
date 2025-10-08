@@ -39,8 +39,8 @@ const getQueryValue = (value: string | string[] | undefined) => {
   return value ?? "";
 };
 
-const SENDER_EMAIL = process.env.NEXT_PUBLIC_EMAIL_FROM ?? "parikh.data.bros@gmail.com";
-const SENDER_NAME = process.env.NEXT_PUBLIC_EMAIL_FROM_NAME ?? "SurvAgent";
+const SENDER_EMAIL = process.env.NEXT_PUBLIC_EMAIL_FROM ?? "mihirparikh99@gmail.com";
+const SENDER_NAME = process.env.NEXT_PUBLIC_EMAIL_FROM_NAME ?? "Surveyor";
 
 export default function EmailPreviewPage() {
   const router = useRouter();
