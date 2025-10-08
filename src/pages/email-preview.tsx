@@ -20,7 +20,7 @@ const buildEmailHtml = (body: string, agentLink: string) => {
   }
 
   const safeLink = agentLink.replace(/"/g, "&quot;");
-  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Open Survey</a></div>`;
+  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Get chatting!</a></div>`;
 
   if (safeBody.includes(agentLink)) {
     const replaced = safeBody
@@ -202,7 +202,7 @@ export default function EmailPreviewPage() {
       if (prev) return prev;
       const requester = context.name || "our team";
       const company = context.company || "our organization";
-      return `Hello! We are reaching out to you on behalf of ${requester} at ${company}.\n\nPlease chat with our AI agent by clicking the button below.\n\nThank you!`;
+      return `Hello! We are reaching out to you on behalf of ${requester} at ${company}.\n\n Our AI agent conducts interviews for companies around the world. \n\n Click the button below to get started!\n\nThank you for your time! :)`;
     });
   }, [context]);
 

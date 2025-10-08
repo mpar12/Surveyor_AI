@@ -371,7 +371,6 @@ export default function PopulationPage() {
             />
             <div>
               <span>Paste a list of email addresses?</span>
-              <p>Provide up to 1000 characters; each entry must be a valid email address.</p>
             </div>
           </label>
 
@@ -398,7 +397,7 @@ export default function PopulationPage() {
               onChange={handleScrapeToggle}
             />
             <div>
-              <span>Or let us find particpiants based on your desired ICP for you?</span>
+              <span>Or let us find participants online on your behalf based on your desired ICP?</span>
             </div>
           </label>
         </section>
