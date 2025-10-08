@@ -141,9 +141,9 @@ export default function HomePage() {
 
       <main className={styles.panel}>
         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
-          <div className={styles.formHeader}>
+          {/* <div className={styles.formHeader}>
             <h2>Intake Form: Tell us who you are and what you&apos;re trying to understand and we&apos;ll do our best to get you started with some starter survey questions!</h2>
-          </div>
+          </div> */}
 
           {submitError ? (
             <div className={styles.errorBanner}>{submitError}</div>

@@ -314,9 +314,8 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Survey Questions</h1>
       <p className={styles.pageSubtitle}>
-        Our AI has painstakingly researched your company and product, to generate the below survey questions.
-        <br />
-        Please edit the questions as desired!
+      Our AI has carefully learned about your company and product to create the personalized survey below.        <br />
+        Feel free to edit it as you like!
       </p>
 
       <div className={styles.card}>
@@ -384,7 +383,7 @@ export default function BriefPage() {
             <h2>Survey Questions</h2>
             <p>
               Tailored for {desiredIcp || "your ICP"}
-              {desiredIcpIndustry ? ` in the ${desiredIcpIndustry} space.` : "."} <br />
+              {desiredIcpIndustry ? ` in ${desiredIcpIndustry} .` : "."} <br />
             </p>
           </div>
 
