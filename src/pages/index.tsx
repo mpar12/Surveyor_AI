@@ -17,7 +17,7 @@ interface FormData {
 
 const INITIAL_DATA: FormData = {
   name: "Elon Musk",
-  company: "X.ai",
+  company: "xAI",
   product: "Grok",
   feedbackDesired: "Why do customers use Grok? ",
   keyQuestions: "What use cases do customers use one of Groks competitors(ChatGPT,Claude) for?",

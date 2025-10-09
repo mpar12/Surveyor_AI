@@ -113,6 +113,9 @@ export default function AssistantPage() {
     const participantEmail =
       getQueryValue(router.query.email) || getQueryValue(router.query.email_address);
 
+    // Use surveyQuestions from session context (from brief page) as primary source
+    const questionsFromSession = sessionData?.surveyQuestions || surveyQuestions;
+
     const variables: Record<string, string> = {};
 
     if (name) {
@@ -136,8 +139,8 @@ export default function AssistantPage() {
     if (participantEmail) {
       variables.email_address = participantEmail;
     }
-    if (surveyQuestions.length) {
-      const enumerated = surveyQuestions
+    if (questionsFromSession && questionsFromSession.length) {
+      const enumerated = questionsFromSession
         .map((question, index) => `${index + 1}. ${question}`)
         .join("\n");
       variables.List_of_Questions = enumerated;
