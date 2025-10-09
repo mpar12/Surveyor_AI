@@ -397,7 +397,7 @@ export default function PopulationPage() {
               onChange={handleScrapeToggle}
             />
             <div>
-              <span>Or let us find participants online on your behalf based on your desired ICP?</span>
+              <span>Or let us find participants(via Apollo) on your behalf based on your desired ICP?</span>
             </div>
           </label>
         </section>

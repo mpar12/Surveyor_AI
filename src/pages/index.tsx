@@ -19,11 +19,11 @@ const INITIAL_DATA: FormData = {
   name: "Elon Musk",
   company: "X.ai",
   product: "Grok",
-  feedbackDesired: "Understand how early adopters perceive our value proposition",
-  keyQuestions: "What triggers evaluation? What convinces a switch?",
+  feedbackDesired: "Why do customers use Grok? ",
+  keyQuestions: "What use cases do customers use one of Groks competitors(ChatGPT,Claude) for?",
   desiredIcp: "Product Manager",
   desiredIcpIndustry: "Information & Technology Services",
-  desiredIcpRegion: "USA"
+  desiredIcpRegion: "England"
 };
 
 export default function HomePage() {
