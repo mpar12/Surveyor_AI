@@ -233,9 +233,9 @@ export default function AssistantPage() {
         </section>
 
         <section className={styles.hero}>
-          <h1 className={styles.heroTitle}>Welcome to your AI Agent interview</h1>
+          <h1 className={styles.heroTitle}>Welcome to your AI interview! Click the call button to get started.</h1>
           <p className={styles.heroBody}>
-            Please click the call button to get started. Our agent will be happy to answer any questions
+            Our AI agent will be happy to answer any questions
             you have and guide you through the interview.
           </p>
         </section>
