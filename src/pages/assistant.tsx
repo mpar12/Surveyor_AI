@@ -83,19 +83,26 @@ export default function AssistantPage() {
     if (sessionData && router.isReady) {
       const sid = getQueryValue(router.query.sid);
       const pin = getQueryValue(router.query.pin);
-      
+
       if (sid && pin) {
-        // Check if URL has more than just sid and pin
-        const hasExtraParams = Object.keys(router.query).some(key => 
-          key !== 'sid' && key !== 'pin' && router.query[key]
+        const allowed = new Set(["sid", "pin", "email", "email_address"]);
+        const hasExtraParams = Object.keys(router.query).some(
+          (key) => !allowed.has(key) && router.query[key]
         );
-        
+
         if (hasExtraParams) {
-          // Replace URL with clean version
-          router.replace({
-            pathname: router.pathname,
-            query: { sid, pin }
-          }, undefined, { shallow: true });
+          const cleanQuery: Record<string, string> = { sid, pin };
+
+          const emailValue = getQueryValue(router.query.email);
+          const emailAddressValue = getQueryValue(router.query.email_address);
+
+          if (emailValue) {
+            cleanQuery.email = emailValue;
+          } else if (emailAddressValue) {
+            cleanQuery.email_address = emailAddressValue;
+          }
+
+          router.replace({ pathname: router.pathname, query: cleanQuery }, undefined, { shallow: true });
         }
       }
     }
