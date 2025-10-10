@@ -454,7 +454,7 @@ export default function ScorecardPage({
             </section>
           ) : null}
 
-          <section className={styles.section}>
+          {/* <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Latest webhook payload</h2>
             {formattedLatestPayload ? (
               <pre className={styles.codeBlock}>
@@ -463,7 +463,7 @@ export default function ScorecardPage({
             ) : (
               <p className={styles.emptyState}>No webhook payload captured yet.</p>
             )}
-          </section>
+          </section> */}
         </div>
       ) : null}
     </div>
