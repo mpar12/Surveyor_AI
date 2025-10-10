@@ -112,10 +112,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const participantEmail = typeof dynamicVariables.email_address === "string"
     ? dynamicVariables.email_address.trim()
     : "";
-  // Temporarily allow transcripts without an email; restore this guard when ready
-  // if (!participantEmail || participantEmail.toLowerCase() === "replace_this") {
-  //   return res.status(200).json({ status: "ignored_missing_email" });
-  // }
+
+  if (!participantEmail || participantEmail.toLowerCase() === "replace_this") {
+    return res.status(200).json({ status: "ignored_missing_email" });
+  }
 
   const sessionId = isValidUuid(sidCandidate) ? sidCandidate : null;
   const pinCode = isValidPin(pinCandidate) ? (pinCandidate as string).trim() : null;
