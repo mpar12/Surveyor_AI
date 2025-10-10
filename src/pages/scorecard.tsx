@@ -41,6 +41,11 @@ interface ScorecardProps {
     email: string | null;
   }>;
   primaryQuestions: ScriptedQuestionBlock[];
+  latestRawPayload: {
+    dynamicVariables: unknown;
+    transcript: unknown;
+    analysis: unknown;
+  } | null;
   error?: string;
 }
 
@@ -294,8 +299,12 @@ export default function ScorecardPage({
   responders,
   callSummaries,
   primaryQuestions,
+  latestRawPayload,
   error
 }: ScorecardProps) {
+  const formattedLatestPayload = latestRawPayload
+    ? JSON.stringify(latestRawPayload, null, 2)
+    : null;
   return (
     <div className={styles.container}>
       <Head>
@@ -444,6 +453,17 @@ export default function ScorecardPage({
               </div>
             </section>
           ) : null}
+
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Latest webhook payload</h2>
+            {formattedLatestPayload ? (
+              <pre className={styles.codeBlock}>
+                <code>{formattedLatestPayload}</code>
+              </pre>
+            ) : (
+              <p className={styles.emptyState}>No webhook payload captured yet.</p>
+            )}
+          </section>
         </div>
       ) : null}
     </div>
@@ -469,6 +489,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         callSummaries: [],
         primaryQuestions: [],
         followUpQuestions: [],
+        latestRawPayload: null,
         error: "Missing session identifier."
       }
     };
@@ -494,6 +515,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
           callSummaries: [],
           primaryQuestions: [],
           followUpQuestions: [],
+          latestRawPayload: null,
           error: "Session not found."
         }
       };
@@ -591,6 +613,14 @@ const contextRows = await db
 
     const primaryQuestions = buildQuestionBreakdown(questionList, transcriptsForBreakdown);
 
+    const latestRawPayload = transcriptRows.length
+      ? {
+          dynamicVariables: transcriptRows[0].dynamicVariables ?? null,
+          transcript: transcriptRows[0].transcript ?? null,
+          analysis: transcriptRows[0].summary ?? null
+        }
+      : null;
+
     const rawContext = contextRows[0] ?? null;
     const normalizedContext = rawContext
       ? {
@@ -609,7 +639,8 @@ const contextRows = await db
         emailsSent: uniqueRecipients.size,
         responders: summaries.length,
         callSummaries: summaries,
-        primaryQuestions
+        primaryQuestions,
+        latestRawPayload
       }
     };
   } catch (error) {
@@ -625,6 +656,8 @@ const contextRows = await db
         responders: 0,
         callSummaries: [],
         primaryQuestions: [],
+        followUpQuestions: [],
+        latestRawPayload: null,
         error: "Unable to load scorecard right now."
       }
     };

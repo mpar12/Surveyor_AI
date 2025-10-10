@@ -257,6 +257,21 @@
   font-weight: 600;
 }
 
+.codeBlock {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: rgba(16, 19, 34, 0.04);
+  font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre;
+}
+
 @media (max-width: 720px) {
   .card {
     border-left: none;
