@@ -16,14 +16,14 @@ interface FormData {
 }
 
 const INITIAL_DATA: FormData = {
-  name: "Elon Musk",
-  company: "xAI",
-  product: "Grok",
-  feedbackDesired: "Why do customers use Grok? ",
-  keyQuestions: "What use cases do customers use one of Groks competitors(ChatGPT,Claude) for?",
-  desiredIcp: "Product Manager",
-  desiredIcpIndustry: "Information & Technology Services",
-  desiredIcpRegion: "England"
+  name: "",
+  company: "",
+  product: "",
+  feedbackDesired: "",
+  keyQuestions: "",
+  desiredIcp: "",
+  desiredIcpIndustry: "",
+  desiredIcpRegion: ""
 };
 
 export default function HomePage() {
@@ -141,9 +141,6 @@ export default function HomePage() {
 
       <main className={styles.panel}>
         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
-          {/* <div className={styles.formHeader}>
-            <h2>Intake Form: Tell us who you are and what you&apos;re trying to understand and we&apos;ll do our best to get you started with some starter survey questions!</h2>
-          </div> */}
 
           {submitError ? (
             <div className={styles.errorBanner}>{submitError}</div>

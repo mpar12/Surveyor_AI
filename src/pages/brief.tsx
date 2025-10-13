@@ -320,34 +320,6 @@ export default function BriefPage() {
 
       <div className={styles.card}>
 
-        {/* { <div className={styles.metaList}>
-          <div className={styles.metaItem}>
-            <span>Requester</span>
-            <p>{name || "—"}</p>
-          </div>
-          <div className={styles.metaItem}>
-            <span>Desired ICP</span>
-            <p>{desiredIcp || "—"}</p>
-          </div>
-          <div className={styles.metaItem}>
-            <span>Desired ICP Industry</span>
-            <p>{desiredIcpIndustry || "—"}</p>
-          </div>
-          <div className={styles.metaItem}>
-            <span>Desired ICP Region</span>
-            <p>{desiredIcpRegion || "—"}</p>
-          </div>
-          <div className={`${styles.metaItem} ${styles.metaItemFull}`}>
-            <span>Feedback Desired</span>
-            <p>{feedbackDesired || "—"}</p>
-          </div>
-          <div className={`${styles.metaItem} ${styles.metaItemFull}`}>
-            <span>Key Questions</span>
-            <p>{keyQuestions || "—"}</p>
-          </div>
-        </div> }
- */}
-
         {error ? <div className={styles.errorMessage}>{error}</div> : null}
 
         <div className={styles.summaryGrid}>
