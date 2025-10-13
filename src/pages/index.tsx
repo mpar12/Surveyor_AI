@@ -215,7 +215,7 @@ export default function HomePage() {
               id="feedbackDesired"
               name="feedbackDesired"
               className={styles.input}
-              placeholder="Understand how early adopters perceive our value proposition"
+              placeholder="Why do custoemrs use Grok?"
               value={form.feedbackDesired}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, feedbackDesired: event.target.value }))
@@ -233,7 +233,7 @@ export default function HomePage() {
               id="keyQuestions"
               name="keyQuestions"
               className={styles.input}
-              placeholder="What triggers evaluation? What convinces a switch?"
+              placeholder="Why do customers use Grok compare to ChatGPT or Claude?"
               value={form.keyQuestions}
               onChange={(event) =>
                 setForm((previous) => ({ ...previous, keyQuestions: event.target.value }))
