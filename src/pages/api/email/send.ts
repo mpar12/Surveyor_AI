@@ -5,6 +5,10 @@ import { emailSends } from "@/db/schema";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_REQUESTS = 5;
+
+const requestLog = new Map<string, number[]>();
 
 function isValidUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_REGEX.test(value);
@@ -21,6 +25,35 @@ function normalizeRecipients(value: unknown): string[] {
     .filter((entry) => EMAIL_REGEX.test(entry));
 }
 
+function getClientIdentifier(req: NextApiRequest): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    return forwarded.split(",")[0]?.trim() ?? "unknown";
+  }
+
+  if (Array.isArray(forwarded) && forwarded.length) {
+    return forwarded[0] ?? "unknown";
+  }
+
+  return req.socket.remoteAddress ?? "unknown";
+}
+
+function isRateLimited(clientId: string): boolean {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const entries = requestLog.get(clientId) ?? [];
+  const recent = entries.filter((timestamp) => timestamp >= windowStart);
+
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
+    requestLog.set(clientId, recent);
+    return true;
+  }
+
+  recent.push(now);
+  requestLog.set(clientId, recent);
+  return false;
+}
+
 const buildEmailHtml = (body: string, agentLink: string) => {
   const safeBody = body.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const lines = safeBody.split("\n").join("<br />");
@@ -35,7 +68,9 @@ const buildEmailHtml = (body: string, agentLink: string) => {
   if (safeBody.includes(agentLink)) {
     const replaced = safeBody
       .split(agentLink)
-      .join(`<a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`);
+      .join(
+        `<a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`
+      );
     return `<div>${replaced.replace(/\n/g, "<br />")}${buttonHtml}</div>`;
   }
 
@@ -48,6 +83,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
+  const apiToken = process.env.EMAIL_API_TOKEN;
+  if (!apiToken) {
+    console.error("EMAIL_API_TOKEN environment variable is not configured.");
+    return res.status(500).json({ error: "Email service is not configured." });
+  }
+
+  const authHeader = req.headers.authorization;
+  const providedToken = typeof authHeader === "string" ? authHeader.replace(/^Bearer\s+/i, "") : "";
+
+  if (!providedToken || providedToken !== apiToken) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  const clientId = getClientIdentifier(req);
+  if (isRateLimited(clientId)) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+
   const bodyPayload = typeof req.body === "object" && req.body !== null ? req.body : {};
   const rawSessionId = (bodyPayload as Record<string, unknown>).sessionId;
   const rawRecipients = (bodyPayload as Record<string, unknown>).recipients;
@@ -55,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const rawBody = (bodyPayload as Record<string, unknown>).body;
   const rawAgentLink = (bodyPayload as Record<string, unknown>).agentLink;
 
-const recipients = normalizeRecipients(rawRecipients);
+  const recipients = normalizeRecipients(rawRecipients);
   const subject = typeof rawSubject === "string" ? rawSubject.trim() : "";
   const body = typeof rawBody === "string" ? rawBody : "";
   const agentLink = typeof rawAgentLink === "string" ? rawAgentLink.trim() : "";
