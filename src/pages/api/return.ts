@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const match = await db
-      .select({ sessionId: sessions.sessionId })
+      .select({ sessionId: sessions.sessionId, pinCode: sessions.pinCode })
       .from(sessions)
       .where(and(eq(sessions.pinCode, pinRaw), eq(sessions.status, "active")))
       .limit(1);
@@ -33,7 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
-    redirect(res, `/scorecard?sid=${match[0].sessionId}`);
+    const target = new URLSearchParams({ sid: match[0].sessionId, pin: match[0].pinCode });
+    redirect(res, `/scorecard?${target.toString()}`);
   } catch (error) {
     console.error("Failed to resolve PIN", error);
     redirect(res, "/return?e=1");

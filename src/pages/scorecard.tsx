@@ -488,16 +488,40 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         responders: 0,
         callSummaries: [],
         primaryQuestions: [],
-        followUpQuestions: [],
         latestRawPayload: null,
         error: "Missing session identifier."
       }
     };
   }
 
+  if (!pin || !/^\d{4}$/.test(pin.trim())) {
+    return {
+      props: {
+        sessionId: sid,
+        status: null,
+        createdAt: null,
+        pin: null,
+        context: null,
+        emailsSent: 0,
+        responders: 0,
+        callSummaries: [],
+        primaryQuestions: [],
+        latestRawPayload: null,
+        error: "Missing or invalid session PIN."
+      }
+    };
+  }
+
+  const normalizedPin = pin.trim();
+
   try {
     const sessionRows = await db
-      .select({ sessionId: sessions.sessionId, status: sessions.status, createdAt: sessions.createdAt })
+      .select({
+        sessionId: sessions.sessionId,
+        status: sessions.status,
+        createdAt: sessions.createdAt,
+        pinCode: sessions.pinCode
+      })
       .from(sessions)
       .where(eq(sessions.sessionId, sid))
       .limit(1);
@@ -508,13 +532,12 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
           sessionId: sid,
           status: null,
           createdAt: null,
-          pin: pin ?? null,
+          pin: normalizedPin,
           context: null,
           emailsSent: 0,
           responders: 0,
           callSummaries: [],
           primaryQuestions: [],
-          followUpQuestions: [],
           latestRawPayload: null,
           error: "Session not found."
         }
@@ -522,6 +545,23 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
     }
 
     const sessionRecord = sessionRows[0];
+    if (sessionRecord.pinCode !== normalizedPin) {
+      return {
+        props: {
+          sessionId: sid,
+          status: null,
+          createdAt: null,
+          pin: null,
+          context: null,
+          emailsSent: 0,
+          responders: 0,
+          callSummaries: [],
+          primaryQuestions: [],
+          latestRawPayload: null,
+          error: "Session PIN did not match."
+        }
+      };
+    }
 
 const contextRows = await db
       .select({
@@ -552,10 +592,10 @@ const contextRows = await db
           uniqueRecipients.add(entry);
         }
       });
-    });
+      });
 
-    const transcriptCondition = pin
-      ? or(eq(convaiTranscripts.sessionId, sid), eq(convaiTranscripts.pinCode, pin))
+    const transcriptCondition = normalizedPin
+      ? or(eq(convaiTranscripts.sessionId, sid), eq(convaiTranscripts.pinCode, normalizedPin))
       : eq(convaiTranscripts.sessionId, sid);
 
     const transcriptRows = await db
@@ -634,7 +674,7 @@ const contextRows = await db
         sessionId: sessionRecord.sessionId,
         status: sessionRecord.status,
         createdAt: sessionRecord.createdAt ? sessionRecord.createdAt.toISOString() : null,
-        pin: pin ?? null,
+        pin: normalizedPin,
         context: normalizedContext,
         emailsSent: uniqueRecipients.size,
         responders: summaries.length,
@@ -650,13 +690,12 @@ const contextRows = await db
         sessionId: sid,
         status: null,
         createdAt: null,
-        pin: pin ?? null,
+        pin: normalizedPin,
         context: null,
         emailsSent: 0,
         responders: 0,
         callSummaries: [],
         primaryQuestions: [],
-        followUpQuestions: [],
         latestRawPayload: null,
         error: "Unable to load scorecard right now."
       }
