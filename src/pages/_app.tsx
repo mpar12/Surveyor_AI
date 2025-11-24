@@ -6,13 +6,13 @@ import "@/styles/globals.css";
 
 const PATHS_WITHOUT_HEADER = new Set(["/assistant"]);
 
-export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter();
-  const hideHeader = PATHS_WITHOUT_HEADER.has(router.pathname);
+export default function App({ Component, pageProps }: AppProps) { // Sets up App
+  const router = useRouter(); // Use Router to route to different pages 
+  const hideHeader = PATHS_WITHOUT_HEADER.has(router.pathname); // HideHeader on this page
 
-  return (
+  return ( // Returns Session Provider and Header if hideHeader is false
     <SessionProvider>
-      {!hideHeader ? <Header /> : null}
+      {!hideHeader ? <Header /> : null} 
       <Component {...pageProps} />
     </SessionProvider>
   );
