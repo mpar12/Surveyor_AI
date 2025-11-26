@@ -7,8 +7,8 @@ import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
 
 type DescriptionResponse = {
-  companyDescription: string;
-  productDescription: string;
+  promptSummary: string;
+  researchHighlights: string;
 };
 
 type QueryValue = string | string[] | undefined;
@@ -30,40 +30,10 @@ export default function BriefPage() {
     return getQueryValue(router.query.name);
   }, [sessionData?.requester, router.query.name]);
   
-  const company = useMemo(() => {
-    if (sessionData?.company) return sessionData.company;
-    return getQueryValue(router.query.company);
-  }, [sessionData?.company, router.query.company]);
-  
-  const product = useMemo(() => {
-    if (sessionData?.product) return sessionData.product;
-    return getQueryValue(router.query.product);
-  }, [sessionData?.product, router.query.product]);
-  
-  const feedbackDesired = useMemo(() => {
-    if (sessionData?.feedbackDesired) return sessionData.feedbackDesired;
-    return getQueryValue(router.query.feedbackDesired);
-  }, [sessionData?.feedbackDesired, router.query.feedbackDesired]);
-  
-  const keyQuestions = useMemo(() => {
-    if (sessionData?.keyQuestions) return sessionData.keyQuestions;
-    return getQueryValue(router.query.keyQuestions);
-  }, [sessionData?.keyQuestions, router.query.keyQuestions]);
-  
-  const desiredIcp = useMemo(() => {
-    if (sessionData?.desiredIcp) return sessionData.desiredIcp;
-    return getQueryValue(router.query.desiredIcp);
-  }, [sessionData?.desiredIcp, router.query.desiredIcp]);
-  
-  const desiredIcpIndustry = useMemo(() => {
-    if (sessionData?.desiredIcpIndustry) return sessionData.desiredIcpIndustry;
-    return getQueryValue(router.query.desiredIcpIndustry);
-  }, [sessionData?.desiredIcpIndustry, router.query.desiredIcpIndustry]);
-  
-  const desiredIcpRegion = useMemo(() => {
-    if (sessionData?.desiredIcpRegion) return sessionData.desiredIcpRegion;
-    return getQueryValue(router.query.desiredIcpRegion);
-  }, [sessionData?.desiredIcpRegion, router.query.desiredIcpRegion]);
+  const prompt = useMemo(() => {
+    if (sessionData?.prompt) return sessionData.prompt;
+    return getQueryValue(router.query.prompt);
+  }, [sessionData?.prompt, router.query.prompt]);
   
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
@@ -135,13 +105,13 @@ export default function BriefPage() {
       return;
     }
 
-    if (!company.trim() || !product.trim()) {
+    if (!prompt.trim()) {
       setDescriptions(null);
       setIsLoading(false);
-      setError("Company and product inputs are required to generate the research summary.");
+      setError("A prompt is required to generate the research summary.");
       setQuestions(null);
       setAreQuestionsLoading(false);
-      setQuestionsError("Company and product inputs are required to generate survey questions.");
+      setQuestionsError("A prompt is required to generate survey questions.");
       return;
     }
 
@@ -158,7 +128,7 @@ export default function BriefPage() {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ company, product }),
+          body: JSON.stringify({ prompt, requester: name }),
           signal: controller.signal
         });
 
@@ -202,12 +172,8 @@ export default function BriefPage() {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            company,
-            product,
-            desiredIcp,
-            desiredIcpIndustry,
-            feedbackDesired,
-            keyQuestions
+            prompt,
+            requester: name
           }),
           signal: controller.signal
         });
@@ -250,7 +216,7 @@ export default function BriefPage() {
     fetchQuestions();
 
     return () => controller.abort();
-  }, [router.isReady, company, product, desiredIcp, desiredIcpIndustry, feedbackDesired, keyQuestions]);
+  }, [router.isReady, prompt, name]);
 
   useEffect(() => {
     if (!questions || !sid) {
@@ -273,22 +239,16 @@ export default function BriefPage() {
       body: JSON.stringify({
         sessionId: sid,
         requester: name,
-        company,
-        product,
-        feedbackDesired,
-        desiredIcp,
-        desiredIcpIndustry,
-        desiredIcpRegion,
-        keyQuestions,
+        prompt,
         surveyQuestions: questions
       })
     }).catch((error) => {
       console.error("Failed to update session context with survey questions", error);
     });
-  }, [questions, sid, name, company, product, feedbackDesired, desiredIcp, desiredIcpIndustry, desiredIcpRegion, keyQuestions]);
+  }, [questions, sid, name, prompt]);
 
-  const productCopy = descriptions?.productDescription;
-  const companyCopy = descriptions?.companyDescription;
+  const summaryCopy = descriptions?.promptSummary;
+  const highlightsCopy = descriptions?.researchHighlights;
 
   const handleQuestionChange = useCallback(
     (index: number, event: ChangeEvent<HTMLInputElement>) => {
@@ -314,48 +274,46 @@ export default function BriefPage() {
 
       <h1 className={styles.pageTitle}>Survey Questions</h1>
       <p className={styles.pageSubtitle}>
-      Our AI has carefully learned about your company and product to create the personalized survey below.        <br />
-        Feel free to edit it as you like!
+        Our AI analyzes your prompt to draft a research brief and custom conversation starters. Feel free to tweak anything you see.
       </p>
 
       <div className={styles.card}>
 
         {error ? <div className={styles.errorMessage}>{error}</div> : null}
 
-        <div className={styles.summaryGrid}>
+        <section className={styles.summaryGrid}>
           <article className={styles.summaryBlock}>
-            <h2>Product</h2>
+            <h2>Prompt summary</h2>
             <p>
-              {productCopy
-                ? productCopy
+              {summaryCopy
+                ? summaryCopy
                 : isLoading
-                  ? "Learning about your product..."
+                  ? "Interpreting your prompt..."
                   : error
-                    ? "Product research is unavailable right now."
-                    : "Product research will appear here once generated."}
+                    ? "Prompt research is unavailable right now."
+                    : "A summary will appear here once generated."}
             </p>
           </article>
 
           <article className={styles.summaryBlock}>
-            <h2>Company</h2>
+            <h2>Research highlights</h2>
             <p>
-              {companyCopy
-                ? companyCopy
+              {highlightsCopy
+                ? highlightsCopy
                 : isLoading
-                  ? "Learning about your company..."
+                  ? "Collecting insights..."
                   : error
-                    ? "Company research is unavailable right now."
-                    : "Company research will appear here once generated."}
+                    ? "Highlights are unavailable right now."
+                    : "Highlights will appear here once generated."}
             </p>
           </article>
-        </div>
+        </section>
 
         <section className={styles.questionsSection}>
           <div className={styles.questionsHeader}>
             <h2>Survey Questions</h2>
             <p>
-              Tailored for {desiredIcp || "your ICP"}
-              {desiredIcpIndustry ? ` in ${desiredIcpIndustry} .` : "."} <br />
+              Grounded in your prompt{prompt ? `: “${prompt}”` : ""}.
             </p>
           </div>
 

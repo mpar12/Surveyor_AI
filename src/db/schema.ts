@@ -43,6 +43,7 @@ export const sessionContexts = drizzleSchema.table("session_contexts", {
     .primaryKey()
     .references(() => sessions.sessionId),
   requester: text("requester"),
+  prompt: text("prompt"),
   company: text("company"),
   product: text("product"),
   feedbackDesired: text("feedback_desired"),

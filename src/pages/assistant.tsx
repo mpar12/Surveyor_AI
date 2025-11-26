@@ -111,14 +111,11 @@ export default function AssistantPage() {
   const dynamicVariables = useMemo(() => {
     // Use session data if available, fallback to URL params for initial load
     const name = sessionData?.requester || getQueryValue(router.query.name);
-    const company = sessionData?.company || getQueryValue(router.query.company);
-    const product = sessionData?.product || getQueryValue(router.query.product);
-    const feedbackDesired = sessionData?.feedbackDesired || getQueryValue(router.query.feedbackDesired);
-    const keyQuestions = sessionData?.keyQuestions || getQueryValue(router.query.keyQuestions);
     const sessionId = getQueryValue(router.query.sid);
     const pin = getQueryValue(router.query.pin);
     const participantEmail =
       getQueryValue(router.query.email) || getQueryValue(router.query.email_address);
+    const promptValue = sessionData?.prompt || getQueryValue(router.query.prompt);
 
     // Use surveyQuestions from session context (from brief page) as primary source
     const questionsFromSession = sessionData?.surveyQuestions || surveyQuestions;
@@ -127,15 +124,6 @@ export default function AssistantPage() {
 
     if (name) {
       variables.user_name = name;
-    }
-    if (company) {
-      variables.company_name = company;
-    }
-    if (product) {
-      variables.product_name = product;
-    }
-    if (feedbackDesired) {
-      variables.key_feedback_desired = feedbackDesired;
     }
     if (sessionId) {
       variables.session_id = sessionId;
@@ -146,23 +134,23 @@ export default function AssistantPage() {
     if (participantEmail) {
       variables.email_address = participantEmail;
     }
+    if (promptValue) {
+      variables.survey_prompt = promptValue;
+    }
     if (questionsFromSession && questionsFromSession.length) {
       const enumerated = questionsFromSession
         .map((question, index) => `${index + 1}. ${question}`)
         .join("\n");
       variables.List_of_Questions = enumerated;
-    } else if (keyQuestions) {
-      variables.List_of_Questions = keyQuestions;
+    } else if (promptValue) {
+      variables.List_of_Questions = promptValue;
     }
 
     return variables;
   }, [
     sessionData,
     router.query.name,
-    router.query.company,
-    router.query.product,
-    router.query.feedbackDesired,
-    router.query.keyQuestions,
+    router.query.prompt,
     router.query.sid,
     router.query.pin,
     router.query.email,

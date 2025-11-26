@@ -2,8 +2,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import OpenAI from "openai";
 
 type DescriptionResponse = {
-  companyDescription: string;
-  productDescription: string;
+  promptSummary: string;
+  researchHighlights: string;
 };
 
 type ErrorResponse = {
@@ -21,16 +21,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { company, product } = req.body ?? {};
+  const { prompt, requester } = req.body ?? {};
 
-  if (typeof company !== "string" || typeof product !== "string") {
-    return res.status(400).json({ error: "Both company and product must be provided as strings." });
-  }
-
-  if (!company.trim() || !product.trim()) {
-    return res
-      .status(400)
-      .json({ error: "Both company and product must be non-empty values." });
+  if (typeof prompt !== "string" || !prompt.trim()) {
+    return res.status(400).json({ error: "A prompt must be provided." });
   }
 
   if (!process.env.OPENAI_API_KEY) {
@@ -45,11 +39,11 @@ export default async function handler(
         {
           role: "system",
           content:
-            "You are a marketing analyst crafting concise, factual descriptions. Respond only in valid JSON."
+            "You are a marketing analyst who distills research prompts into succinct summaries and highlights. Respond only in valid JSON."
         },
         {
           role: "user",
-          content: `Company name: ${company}\nProduct name: ${product}\nReturn JSON with two keys: companyDescription and productDescription. Each value must be exactly 50 words, professional tone, concise sentences. Avoid bullet points or numbering.`
+          content: `Requester: ${typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"}\nPrompt: ${prompt}\n\nReturn JSON with two keys: promptSummary and researchHighlights. promptSummary should be 2 sentences that restate the goal of the prompt. researchHighlights should be 2-3 sentences that surface angles, audiences, or constraints worth exploring. Avoid bullet points.`
         }
       ]
     });
@@ -62,13 +56,13 @@ export default async function handler(
 
     const parsed = JSON.parse(messageContent) as Partial<DescriptionResponse>;
 
-    if (!parsed.companyDescription || !parsed.productDescription) {
+    if (!parsed.promptSummary || !parsed.researchHighlights) {
       throw new Error("Response is missing required fields");
     }
 
     return res.status(200).json({
-      companyDescription: parsed.companyDescription,
-      productDescription: parsed.productDescription
+      promptSummary: parsed.promptSummary,
+      researchHighlights: parsed.researchHighlights
     });
   } catch (error) {
     console.error("Failed to generate descriptions", error);

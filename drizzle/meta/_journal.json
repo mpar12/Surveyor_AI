@@ -31,6 +31,12 @@
       "version": "0004_add_survey_questions_column",
       "when": 4,
       "tag": "0004_add_survey_questions_column"
+    },
+    {
+      "idx": 5,
+      "version": "0005_add_prompt_column",
+      "when": 5,
+      "tag": "0005_add_prompt_column"
     }
   ]
 }

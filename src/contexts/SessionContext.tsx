@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 export interface SessionContextData {
   sessionId: string;
   requester: string | null;
+  prompt: string | null;
   company: string | null;
   product: string | null;
   feedbackDesired: string | null;

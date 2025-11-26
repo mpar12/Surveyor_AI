@@ -42,6 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         sessionId: contextData.sessionId,
         requester: contextData.requester,
+        prompt: contextData.prompt,
         company: contextData.company,
         product: contextData.product,
         feedbackDesired: contextData.feedbackDesired,
@@ -60,17 +61,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "POST") {
     const {
-    sessionId,
-    requester,
-    company,
-    product,
-    feedbackDesired,
-    desiredIcp,
-    desiredIcpIndustry,
-    desiredIcpRegion,
-    keyQuestions,
-    surveyQuestions
-  } = req.body ?? {};
+      sessionId,
+      requester,
+      company,
+      product,
+      feedbackDesired,
+      prompt,
+      desiredIcp,
+      desiredIcpIndustry,
+      desiredIcpRegion,
+      keyQuestions,
+      surveyQuestions
+    } = req.body ?? {};
 
   if (typeof sessionId !== "string" || !sessionId.trim()) {
     return res.status(400).json({ error: "session_id_required" });
@@ -80,6 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const payload = {
       sessionId,
       requester: typeof requester === "string" ? requester : null,
+      prompt: typeof prompt === "string" ? prompt : null,
       company: typeof company === "string" ? company : null,
       product: typeof product === "string" ? product : null,
       feedbackDesired: typeof feedbackDesired === "string" ? feedbackDesired : null,
@@ -109,6 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         target: sessionContexts.sessionId,
         set: {
           requester: payload.requester,
+          prompt: payload.prompt,
           company: payload.company,
           product: payload.product,
           feedbackDesired: payload.feedbackDesired,

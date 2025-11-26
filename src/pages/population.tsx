@@ -1,13 +1,8 @@
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Population.module.css";
-import {
-  EMAIL_PREVIEW_RECIPIENTS_KEY,
-  PEOPLE_SEARCH_STORAGE_KEY,
-  SURVEY_QUESTIONS_STORAGE_KEY
-} from "@/lib/storageKeys";
+import { EMAIL_PREVIEW_RECIPIENTS_KEY, SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -23,38 +18,19 @@ const getQueryValue = (value: QueryValue) => {
 
 export default function PopulationPage() {
   const router = useRouter();
-  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
-  const [manualSelected, setManualSelected] = useState(false);
-  const [scrapeSelected, setScrapeSelected] = useState(false);
+  const { sessionData } = useSessionContext();
   const [emailCsv, setEmailCsv] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [hasValidEmails, setHasValidEmails] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
   const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
 
   const contextSummary = useMemo(() => {
-    // Use session data if available, fallback to URL params for initial load
-    const name = sessionData?.requester || getQueryValue(router.query.name);
-    const company = sessionData?.company || getQueryValue(router.query.company);
-    const product = sessionData?.product || getQueryValue(router.query.product);
-    const feedbackDesired = sessionData?.feedbackDesired || getQueryValue(router.query.feedbackDesired);
-    const keyQuestions = sessionData?.keyQuestions || getQueryValue(router.query.keyQuestions);
-    const desiredIcp = sessionData?.desiredIcp || getQueryValue(router.query.desiredIcp);
-    const desiredIcpIndustry = sessionData?.desiredIcpIndustry || getQueryValue(router.query.desiredIcpIndustry);
-    const desiredIcpRegion = sessionData?.desiredIcpRegion || getQueryValue(router.query.desiredIcpRegion);
     const sidValue = getQueryValue(router.query.sid);
     const pinValue = getQueryValue(router.query.pin);
 
     return {
-      name,
-      company,
-      product,
-      feedbackDesired,
-      keyQuestions,
-      desiredIcp,
-      desiredIcpIndustry,
-      desiredIcpRegion,
+      name: sessionData?.requester || getQueryValue(router.query.name),
+      prompt: sessionData?.prompt || getQueryValue(router.query.prompt),
       sid: sidValue,
       pin: pinValue,
       surveyQuestions
@@ -62,16 +38,10 @@ export default function PopulationPage() {
   }, [
     sessionData,
     router.query.name,
-    router.query.company,
-    router.query.product,
-    router.query.feedbackDesired,
-    surveyQuestions,
-    router.query.keyQuestions,
-    router.query.desiredIcp,
-    router.query.desiredIcpIndustry,
-    router.query.desiredIcpRegion,
+    router.query.prompt,
     router.query.sid,
-    router.query.pin
+    router.query.pin,
+    surveyQuestions
   ]);
 
   useEffect(() => {
@@ -92,60 +62,22 @@ export default function PopulationPage() {
     }
   }, []);
 
-  // Clean URL after initial load if we have session data
   useEffect(() => {
     if (sessionData && router.isReady && contextSummary.sid && contextSummary.pin) {
-      // Check if URL has more than just sid and pin
-      const hasExtraParams = Object.keys(router.query).some(key => 
-        key !== 'sid' && key !== 'pin' && router.query[key]
+      const allowedKeys = new Set(["sid", "pin"]);
+      const hasExtraParams = Object.keys(router.query).some(
+        (key) => !allowedKeys.has(key) && router.query[key]
       );
-      
+
       if (hasExtraParams) {
-        // Replace URL with clean version
-        router.replace({
-          pathname: router.pathname,
-          query: { sid: contextSummary.sid, pin: contextSummary.pin }
-        }, undefined, { shallow: true });
+        router.replace(
+          { pathname: router.pathname, query: { sid: contextSummary.sid, pin: contextSummary.pin } },
+          undefined,
+          { shallow: true }
+        );
       }
     }
   }, [sessionData, router.isReady, contextSummary.sid, contextSummary.pin, router]);
-
-  const handleManualToggle = (event: ChangeEvent<HTMLInputElement>) => {
-    const isChecked = event.target.checked;
-    setManualSelected(isChecked);
-
-    if (isChecked) {
-      setScrapeSelected(false);
-      setSearchError(null);
-      setIsSearching(false);
-    }
-
-    if (!isChecked) {
-      setEmailCsv("");
-      setEmailError(null);
-      setHasValidEmails(false);
-    }
-  };
-
-  const handleScrapeToggle = (event: ChangeEvent<HTMLInputElement>) => {
-    const isChecked = event.target.checked;
-    setScrapeSelected(isChecked);
-
-    if (isChecked) {
-      setManualSelected(false);
-      setEmailCsv("");
-      setEmailError(null);
-      setHasValidEmails(false);
-    }
-
-    if (!isChecked) {
-      setSearchError(null);
-      setIsSearching(false);
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(PEOPLE_SEARCH_STORAGE_KEY);
-      }
-    }
-  };
 
   const handleEmailsChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value;
@@ -180,11 +112,7 @@ export default function PopulationPage() {
     setHasValidEmails(true);
   };
 
-  const handlePrepareEmailManual = () => {
-    if (!manualSelected) {
-      return;
-    }
-
+  const handlePrepareEmail = () => {
     const entries = emailCsv
       .split(",")
       .map((entry) => entry.trim())
@@ -208,220 +136,76 @@ export default function PopulationPage() {
     }
 
     const query: Record<string, string> = {
-      sid: contextSummary.sid,
-      pin: contextSummary.pin,
+      sid: contextSummary.sid ?? "",
+      pin: contextSummary.pin ?? "",
       source: "manual"
     };
 
     router.push({ pathname: "/email-preview", query });
   };
 
-  const handleConductSearch = async () => {
-    if (!scrapeSelected) {
-      return;
-    }
-
-    setIsSearching(true);
-    setSearchError(null);
-
-    const title = contextSummary.desiredIcp;
-    const location = contextSummary.desiredIcpRegion;
-    const industry = contextSummary.desiredIcpIndustry;
-    const sid = contextSummary.sid;
-    const pin = contextSummary.pin;
-
-    if (!title || !location) {
-      setSearchError("Title and region are required to run the search.");
-      setIsSearching(false);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/people", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title,
-          location,
-          industry
-        })
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        const baseMessage =
-          typeof payload?.error === "string"
-            ? payload.error
-            : payload?.error
-              ? JSON.stringify(payload.error)
-              : "Unable to retrieve contacts.";
-        const step = typeof payload?.step === "string" ? payload.step : undefined;
-        const reason = `${response.status} ${response.statusText}`;
-        setSearchError(step ? `${step}: ${baseMessage} (${reason})` : `${baseMessage} (${reason})`);
-        return;
-      }
-
-      const contacts = Array.isArray(payload.contacts) ? payload.contacts : [];
-      const debug = payload.debug ?? {};
-
-      if (typeof window !== "undefined") {
-        try {
-          sessionStorage.setItem(
-            PEOPLE_SEARCH_STORAGE_KEY,
-            JSON.stringify({
-            contacts,
-            title,
-            location,
-            industry,
-            generatedAt: Date.now(),
-            debug,
-            sid,
-            pin,
-            requester: contextSummary.name,
-            company: contextSummary.company,
-            product: contextSummary.product,
-            feedbackDesired: contextSummary.feedbackDesired,
-            keyQuestions: contextSummary.keyQuestions,
-            desiredIcp: contextSummary.desiredIcp,
-            desiredIcpIndustry: contextSummary.desiredIcpIndustry,
-            desiredIcpRegion: contextSummary.desiredIcpRegion,
-            surveyQuestions
-          })
-          );
-          sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(surveyQuestions));
-        } catch (storageError) {
-          console.error("Failed to store search results", storageError);
-          setSearchError("Search succeeded, but results could not be saved.");
-          return;
-        }
-      }
-
-      const query: Record<string, string> = {
-        sid: sid,
-        pin: pin
-      };
-
-      router.push({ pathname: "/people-results", query });
-    } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "Unexpected error");
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
   return (
     <div className={styles.container}>
       <Head>
-        <title> Choose Participants | SurvAgent</title>
+        <title>Choose Participants | SurvAgent</title>
         <meta
           name="description"
-          content="Decide how SurvAgent should source the outreach population for your survey."
+          content="Decide who should receive your SurvAgent invitation."
         />
       </Head>
 
       <div className={styles.lead}>
         <h1 className={styles.pageTitle}>Choose Interview Participants</h1>
         <p className={styles.pageSubtitle}>
+          Share a list of recipients and we&apos;ll help you send the AI survey invitation.
         </p>
       </div>
 
       <div className={styles.card}>
-
-        {/* <section className={`${styles.section} ${styles.contextPanel}`}>
-          <h2>Survey context</h2>
+        <section className={`${styles.section} ${styles.contextPanel}`}>
+          <h2>Prompt recap</h2>
           <dl>
             <div>
               <dt>Requester</dt>
               <dd>{contextSummary.name || "—"}</dd>
             </div>
             <div>
-              <dt>Company</dt>
-              <dd>{contextSummary.company || "—"}</dd>
-            </div>
-            <div>
-              <dt>Product</dt>
-              <dd>{contextSummary.product || "—"}</dd>
-            </div>
-            <div>
-              <dt>Target ICP</dt>
-              <dd>{contextSummary.desiredIcp || "—"}</dd>
-            </div>
-            <div>
-              <dt>ICP industry</dt>
-              <dd>{contextSummary.desiredIcpIndustry || "—"}</dd>
-            </div>
-            <div>
-              <dt>ICP region</dt>
-              <dd>{contextSummary.desiredIcpRegion || "—"}</dd>
+              <dt>Prompt</dt>
+              <dd>{contextSummary.prompt || "—"}</dd>
             </div>
           </dl>
-        </section> */}
+        </section>
 
         <section className={`${styles.section} ${styles.optionsSection}`}>
-          <h2>Would you like to...</h2>
-
-          <label className={styles.optionRow}>
-            <input
-              type="checkbox"
-              checked={manualSelected}
-              onChange={handleManualToggle}
+          <h2>Paste your participant list</h2>
+          <p className={styles.helperText}>
+            Separate addresses with commas. We&apos;ll BCC everyone on your invitation.
+          </p>
+          <div className={styles.manualInput}>
+            <textarea
+              value={emailCsv}
+              onChange={handleEmailsChange}
+              maxLength={1000}
+              placeholder="alice@example.com, bob@example.org, ..."
+              aria-label="Comma separated email addresses"
             />
-            <div>
-              <span>Paste a list of email addresses?</span>
+            <div className={styles.helperRow}>
+              <span>{emailCsv.length}/1000</span>
+              {emailError ? <span className={styles.error}>{emailError}</span> : null}
             </div>
-          </label>
-
-          {manualSelected ? (
-            <div className={styles.manualInput}>
-              <textarea
-                value={emailCsv}
-                onChange={handleEmailsChange}
-                maxLength={1000}
-                placeholder="alice@example.com, bob@example.org, ..."
-                aria-label="Comma separated email addresses"
-              />
-              <div className={styles.helperRow}>
-                <span>{emailCsv.length}/1000</span>
-                {emailError ? <span className={styles.error}>{emailError}</span> : null}
-              </div>
-            </div>
-          ) : null}
-
-          <label className={styles.optionRow}>
-            <input
-              type="checkbox"
-              checked={scrapeSelected}
-              onChange={handleScrapeToggle}
-            />
-            <div>
-              <span>Or let us find participants(via Apollo) on your behalf based on your desired ICP?</span>
-            </div>
-          </label>
+          </div>
         </section>
 
         <div className={styles.actions}>
-          {manualSelected && hasValidEmails ? (
-            <button type="button" className={styles.primaryButton} onClick={handlePrepareEmailManual}>
-              Draft Email
-            </button>
-          ) : null}
-
-          {scrapeSelected ? (
-            <button
-              type="button"
-              className={styles.primaryButton}
-              onClick={handleConductSearch}
-              disabled={isSearching}
-            >
-              {isSearching ? "Searching…" : "Conduct Search"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className={styles.primaryButton}
+            onClick={handlePrepareEmail}
+            disabled={!hasValidEmails}
+          >
+            Draft Email
+          </button>
         </div>
-
-        {searchError ? <div className={styles.errorBanner}>{searchError}</div> : null}
       </div>
     </div>
   );

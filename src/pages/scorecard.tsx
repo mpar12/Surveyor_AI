@@ -23,6 +23,7 @@ interface ScorecardProps {
   pin?: string | null;
   context?: {
     requester?: string | null;
+    prompt?: string | null;
     company?: string | null;
     product?: string | null;
     feedbackDesired?: string | null;
@@ -346,25 +347,9 @@ export default function ScorecardPage({
                 <dt className={styles.contextLabel}>Requester</dt>
                 <dd className={styles.contextValue}>{context?.requester || "—"}</dd>
               </div>
-              <div className={styles.contextItem}>
-                <dt className={styles.contextLabel}>Desired ICP</dt>
-                <dd className={styles.contextValue}>{context?.desiredIcp || "—"}</dd>
-              </div>
-              <div className={styles.contextItem}>
-                <dt className={styles.contextLabel}>ICP Industry</dt>
-                <dd className={styles.contextValue}>{context?.desiredIcpIndustry || "—"}</dd>
-              </div>
-              <div className={styles.contextItem}>
-                <dt className={styles.contextLabel}>ICP Region</dt>
-                <dd className={styles.contextValue}>{context?.desiredIcpRegion || "—"}</dd>
-              </div>
-              <div className={styles.contextItem}>
-                <dt className={styles.contextLabel}>Feedback desired</dt>
-                <dd className={styles.contextValue}>{context?.feedbackDesired || "—"}</dd>
-              </div>
               <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
-                <dt className={styles.contextLabel}>Key questions</dt>
-                <dd className={styles.contextValue}>{context?.keyQuestions || "—"}</dd>
+                <dt className={styles.contextLabel}>Prompt</dt>
+                <dd className={styles.contextValue}>{context?.prompt || "—"}</dd>
               </div>
             </dl>
           </section>
@@ -563,9 +548,10 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
       };
     }
 
-const contextRows = await db
+    const contextRows = await db
       .select({
         requester: sessionContexts.requester,
+        prompt: sessionContexts.prompt,
         company: sessionContexts.company,
         product: sessionContexts.product,
         feedbackDesired: sessionContexts.feedbackDesired,

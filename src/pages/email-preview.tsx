@@ -50,24 +50,14 @@ export default function EmailPreviewPage() {
     // Use session data if available, fallback to URL params for initial load
     return {
       name: sessionData?.requester || getQueryValue(router.query.name),
-      company: sessionData?.company || getQueryValue(router.query.company),
-      product: sessionData?.product || getQueryValue(router.query.product),
-      feedbackDesired: sessionData?.feedbackDesired || getQueryValue(router.query.feedbackDesired),
-      desiredIcp: sessionData?.desiredIcp || getQueryValue(router.query.desiredIcp),
-      desiredIcpIndustry: sessionData?.desiredIcpIndustry || getQueryValue(router.query.desiredIcpIndustry),
-      desiredIcpRegion: sessionData?.desiredIcpRegion || getQueryValue(router.query.desiredIcpRegion),
+      prompt: sessionData?.prompt || getQueryValue(router.query.prompt),
       sid: getQueryValue(router.query.sid),
       pin: getQueryValue(router.query.pin)
     };
   }, [
     sessionData,
     router.query.name,
-    router.query.company,
-    router.query.product,
-    router.query.feedbackDesired,
-    router.query.desiredIcp,
-    router.query.desiredIcpIndustry,
-    router.query.desiredIcpRegion,
+    router.query.prompt,
     router.query.sid,
     router.query.pin
   ]);
@@ -149,12 +139,7 @@ export default function EmailPreviewPage() {
     };
 
     setParam("name", context.name);
-    setParam("company", context.company);
-    setParam("product", context.product);
-    setParam("feedbackDesired", context.feedbackDesired);
-    setParam("desiredIcp", context.desiredIcp);
-    setParam("desiredIcpIndustry", context.desiredIcpIndustry);
-    setParam("desiredIcpRegion", context.desiredIcpRegion);
+    setParam("prompt", context.prompt);
     setParam("sid", context.sid);
     setParam("pin", context.pin);
 
@@ -195,14 +180,15 @@ export default function EmailPreviewPage() {
   useEffect(() => {
     setSubject((prev) => {
       if (prev) return prev;
-      return context.product ? `${context.product} Survey` : "Survey Invitation";
+      const promptSnippet = context.prompt ? context.prompt.slice(0, 60) : null;
+      return promptSnippet ? `Can we chat about “${promptSnippet}”?` : "Survey Invitation";
     });
 
     setBody((prev) => {
       if (prev) return prev;
       const requester = context.name || "our team";
-      const company = context.company || "our organization";
-      return `Hello! We are reaching out to you on behalf of ${requester} at ${company}.\n\n Our AI agent conducts interviews for companies around the world. \n\n Click the button below to get started!\n\nThank you for your time! :)`;
+      const promptSummary = context.prompt || "a new research topic";
+      return `Hello! ${requester} is running an AI-guided interview to learn more about:\n\n"${promptSummary}"\n\nIf you have a few minutes, click the button below to chat with our agent and share your perspective.\n\nThank you for your time!`;
     });
   }, [context]);
 

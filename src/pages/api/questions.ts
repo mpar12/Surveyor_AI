@@ -20,28 +20,10 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { company, product, desiredIcp, desiredIcpIndustry, feedbackDesired, keyQuestions } =
-    req.body ?? {};
+  const { prompt, requester, keyQuestions } = req.body ?? {};
 
-  if (
-    typeof company !== "string" ||
-    typeof product !== "string" ||
-    typeof desiredIcp !== "string" ||
-    typeof desiredIcpIndustry !== "string" ||
-    typeof feedbackDesired !== "string" ||
-    typeof keyQuestions !== "string"
-  ) {
-    return res.status(400).json({ error: "Invalid payload. Expect string fields." });
-  }
-
-  if (
-    !company.trim() ||
-    !product.trim() ||
-    !desiredIcp.trim() ||
-    !desiredIcpIndustry.trim() ||
-    !feedbackDesired.trim()
-  ) {
-    return res.status(400).json({ error: "All fields must be non-empty." });
+  if (typeof prompt !== "string" || !prompt.trim()) {
+    return res.status(400).json({ error: "Prompt is required." });
   }
 
   if (!process.env.OPENAI_API_KEY) {
@@ -49,7 +31,8 @@ export default async function handler(
   }
 
   try {
-    const trimmedKeyQuestions = keyQuestions.trim();
+    const trimmedKeyQuestions =
+      typeof keyQuestions === "string" && keyQuestions.trim() ? keyQuestions.trim() : "";
     const keyQuestionsSection = trimmedKeyQuestions || "None provided.";
 
     const completion = await openai.chat.completions.create({
@@ -59,11 +42,11 @@ export default async function handler(
         {
           role: "system",
           content:
-            "You are an marketing analyst who crafts incisive qualitative questions. Respond only in valid JSON."
+            "You are a marketing analyst who crafts incisive qualitative questions. Respond only in valid JSON."
         },
         {
           role: "user",
-          content: `Company: ${company}\nProduct: ${product}\nIdeal customer persona (ICP): ${desiredIcp}\nICP industry: ${desiredIcpIndustry}\nWhat the customer is trying to understand: ${feedbackDesired}\nKey questions from requester: ${keyQuestionsSection}\n\nGenerate 10 thoughtful survey questions that help assess the company's and product's market position from the perspective of this ICP. \nQuestions should:\n - The first 3 questions should collect demographic survey data about the user\n - Help reach the goal of understanding ${feedbackDesired}\n- Phrase questions as simply as possible.\n- If key questions are provided, weave them into the list without duplicating them.\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
+          content: `Requester: ${typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"}\nPrompt: ${prompt}\nKey questions from requester (if any): ${keyQuestionsSection}\n\nGenerate 10 thoughtful survey questions that would help address this prompt. Questions should:\n- begin with 2-3 light demographic or background questions to understand who is responding\n- dig into motivations, behaviors, and desired outcomes related to the prompt\n- remain concise, free of jargon, and avoid yes/no when possible.\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
         }
       ]
     });
