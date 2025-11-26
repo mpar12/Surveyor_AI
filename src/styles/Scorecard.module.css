@@ -133,6 +133,87 @@
   font-size: 0.9rem;
 }
 
+.takeawaysSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.takeawaysIntro {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0.35rem 0 0;
+}
+
+.statusBox {
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.statusError {
+  border-color: var(--color-error-border);
+  color: var(--color-error);
+}
+
+.analysisText {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.takeawaysGrid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.takeawayBlock {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.takeawayBlock h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.themeList,
+.highlightList {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--color-text-primary);
+}
+
+.highlightList {
+  list-style: none;
+  padding-left: 0;
+}
+
+.highlightList li {
+  border-left: 3px solid rgba(84, 73, 255, 0.35);
+  padding-left: 0.85rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.quoteText {
+  margin: 0;
+  font-style: italic;
+  color: var(--color-text-primary);
+}
+
+.quoteAuthor {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 .callList {
   display: grid;
   gap: 1rem;

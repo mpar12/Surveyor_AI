@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { useEffect, useState } from "react";
 import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, emailSends, sessionContexts, sessions } from "@/db/schema";
@@ -14,6 +15,12 @@ interface QuestionAnswerRow {
 interface ScriptedQuestionBlock {
   question: string;
   answers: QuestionAnswerRow[];
+}
+
+interface KeyTakeaways {
+  analysis: string;
+  recurringThemes: string[];
+  interestingHighlights: Array<{ quote: string; participant: string }>;
 }
 
 interface ScorecardProps {
@@ -303,6 +310,56 @@ export default function ScorecardPage({
   latestRawPayload,
   error
 }: ScorecardProps) {
+  const [takeaways, setTakeaways] = useState<KeyTakeaways | null>(null);
+  const [takeawaysStatus, setTakeawaysStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >(sessionId && pin ? "loading" : "idle");
+  const [takeawaysError, setTakeawaysError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId || !pin) {
+      return;
+    }
+
+    let isMounted = true;
+    setTakeawaysStatus("loading");
+    setTakeawaysError(null);
+
+    fetch("/api/takeaways", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ sessionId, pin })
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const message = typeof payload?.error === "string" ? payload.error : "Unable to load key takeaways.";
+          throw new Error(message);
+        }
+
+        return payload as KeyTakeaways;
+      })
+      .then((data) => {
+        if (!isMounted) return;
+        setTakeaways(data);
+        setTakeawaysStatus("ready");
+      })
+      .catch((fetchError) => {
+        if (!isMounted) return;
+        setTakeawaysStatus("error");
+        setTakeawaysError(
+          fetchError instanceof Error ? fetchError.message : "Unable to load key takeaways."
+        );
+      });
+
+  return () => {
+      isMounted = false;
+    };
+  }, [sessionId, pin]);
+
   const formattedLatestPayload = latestRawPayload
     ? JSON.stringify(latestRawPayload, null, 2)
     : null;
@@ -368,6 +425,62 @@ export default function ScorecardPage({
                 <span className={styles.metricHint}>Completed conversations with the AI agent.</span>
               </div>
             </div>
+          </section>
+
+          <section className={`${styles.section} ${styles.takeawaysSection}`}>
+            <div>
+              <h2 className={styles.sectionTitle}>Key takeaways</h2>
+              <p className={styles.takeawaysIntro}>
+                Highlights generated from every recorded conversation. This summary keeps the original
+                research prompt in mind so you can turn insights into action quickly.
+              </p>
+            </div>
+
+            {takeawaysStatus === "loading" ? (
+              <div className={styles.statusBox}>Analyzing conversations…</div>
+            ) : takeawaysStatus === "error" ? (
+              <div className={`${styles.statusBox} ${styles.statusError}`}>
+                {takeawaysError ?? "Unable to load key takeaways."}
+              </div>
+            ) : takeaways ? (
+              <>
+                <p className={styles.analysisText}>{takeaways.analysis}</p>
+                <div className={styles.takeawaysGrid}>
+                  <article className={styles.takeawayBlock}>
+                    <h3>Recurring themes</h3>
+                    {takeaways.recurringThemes.length ? (
+                      <ul className={styles.themeList}>
+                        {takeaways.recurringThemes.map((theme, index) => (
+                          <li key={`theme-${index}`}>{theme}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className={styles.emptyState}>No recurring themes identified yet.</p>
+                    )}
+                  </article>
+
+                  <article className={styles.takeawayBlock}>
+                    <h3>Interesting highlights</h3>
+                    {takeaways.interestingHighlights.length ? (
+                      <ul className={styles.highlightList}>
+                        {takeaways.interestingHighlights.map((highlight, index) => (
+                          <li key={`highlight-${index}`}>
+                            <blockquote className={styles.quoteText}>&ldquo;{highlight.quote}&rdquo;</blockquote>
+                            <span className={styles.quoteAuthor}>
+                              — {highlight.participant || `Participant ${index + 1}`}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className={styles.emptyState}>No highlights to share yet.</p>
+                    )}
+                  </article>
+                </div>
+              </>
+            ) : (
+              <div className={styles.statusBox}>Key takeaways will appear here soon.</div>
+            )}
           </section>
 
           <section className={styles.section}>

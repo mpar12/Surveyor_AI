@@ -136,7 +136,7 @@ export default function HomePage() {
               id="prompt"
               name="prompt"
               className={styles.textarea}
-              placeholder='Example: "I want to understand how seed-stage founders evaluate AI research tools when preparing for fundraising."'
+              placeholder='Example: "I want to understand what middle-class UK Voters think about the Labour Governments Immigration policy."'
               value={form.prompt}
               onChange={(event) => setForm((previous) => ({ ...previous, prompt: event.target.value }))}
               rows={6}
