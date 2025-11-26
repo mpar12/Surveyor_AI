@@ -3,15 +3,17 @@
   flex-direction: column;
   min-height: 100vh;
   width: 100%;
-  max-width: 1120px;
-  margin: 0;
-  padding: clamp(3.5rem, 7vw, 5rem) clamp(1.75rem, 5vw, 3rem) clamp(4rem, 8vw, 6.5rem);
+  margin: 0 auto;
+  padding: clamp(3rem, 6vw, 4rem) clamp(1.5rem, 4vw, 2.5rem);
   gap: clamp(1rem, 2vw, 1.5rem);
   color: var(--color-text-primary);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .title {
-  text-align: left;
+  text-align: center;
   font-size: clamp(2.05rem, 3.8vw, 2.85rem);
   font-weight: 700;
   margin-bottom: clamp(0.75rem, 2vw, 1.25rem);
@@ -21,20 +23,21 @@
 }
 
 .panel {
-  flex: 1;
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .formCard {
-  width: min(720px, 100%);
+  width: min(640px, 100%);
   display: flex;
   flex-direction: column;
-  gap: clamp(1.9rem, 3vw, 2.6rem);
-  padding: clamp(2.5rem, 5vw, 3.5rem) clamp(1rem, 4vw, 1.5rem) clamp(2rem, 5vw, 3rem);
-  counter-reset: survey-question;
+  gap: clamp(1.5rem, 3vw, 2rem);
+  padding: clamp(2.25rem, 5vw, 3rem);
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  box-shadow: 0 35px 65px rgba(15, 23, 42, 0.12);
 }
 
 .formHeader {
@@ -67,7 +70,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  counter-increment: survey-question;
 }
 
 .labelRow {
@@ -78,15 +80,6 @@
   font-size: 1.12rem;
   line-height: 1.35;
   position: relative;
-}
-
-.labelRow::before {
-  content: counter(survey-question) " \2192";
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  margin-right: 0.35rem;
-  letter-spacing: 0.02em;
 }
 
 .labelRow label {
@@ -214,8 +207,7 @@
 
 @media (max-width: 640px) {
   .container {
-    width: 100%;
-    padding: clamp(2.5rem, 6vw, 3rem) clamp(1.5rem, 7vw, 2.25rem) clamp(3rem, 9vw, 4rem);
+    padding: clamp(2rem, 6vw, 3rem) clamp(1rem, 6vw, 2rem);
   }
 
   .panel {
