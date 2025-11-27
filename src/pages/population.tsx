@@ -23,6 +23,8 @@ export default function PopulationPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [hasValidEmails, setHasValidEmails] = useState(false);
   const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
+  const [agentLink, setAgentLink] = useState("");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
   const contextSummary = useMemo(() => {
     const sidValue = getQueryValue(router.query.sid);
@@ -78,6 +80,56 @@ export default function PopulationPage() {
       }
     }
   }, [sessionData, router.isReady, contextSummary.sid, contextSummary.pin, router]);
+
+  useEffect(() => {
+    if (!router.isReady || typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams();
+    const setParam = (key: string, value: string | null | undefined) => {
+      if (value && value.trim()) {
+        params.set(key, value.trim());
+      }
+    };
+
+    setParam("name", contextSummary.name);
+    setParam("prompt", contextSummary.prompt);
+    setParam("sid", contextSummary.sid);
+    setParam("pin", contextSummary.pin);
+
+    const encodeSurveyQuestions = () => {
+      const source = surveyQuestions.length ? surveyQuestions : null;
+
+      if (source && source.length) {
+        try {
+          const payload = JSON.stringify(source);
+          return window.btoa(unescape(encodeURIComponent(payload)));
+        } catch (error) {
+          console.error("Failed to encode survey questions for assistant link", error);
+        }
+      }
+
+      return "";
+    };
+
+    const encoded = encodeSurveyQuestions();
+    if (encoded) {
+      params.set("surveyQuestions", encoded);
+    }
+
+    const query = params.toString();
+    const origin = window.location.origin;
+    const link = `${origin}/assistant${query ? `?${query}` : ""}`;
+    setAgentLink(link);
+  }, [
+    router.isReady,
+    contextSummary.name,
+    contextSummary.prompt,
+    contextSummary.sid,
+    contextSummary.pin,
+    surveyQuestions
+  ]);
 
   const handleEmailsChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value;
@@ -144,6 +196,29 @@ export default function PopulationPage() {
     router.push({ pathname: "/email-preview", query });
   };
 
+  const handleCopyAgentLink = () => {
+    if (!agentLink) {
+      return;
+    }
+
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      setCopyStatus("error");
+      setTimeout(() => setCopyStatus("idle"), 2500);
+      return;
+    }
+
+    navigator.clipboard
+      .writeText(agentLink)
+      .then(() => {
+        setCopyStatus("copied");
+        setTimeout(() => setCopyStatus("idle"), 2500);
+      })
+      .catch(() => {
+        setCopyStatus("error");
+        setTimeout(() => setCopyStatus("idle"), 2500);
+      });
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -174,6 +249,31 @@ export default function PopulationPage() {
               <dd>{contextSummary.prompt || "—"}</dd>
             </div>
           </dl>
+          <div className={styles.copyRow}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={handleCopyAgentLink}
+              disabled={!agentLink}
+            >
+              {agentLink ? "Copy assistant link" : "Preparing link…"}
+            </button>
+            <span
+              className={`${styles.copyStatus} ${
+                copyStatus === "copied"
+                  ? styles.copyStatusSuccess
+                  : copyStatus === "error"
+                    ? styles.copyStatusError
+                    : ""
+              }`}
+            >
+              {copyStatus === "copied"
+                ? "Copied!"
+                : copyStatus === "error"
+                  ? "Unable to copy."
+                  : "Share the ElevenLabs agent directly."}
+            </span>
+          </div>
         </section>
 
         <section className={`${styles.section} ${styles.optionsSection}`}>
