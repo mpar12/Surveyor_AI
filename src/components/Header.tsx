@@ -9,12 +9,12 @@ export default function Header() {
         display: "flex",
         alignItems: "center",
         justifyContent: "flex-end",
-        background: "rgba(255, 255, 255, 0.75)",
-        backdropFilter: "blur(6px)",
+        background: "#042224",
         position: "sticky",
         top: 0,
         zIndex: 10,
-        borderBottom: "1px solid #e5e7eb"
+        borderBottom: "1px solid rgba(249, 238, 215, 0.3)",
+        boxShadow: "0 8px 18px rgba(3, 20, 18, 0.35)"
       }}
     >
       <Link
@@ -22,12 +22,13 @@ export default function Header() {
         style={{
           fontSize: "0.95rem",
           fontWeight: 600,
-          color: "#101322",
+          color: "#f9eed7",
           textDecoration: "none",
           padding: "0.6rem 1.2rem",
           borderRadius: "999px",
-          border: "1px solid rgba(16, 19, 34, 0.6)",
-          transition: "background 0.2s ease, color 0.2s ease"
+          border: "1px solid rgba(249, 238, 215, 0.35)",
+          transition: "background 0.2s ease, color 0.2s ease",
+          background: "rgba(249, 238, 215, 0.08)"
         }}
       >
         Returning? Click here to input PIN and view previous results
