@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  background: radial-gradient(circle at top, #071d1b 0%, #042224 45%, #031412 100%);
+  background-color: #1c4932;
 }
 
 .title {
@@ -36,10 +36,10 @@
   gap: clamp(1.5rem, 3vw, 2rem);
   padding: clamp(2.25rem, 5vw, 3rem);
   margin: 0 auto;
-  background: rgba(4, 34, 36, 0.92);
+  background: #042224;
   border-radius: 24px;
-  box-shadow: 0 35px 65px rgba(3, 14, 12, 0.6);
-  border: 1px solid rgba(55, 147, 116, 0.35);
+  box-shadow: 0 45px 65px rgba(3, 14, 12, 0.65), 0 0 0 1px rgba(55, 147, 116, 0.3);
+  border: 1px solid rgba(55, 147, 116, 0.4);
 }
 
 .formHeader {
@@ -50,7 +50,7 @@
 }
 
 .formHeader p {
-  color: var(--color-text-secondary);
+  color: rgba(249, 238, 215, 0.8);
   font-size: 0.98rem;
   line-height: 1.5;
 }
@@ -63,7 +63,7 @@
 .sectionHeader h3 {
   font-size: 1.4rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #f3e9e0;
   margin: 0;
   letter-spacing: -0.01em;
 }
