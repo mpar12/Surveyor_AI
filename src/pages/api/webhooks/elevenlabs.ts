@@ -109,14 +109,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     dynamicVariables.sessionId ??
     dynamicVariables.sessionID;
   const pinCandidate = dynamicVariables.PIN ?? dynamicVariables.pin;
-  const participantEmail = typeof dynamicVariables.email_address === "string"
-    ? dynamicVariables.email_address.trim()
-    : "";
-
-  if (!participantEmail || participantEmail.toLowerCase() === "replace_this") {
-    return res.status(200).json({ status: "ignored_missing_email" });
-  }
-
   const sessionId = isValidUuid(sidCandidate) ? sidCandidate : null;
   const pinCode = isValidPin(pinCandidate) ? (pinCandidate as string).trim() : null;
   const eventTimestamp = typeof payload.event_timestamp === "number" ? payload.event_timestamp : null;
