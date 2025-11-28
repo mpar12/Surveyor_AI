@@ -6,10 +6,11 @@
   margin: 0 auto;
   padding: clamp(3rem, 6vw, 4rem) clamp(1.5rem, 4vw, 2.5rem);
   gap: clamp(1rem, 2vw, 1.5rem);
-  color: var(--color-text-primary);
+  color: #f9eed7;
   align-items: center;
   justify-content: center;
   text-align: center;
+  background: radial-gradient(circle at top, #071d1b 0%, #042224 45%, #031412 100%);
 }
 
 .title {
@@ -17,7 +18,7 @@
   font-size: clamp(2.05rem, 3.8vw, 2.85rem);
   font-weight: 700;
   margin-bottom: clamp(0.75rem, 2vw, 1.25rem);
-  color: var(--color-text-primary);
+  color: #f3e9e0;
   letter-spacing: -0.02em;
   line-height: 1.16;
 }
@@ -35,9 +36,10 @@
   gap: clamp(1.5rem, 3vw, 2rem);
   padding: clamp(2.25rem, 5vw, 3rem);
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(4, 34, 36, 0.92);
   border-radius: 24px;
-  box-shadow: 0 35px 65px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 35px 65px rgba(3, 14, 12, 0.6);
+  border: 1px solid rgba(55, 147, 116, 0.35);
 }
 
 .formHeader {
@@ -84,24 +86,17 @@
 
 .labelRow label {
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #f3e9e0;
   font-size: inherit;
 }
 
 .requiredTag {
-  font-size: 0;
-  color: var(--color-accent);
-}
-
-.requiredTag::before {
-  content: "*";
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  color: #379374;
 }
 
 .optionalTag {
-  color: var(--color-text-muted);
+  color: rgba(249, 238, 215, 0.65);
   font-weight: 500;
   font-size: 0.78rem;
   margin-left: auto;
@@ -111,25 +106,25 @@
   width: 100%;
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(28, 39, 64, 0.22);
+  border-bottom: 1px solid rgba(249, 238, 215, 0.35);
   border-radius: 0;
   padding: 0.35rem 0;
   font-size: 1.12rem;
-  color: var(--color-text-primary);
+  color: #f9eed7;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   box-shadow: none;
 }
 
 .input::placeholder {
-  color: rgba(117, 128, 149, 0.55);
+  color: rgba(249, 238, 215, 0.55);
   letter-spacing: 0.02em;
 }
 
 .input:focus {
   outline: none;
   transform: translateY(-1px);
-  border-bottom-color: rgba(84, 73, 255, 0.65);
-  box-shadow: 0 12px 24px rgba(84, 73, 255, 0.08);
+  border-bottom-color: #379374;
+  box-shadow: 0 12px 24px rgba(55, 147, 116, 0.25);
 }
 
 .textarea {
@@ -137,28 +132,28 @@
   min-height: 160px;
   padding: 0.75rem 0;
   border: none;
-  border-bottom: 1px solid rgba(28, 39, 64, 0.22);
+  border-bottom: 1px solid rgba(249, 238, 215, 0.35);
   background: transparent;
   resize: vertical;
   font-size: 1.05rem;
   line-height: 1.6;
-  color: var(--color-text-primary);
+  color: #f9eed7;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .textarea::placeholder {
-  color: rgba(117, 128, 149, 0.55);
+  color: rgba(249, 238, 215, 0.5);
 }
 
 .textarea:focus {
   outline: none;
-  border-bottom-color: rgba(84, 73, 255, 0.65);
-  box-shadow: 0 12px 24px rgba(84, 73, 255, 0.08);
+  border-bottom-color: #379374;
+  box-shadow: 0 12px 24px rgba(55, 147, 116, 0.25);
 }
 
 .actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   margin-top: 0.5rem;
   gap: 1rem;
 }
@@ -175,30 +170,30 @@
   padding: 0.9rem 2rem;
   border-radius: 999px;
   border: none;
-  background: #101322;
-  color: #f8f9ff;
+  background: #379374;
+  color: #042224;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  box-shadow: 0 16px 32px rgba(16, 19, 34, 0.18);
+  box-shadow: 0 16px 32px rgba(55, 147, 116, 0.35);
 }
 
 .submitButton:disabled {
-  background: rgba(133, 141, 160, 0.35);
+  background: rgba(55, 147, 116, 0.35);
   cursor: not-allowed;
   box-shadow: none;
 }
 
 .submitButton:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 20px 40px rgba(16, 19, 34, 0.2);
-  background: #181c2d;
+  box-shadow: 0 20px 40px rgba(55, 147, 116, 0.4);
+  background: #2d7c61;
 }
 
 .errorBanner {
-  background: var(--color-error-surface);
-  border: 1px solid var(--color-error-border);
-  color: var(--color-error);
+  background: rgba(255, 99, 99, 0.15);
+  border: 1px solid rgba(255, 99, 99, 0.45);
+  color: #ffb5a7;
   border-radius: 12px;
   padding: 0.85rem 1rem;
   font-weight: 600;
