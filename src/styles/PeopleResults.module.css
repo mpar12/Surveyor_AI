@@ -43,52 +43,52 @@
 
 .primaryButton {
   border-radius: 999px;
-  background: #042224;
-  color: #f9eed7;
+  background: var(--color-accent);
+  color: #ffffff;
   font-weight: 600;
   padding: 0.8rem 1.8rem;
   border: none;
   cursor: pointer;
-  box-shadow: 0 18px 36px rgba(3, 20, 18, 0.35);
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.2);
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .primaryButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 22px 44px rgba(3, 20, 18, 0.4);
-  background: #031914;
+  box-shadow: 0 22px 44px rgba(37, 99, 235, 0.25);
+  background: var(--color-accent-strong);
 }
 
 .secondaryButton {
   border-radius: 999px;
   background: transparent;
-  color: var(--color-text-primary);
+  color: var(--color-accent);
   font-weight: 600;
   padding: 0.75rem 1.6rem;
-  border: 1px solid rgba(249, 238, 215, 0.35);
+  border: 1px solid rgba(37, 99, 235, 0.35);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .secondaryButton:hover {
   transform: translateY(-1px);
-  background: rgba(249, 238, 215, 0.1);
+  background: rgba(37, 99, 235, 0.08);
   box-shadow: var(--shadow-soft);
 }
 
 .backLink {
-  color: var(--color-text-primary);
+  color: var(--color-accent);
   font-weight: 600;
   text-decoration: none;
   padding: 0.6rem 1.2rem;
   border-radius: 999px;
-  border: 1px solid rgba(249, 238, 215, 0.35);
+  border: 1px solid rgba(37, 99, 235, 0.35);
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
 .backLink:hover {
   opacity: 0.9;
-  background: rgba(249, 238, 215, 0.1);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .errorBanner {

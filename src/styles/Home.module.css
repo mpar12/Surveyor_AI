@@ -6,11 +6,11 @@
   margin: 0 auto;
   padding: clamp(3rem, 6vw, 4rem) clamp(1.5rem, 4vw, 2.5rem);
   gap: clamp(1rem, 2vw, 1.5rem);
-  color: #f9eed7;
+  color: #0f172a;
   align-items: center;
   justify-content: center;
   text-align: center;
-  background-color: #1c4932;
+  background-color: var(--color-bg);
 }
 
 .title {
@@ -18,7 +18,7 @@
   font-size: clamp(2.05rem, 3.8vw, 2.85rem);
   font-weight: 700;
   margin-bottom: clamp(0.75rem, 2vw, 1.25rem);
-  color: #f3e9e0;
+  color: #0f172a;
   letter-spacing: -0.02em;
   line-height: 1.16;
 }
@@ -36,10 +36,10 @@
   gap: clamp(1.5rem, 3vw, 2rem);
   padding: clamp(2.25rem, 5vw, 3rem);
   margin: 0 auto;
-  background: #22825d;
+  background: #ffffff;
   border-radius: 24px;
-  box-shadow: 0 45px 65px rgba(3, 14, 12, 0.45), 0 0 0 1px rgba(55, 147, 116, 0.4);
-  border: 1px solid rgba(55, 147, 116, 0.35);
+  box-shadow: 0 45px 65px rgba(15, 23, 60, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .formHeader {
@@ -50,7 +50,7 @@
 }
 
 .formHeader p {
-  color: #f9eed7;
+  color: #475569;
   font-size: 0.98rem;
   line-height: 1.5;
 }
@@ -63,7 +63,7 @@
 .sectionHeader h3 {
   font-size: 1.4rem;
   font-weight: 600;
-  color: #f9eed7;
+  color: #0f172a;
   margin: 0;
   letter-spacing: -0.01em;
 }
@@ -86,17 +86,17 @@
 
 .labelRow label {
   font-weight: 600;
-  color: #f9eed7;
+  color: #0f172a;
   font-size: inherit;
 }
 
 .requiredTag {
   font-size: 0.85rem;
-  color: #f9eed7;
+  color: var(--color-accent);
 }
 
 .optionalTag {
-  color: rgba(249, 238, 215, 0.8);
+  color: #64748b;
   font-weight: 500;
   font-size: 0.78rem;
   margin-left: auto;
@@ -106,25 +106,25 @@
   width: 100%;
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(249, 238, 215, 0.35);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.2);
   border-radius: 0;
   padding: 0.35rem 0;
   font-size: 1.12rem;
-  color: #f9eed7;
+  color: #0f172a;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   box-shadow: none;
 }
 
 .input::placeholder {
-  color: rgba(249, 238, 215, 0.55);
+  color: rgba(15, 23, 42, 0.5);
   letter-spacing: 0.02em;
 }
 
 .input:focus {
   outline: none;
   transform: translateY(-1px);
-  border-bottom-color: #379374;
-  box-shadow: 0 12px 24px rgba(55, 147, 116, 0.25);
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.12);
 }
 
 .textarea {
@@ -132,23 +132,23 @@
   min-height: 160px;
   padding: 0.75rem 0;
   border: none;
-  border-bottom: 1px solid rgba(249, 238, 215, 0.35);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.2);
   background: transparent;
   resize: vertical;
   font-size: 1.05rem;
   line-height: 1.6;
-  color: #f9eed7;
+  color: #0f172a;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .textarea::placeholder {
-  color: rgba(249, 238, 215, 0.5);
+  color: rgba(15, 23, 42, 0.5);
 }
 
 .textarea:focus {
   outline: none;
-  border-bottom-color: #379374;
-  box-shadow: 0 12px 24px rgba(55, 147, 116, 0.25);
+  border-bottom-color: var(--color-accent);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.12);
 }
 
 .actions {
@@ -170,26 +170,25 @@
   padding: 0.9rem 2rem;
   border-radius: 999px;
   border: none;
-  background: #042224;
-  color: #f9eed7;
+  background: var(--color-accent);
+  color: #ffffff;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
-  box-shadow: 0 16px 32px rgba(3, 20, 18, 0.35);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.25);
 }
 
 .submitButton:disabled {
-  background: rgba(4, 34, 36, 0.45);
-  color: rgba(249, 238, 215, 0.6);
+  background: rgba(37, 99, 235, 0.35);
+  color: rgba(255, 255, 255, 0.8);
   cursor: not-allowed;
   box-shadow: none;
 }
 
 .submitButton:not(:disabled):hover {
   transform: translateY(-1px);
-  box-shadow: 0 20px 40px rgba(3, 20, 18, 0.4);
-  background: #031914;
-  color: #f3e9e0;
+  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.25);
+  background: var(--color-accent-strong);
 }
 
 .errorBanner {

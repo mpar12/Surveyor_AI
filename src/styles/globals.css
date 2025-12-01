@@ -6,37 +6,37 @@
   letter-spacing: 0.01em;
 
   /* Palette */
-  --color-bg: #1c4932;
-  --color-bg-muted: #173c2a;
-  --color-surface-0: #22825d;
-  --color-surface-1: #1f6f4a;
-  --color-surface-2: #195c3f;
-  --color-surface-3: #14422c;
-  --color-border: rgba(249, 238, 215, 0.25);
-  --color-border-strong: rgba(249, 238, 215, 0.4);
+  --color-bg: #f6f8fb;
+  --color-bg-muted: #eef2f9;
+  --color-surface-0: #ffffff;
+  --color-surface-1: #f3f7fe;
+  --color-surface-2: #e3edfc;
+  --color-surface-3: #d4e3fa;
+  --color-border: rgba(15, 23, 42, 0.12);
+  --color-border-strong: rgba(15, 23, 42, 0.2);
 
-  --color-text-primary: #f9eed7;
-  --color-text-secondary: #f3e9e0;
-  --color-text-muted: rgba(249, 238, 215, 0.75);
-  --color-text-inverse: #1c4932;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #32415f;
+  --color-text-muted: #6b7a99;
+  --color-text-inverse: #ffffff;
 
-  --color-accent: #f9eed7;
-  --color-accent-strong: #f3e9e0;
-  --gradient-accent: #22825d;
-  --gradient-surface: #22825d;
+  --color-accent: #2563eb;
+  --color-accent-strong: #1d4fd7;
+  --gradient-accent: #e3edfc;
+  --gradient-surface: #ffffff;
   --gradient-hero: var(--color-bg);
 
-  --shadow-card: 0 24px 45px rgba(3, 14, 12, 0.45);
-  --shadow-soft: 0 16px 32px rgba(3, 14, 12, 0.35);
-  --shadow-hover: 0 26px 55px rgba(3, 14, 12, 0.55);
-  --shadow-border: 0 0 0 1px rgba(249, 238, 215, 0.2) inset;
-  --focus-ring: 0 0 0 3px rgba(249, 238, 215, 0.35);
+  --shadow-card: 0 24px 45px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 16px 32px rgba(15, 23, 42, 0.06);
+  --shadow-hover: 0 26px 55px rgba(15, 23, 42, 0.12);
+  --shadow-border: 0 0 0 1px rgba(15, 23, 42, 0.06) inset;
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
 
-  --color-success: #8dd4b4;
-  --color-warning: #f3d28d;
-  --color-error: #ffb5a7;
-  --color-error-surface: rgba(255, 181, 167, 0.12);
-  --color-error-border: rgba(255, 181, 167, 0.32);
+  --color-success: #199473;
+  --color-warning: #c97c00;
+  --color-error: #d93d4a;
+  --color-error-surface: rgba(217, 61, 74, 0.12);
+  --color-error-border: rgba(217, 61, 74, 0.32);
 }
 
 * {
@@ -69,7 +69,7 @@ body {
 }
 
 ::selection {
-  background: rgba(249, 238, 215, 0.3);
+  background: rgba(37, 99, 235, 0.2);
   color: var(--color-text-primary);
 }
 

@@ -182,15 +182,15 @@
 }
 
 .primaryButton {
-  background: #042224;
-  color: #f9eed7;
-  box-shadow: 0 18px 36px rgba(3, 20, 18, 0.35);
+  background: var(--color-accent);
+  color: #ffffff;
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.2);
 }
 
 .primaryButton:hover {
   transform: translateY(-1px);
-  box-shadow: 0 22px 44px rgba(3, 20, 18, 0.4);
-  background: #031914;
+  box-shadow: 0 22px 44px rgba(37, 99, 235, 0.25);
+  background: var(--color-accent-strong);
 }
 
 .secondaryButton {
