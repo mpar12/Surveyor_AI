@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db/client";
 import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
+import { TAKEAWAYS_SYSTEM_PROMPT } from "@/lib/prompts";
 
 const CLAUDE_API_KEY = process.env.claude_api_key ?? process.env.CLAUDE_API_KEY;
 
@@ -250,8 +251,7 @@ export default async function handler(
       model: "claude-sonnet-4-5-20250929",
       max_tokens: 1000,
       temperature: 0.2,
-      system:
-        "You are an insights analyst summarizing AI-led customer interviews. Respond only with valid JSON.",
+      system: TAKEAWAYS_SYSTEM_PROMPT,
       messages: [
         {
           role: "user",

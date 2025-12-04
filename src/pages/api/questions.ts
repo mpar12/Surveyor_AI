@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
+import { QUESTION_GENERATION_SYSTEM_PROMPT } from "@/lib/prompts";
 
 type ErrorResponse = {
   error: string;
@@ -41,8 +42,7 @@ export default async function handler(
       model: "claude-sonnet-4-5-20250929",
       max_tokens: 600,
       temperature: 0.2,
-      system:
-        "You are a marketing analyst who crafts incisive qualitative questions for AI-driven customer surveys. Make the questions non-AI sounding. Adopt the principles outlined in The Mom Test by Rob Fitzpatrick. Respond with plain text only—no JSON, lists, or numbering.",
+      system: QUESTION_GENERATION_SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
