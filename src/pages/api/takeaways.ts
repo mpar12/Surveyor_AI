@@ -247,7 +247,7 @@ export default async function handler(
       .join("\n\n");
 
     const completion = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 1000,
       temperature: 0.2,
       system:

@@ -11,9 +11,14 @@ type ErrorResponse = {
 
 const CLAUDE_API_KEY = process.env.claude_api_key ?? process.env.CLAUDE_API_KEY;
 
-const anthropic = new Anthropic({
-  apiKey: CLAUDE_API_KEY
-});
+const getAnthropicClient = () => {
+  if (!CLAUDE_API_KEY) {
+    throw new Error("CLAUDE_API_KEY environment variable is not set.");
+  }
+  return new Anthropic({
+    apiKey: CLAUDE_API_KEY
+  });
+};
 
 export default async function handler(
   req: NextApiRequest,
@@ -35,8 +40,9 @@ export default async function handler(
   }
 
   try {
+    const anthropic = getAnthropicClient();
     const completion = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 600,
       temperature: 0.2,
       system:
@@ -51,22 +57,31 @@ export default async function handler(
       ]
     });
 
-    const textContent = completion.content?.find((block) => block.type === "text");
-    const content = textContent && "text" in textContent ? textContent.text : null;
+    const textContent = completion.content.find((block) => block.type === "text");
+    const content = textContent && "text" in textContent ? (textContent as { text: string }).text : null;
 
     if (!content) {
+      console.error("No content returned from Anthropic. Response:", JSON.stringify(completion, null, 2));
       throw new Error("No content returned from Anthropic");
     }
 
-    const parsed = JSON.parse(content) as Partial<QuestionsResponse>;
+    let parsed: Partial<QuestionsResponse>;
+    try {
+      parsed = JSON.parse(content) as Partial<QuestionsResponse>;
+    } catch (parseError) {
+      console.error("Failed to parse JSON response. Content:", content);
+      throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
 
     if (typeof parsed.paragraph !== "string" || !parsed.paragraph.trim()) {
+      console.error("Response missing paragraph field. Parsed:", JSON.stringify(parsed, null, 2));
       throw new Error("Response must include a paragraph field");
     }
 
     return res.status(200).json({ paragraph: parsed.paragraph });
   } catch (error) {
     console.error("Failed to generate survey questions", error);
-    return res.status(500).json({ error: "Failed to generate survey questions" });
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate survey questions";
+    return res.status(500).json({ error: errorMessage });
   }
 }
