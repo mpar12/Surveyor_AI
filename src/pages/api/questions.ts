@@ -1,10 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 
-type QuestionsResponse = {
-  paragraph: string;
-};
-
 type ErrorResponse = {
   error: string;
 };
@@ -22,7 +18,7 @@ const getAnthropicClient = () => {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<QuestionsResponse | ErrorResponse>
+  res: NextApiResponse<string | ErrorResponse>
 ) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -46,42 +42,38 @@ export default async function handler(
       max_tokens: 600,
       temperature: 0.2,
       system:
-        "You are a marketing analyst who crafts incisive qualitative questions for AI-driven customer surveys. Make the questions non-AI sounding. Adopt the principles to write questions laid out in the boook: the mom test(by rob fitzpatrick). Respond only in valid JSON.",
+        "You are a marketing analyst who crafts incisive qualitative questions for AI-driven customer surveys. Make the questions non-AI sounding. Adopt the principles outlined in The Mom Test by Rob Fitzpatrick. Respond with plain text only—no JSON, lists, or numbering.",
       messages: [
         {
           role: "user",
           content: `Requester: ${
             typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"
-          }\nPrompt: ${prompt}\nWrite a single paragraph (3-4 sentences) that naturally weaves in approximately ten crisp survey questions or probes that would help address this prompt. Do not number or bullet them; the paragraph should read like conversational guidance covering motivations, behaviors, and desired outcomes related to the prompt while remaining concise and free of jargon. Return JSON with a single field named "paragraph" containing the paragraph string.`
+          }\nPrompt: ${prompt}\nWrite a single paragraph (3-4 sentences) that naturally weaves in approximately ten crisp survey questions or probes that would help address this prompt. Do not number or bullet them; the paragraph should read like conversational guidance covering motivations, behaviors, and desired outcomes related to the prompt while remaining concise and free of jargon.`
         }
       ]
     });
 
     const textContent = completion.content.find((block) => block.type === "text");
-    const content = textContent && "text" in textContent ? (textContent as { text: string }).text : null;
+    const content =
+      textContent && "text" in textContent ? (textContent as { text: string }).text : null;
 
     if (!content) {
       console.error("No content returned from Anthropic. Response:", JSON.stringify(completion, null, 2));
       throw new Error("No content returned from Anthropic");
     }
 
-    let parsed: Partial<QuestionsResponse>;
-    try {
-      parsed = JSON.parse(content) as Partial<QuestionsResponse>;
-    } catch (parseError) {
-      console.error("Failed to parse JSON response. Content:", content);
-      throw new Error(`Failed to parse JSON response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    const paragraph = content.trim();
+
+    if (!paragraph) {
+      throw new Error("Anthropic returned an empty paragraph.");
     }
 
-    if (typeof parsed.paragraph !== "string" || !parsed.paragraph.trim()) {
-      console.error("Response missing paragraph field. Parsed:", JSON.stringify(parsed, null, 2));
-      throw new Error("Response must include a paragraph field");
-    }
-
-    return res.status(200).json({ paragraph: parsed.paragraph });
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    return res.status(200).send(paragraph);
   } catch (error) {
     console.error("Failed to generate survey questions", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to generate survey questions";
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to generate survey questions";
     return res.status(500).json({ error: errorMessage });
   }
 }

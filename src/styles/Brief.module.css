@@ -111,15 +111,25 @@
   color: var(--color-text-primary);
 }
 
-.questionParagraph {
-  background: var(--color-surface-0);
-  border: 1px solid rgba(3, 20, 18, 0.1);
+.questionTextarea {
+  width: 100%;
+  min-height: 220px;
   border-radius: 12px;
-  padding: 1rem 1.2rem;
-  line-height: 1.65;
-  font-size: 1.02rem;
+  border: 1px solid rgba(3, 20, 18, 0.2);
+  padding: 1rem 1.1rem;
+  background: rgba(255, 255, 255, 0.9);
   color: var(--color-text-primary);
-  white-space: pre-wrap;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.questionTextarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.16);
+  background: #fff;
 }
 
 .actionsRow {

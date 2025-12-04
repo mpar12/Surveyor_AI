@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Brief.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
@@ -108,23 +108,31 @@ export default function BriefPage() {
           signal: controller.signal
         });
 
-        const payload = await response.json().catch(() => ({}));
+        const rawText = await response.text();
 
         if (!response.ok) {
-          throw new Error(
-            typeof payload.error === "string" && payload.error.trim()
-              ? payload.error
-              : "Failed to generate survey questions"
-          );
+          let errorMessage = rawText;
+          if (rawText) {
+            try {
+              const parsed = JSON.parse(rawText);
+              if (typeof parsed.error === "string" && parsed.error.trim()) {
+                errorMessage = parsed.error.trim();
+              }
+            } catch {
+              // ignore JSON parse errors for error payloads
+            }
+          }
+
+          throw new Error(errorMessage || "Failed to generate survey questions");
         }
 
-        const parsed = payload as { paragraph?: unknown };
+        const normalized = rawText.trim();
 
-        if (typeof parsed.paragraph !== "string" || !parsed.paragraph.trim()) {
+        if (!normalized) {
           throw new Error("Response is missing the survey question paragraph");
         }
 
-        setQuestionParagraph(parsed.paragraph.trim());
+        setQuestionParagraph(normalized);
         setQuestionDebugInfo(null);
       } catch (fetchError) {
         if (controller.signal.aborted) {
@@ -188,6 +196,13 @@ export default function BriefPage() {
     });
   }, [questionParagraph, sid, name, prompt]);
 
+  const handleQuestionParagraphChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setQuestionParagraph(event.target.value);
+    },
+    []
+  );
+
   return (
     <div className={styles.container}>
       <Head>
@@ -226,7 +241,12 @@ export default function BriefPage() {
           ) : null}
 
           {questionParagraph ? (
-            <p className={styles.questionParagraph}>{questionParagraph}</p>
+            <textarea
+              className={styles.questionTextarea}
+              value={questionParagraph}
+              onChange={handleQuestionParagraphChange}
+              rows={8}
+            />
           ) : !areQuestionsLoading && !questionParagraphError ? (
             <div className={styles.status}>
               Survey questions will appear here once generated.
