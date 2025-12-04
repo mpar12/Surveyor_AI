@@ -1,10 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db/client";
 import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const CLAUDE_API_KEY = process.env.claude_api_key ?? process.env.CLAUDE_API_KEY;
+
+const anthropic = new Anthropic({
+  apiKey: CLAUDE_API_KEY
+});
 
 type TakeawaysResponse = {
   analysis: string;
@@ -153,8 +157,8 @@ export default async function handler(
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    return res.status(500).json({ error: "OPENAI_API_KEY environment variable is not set." });
+  if (!CLAUDE_API_KEY) {
+    return res.status(500).json({ error: "CLAUDE_API_KEY environment variable is not set." });
   }
 
   const { sessionId, pin } = req.body ?? {};
@@ -242,28 +246,28 @@ export default async function handler(
       )
       .join("\n\n");
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
+    const completion = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20240620",
+      max_tokens: 1000,
+      temperature: 0.2,
+      system:
+        "You are an insights analyst summarizing AI-led customer interviews. Respond only with valid JSON.",
       messages: [
-        {
-          role: "system",
-          content:
-            "You are an insights analyst summarizing AI-led customer interviews. Respond only with valid JSON."
-        },
         {
           role: "user",
           content: `Research goal (provided by requester): ${prompt || "Not specified."}\nRequester: ${
             requester || "Unknown"
           }\n\nTranscript excerpts:\n${transcriptPayload}\n\nTasks:\n1. Provide a short paragraph labelled "AI Analysis" that synthesizes what we learned about the research goal.\n2. Provide 3-5 recurring themes as bullet-ready strings; each should name the theme and explain the supporting evidence across participants.\n3. Provide 2-3 interesting highlights as direct quotes along with the participant label in parentheses.\n\nReturn JSON with the following shape:\n{\n  "analysis": string,\n  "recurringThemes": string[],\n  "interestingHighlights": [\n    { "quote": string, "participant": string }\n  ]\n}`
         }
-      ]
+      ],
+      response_format: { type: "json_object" }
     });
 
-    const content = completion.choices[0]?.message?.content;
+    const textBlock = completion.content.find((block) => block.type === "text");
+    const content = textBlock && "text" in textBlock ? textBlock.text : null;
 
     if (!content) {
-      throw new Error("No content returned from OpenAI");
+      throw new Error("No content returned from Anthropic");
     }
 
     const parsed = JSON.parse(content) as Partial<TakeawaysResponse>;

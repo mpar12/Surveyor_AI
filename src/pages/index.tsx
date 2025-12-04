@@ -96,63 +96,69 @@ export default function HomePage() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.shell}>
       <Head>
         <title>SurvAgent Intake</title>
         <meta name="description" content="Kick off your AI-powered survey with SurvAgent." />
       </Head>
 
-      <h3 className={styles.title}> Surveyor: Your Personal AI Customer Researcher :)</h3>
+      <main className={styles.appShell}>
+        <section className={styles.hero}>
+          <span className={styles.badge}>Surveyor Beta</span>
+          <h1 className={styles.heroTitle}>AI Interviews to understand your customers at scale (fast)</h1>
+          <p className={styles.heroSubtitle}>
+            Generate research briefs, scripted surveys, and voice agents in seconds. Launch interviews instantly and
+            revisit transcripts, insights, and key takeaways in one place.
+          </p>
+          <div className={styles.heroChips}>
+            <div className={styles.chip}>Enterprise-ready</div>
+            <div className={styles.chip}>10-question templates</div>
+            <div className={styles.chip}>PIN-protected scorecards</div>
+          </div>
+        </section>
 
-      <main className={styles.panel}>
         <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
+          <div className={styles.formHeadings}>
+            <h2>Spin up a research session</h2>
+            <p>Tell us who you are and what you want to learn. We&apos;ll draft everything else.</p>
+          </div>
 
-          {submitError ? (
-            <div className={styles.errorBanner}>{submitError}</div>
-          ) : null}
+          {submitError ? <div className={styles.errorBanner}>{submitError}</div> : null}
 
-          <div className={styles.fieldGroup}>
-            <div className={styles.labelRow}>
-              <label htmlFor="name">Your Name</label>
-              <span className={styles.requiredTag}>Required *</span>
-            </div>
+          <label className={styles.fieldGroup}>
+            <span className={styles.inputLabel}>
+              Your name <span className={styles.requiredTag}>Required</span>
+            </span>
             <input
               id="name"
               name="name"
               className={styles.input}
-              placeholder="Elon Musk"
+              placeholder="Ada Lovelace"
               value={form.name}
               onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
               required
             />
-          </div>
+          </label>
 
-          <div className={styles.fieldGroup}>
-            <div className={styles.labelRow}>
-              <label htmlFor="prompt">What would you like to learn today?</label>
-              <span className={styles.requiredTag}>Required *</span>
-            </div>
+          <label className={styles.fieldGroup}>
+            <span className={styles.inputLabel}>
+              What would you like to learn today? <span className={styles.requiredTag}>Required</span>
+            </span>
             <textarea
               id="prompt"
               name="prompt"
               className={styles.textarea}
-              placeholder='Example: "I want to understand what middle-class UK Voters think about the Labour Governments Immigration policy."'
+              placeholder='Example: "Understand why enterprise design leaders churn from our research suite."'
               value={form.prompt}
               onChange={(event) => setForm((previous) => ({ ...previous, prompt: event.target.value }))}
               rows={6}
               required
             />
-          </div>
+          </label>
 
-          <div className={styles.actions}>
-            <button
-              className={styles.submitButton}
-              type="submit"
-              disabled={!isFormComplete || isSubmitting}
-            >
-              {isSubmitting ? "Creating session…" : "Continue"}
-            </button>
-          </div>
+          <button className={styles.submitButton} type="submit" disabled={!isFormComplete || isSubmitting}>
+            {isSubmitting ? "Creating session…" : "Create session"}
+          </button>
         </form>
       </main>
     </div>
