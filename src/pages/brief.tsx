@@ -34,6 +34,7 @@ export default function BriefPage() {
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
   const [questionParagraph, setQuestionParagraph] = useState<string | null>(null);
   const [questionParagraphError, setQuestionParagraphError] = useState<string | null>(null);
+  const [questionDebugInfo, setQuestionDebugInfo] = useState<string | null>(null);
   const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
 
   // Clean URL after initial load if we have session data
@@ -92,6 +93,7 @@ export default function BriefPage() {
       try {
         setAreQuestionsLoading(true);
         setQuestionParagraphError(null);
+        setQuestionDebugInfo(null);
         setQuestionParagraph(null);
 
         const response = await fetch("/api/questions", {
@@ -123,6 +125,7 @@ export default function BriefPage() {
         }
 
         setQuestionParagraph(parsed.paragraph.trim());
+        setQuestionDebugInfo(null);
       } catch (fetchError) {
         if (controller.signal.aborted) {
           return;
@@ -133,6 +136,17 @@ export default function BriefPage() {
         setQuestionParagraphError(
           fetchError instanceof Error ? fetchError.message : "Failed to generate survey questions"
         );
+        setQuestionDebugInfo(() => {
+          if (fetchError instanceof Error) {
+            const stack = fetchError.stack;
+            return stack && stack !== fetchError.message ? stack : fetchError.message;
+          }
+          try {
+            return JSON.stringify(fetchError);
+          } catch {
+            return String(fetchError);
+          }
+        });
       } finally {
         if (!controller.signal.aborted) {
           setAreQuestionsLoading(false);
@@ -202,6 +216,13 @@ export default function BriefPage() {
 
           {questionParagraphError ? (
             <div className={styles.errorMessage}>{questionParagraphError}</div>
+          ) : null}
+          {questionDebugInfo ? (
+            <pre className={styles.debugMessage}>
+              <strong>Detailed error (testing only):</strong>
+              {"\n"}
+              {questionDebugInfo}
+            </pre>
           ) : null}
 
           {questionParagraph ? (
