@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 
 type QuestionsResponse = {
-  questions: string[];
+  paragraph: string;
 };
 
 type ErrorResponse = {
@@ -35,10 +35,6 @@ export default async function handler(
   }
 
   try {
-    const trimmedKeyQuestions =
-      typeof keyQuestions === "string" && keyQuestions.trim() ? keyQuestions.trim() : "";
-    const keyQuestionsSection = trimmedKeyQuestions || "None provided.";
-
     const completion = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20240620",
       max_tokens: 600,
@@ -48,7 +44,9 @@ export default async function handler(
       messages: [
         {
           role: "user",
-          content: `Requester: ${typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"}\nPrompt: ${prompt}\nGenerate 10 thoughtful survey questions that would help address this prompt. Questions should dig into motivations, behaviors, and desired outcomes related to the prompt\n- remain concise, free of jargon, and avoid yes/no when possible.\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
+          content: `Requester: ${
+            typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"
+          }\nPrompt: ${prompt}\nWrite a single paragraph (3-4 sentences) that naturally weaves in approximately ten crisp survey questions or probes that would help address this prompt. Do not number or bullet them; the paragraph should read like conversational guidance covering motivations, behaviors, and desired outcomes related to the prompt while remaining concise and free of jargon. Return JSON with a single field named "paragraph" containing the paragraph string.`
         }
       ]
     });
@@ -62,11 +60,11 @@ export default async function handler(
 
     const parsed = JSON.parse(content) as Partial<QuestionsResponse>;
 
-    if (!Array.isArray(parsed.questions) || parsed.questions.length !== 10) {
-      throw new Error("Response must include exactly 10 questions");
+    if (typeof parsed.paragraph !== "string" || !parsed.paragraph.trim()) {
+      throw new Error("Response must include a paragraph field");
     }
 
-    return res.status(200).json({ questions: parsed.questions });
+    return res.status(200).json({ paragraph: parsed.paragraph });
   } catch (error) {
     console.error("Failed to generate survey questions", error);
     return res.status(500).json({ error: "Failed to generate survey questions" });

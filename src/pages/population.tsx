@@ -7,6 +7,30 @@ import { useSessionContext } from "@/contexts/SessionContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const normalizeSurveyQuestionValue = (input: unknown): string | null => {
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    return trimmed || null;
+  }
+
+  if (Array.isArray(input)) {
+    const sanitized = input
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    return sanitized.length ? sanitized.join(" ") : null;
+  }
+
+  if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    const paragraph = record.paragraph;
+    if (typeof paragraph === "string" && paragraph.trim()) {
+      return paragraph.trim();
+    }
+  }
+
+  return null;
+};
+
 type QueryValue = string | string[] | undefined;
 
 const getQueryValue = (value: QueryValue) => {
@@ -22,7 +46,7 @@ export default function PopulationPage() {
   const [emailCsv, setEmailCsv] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [hasValidEmails, setHasValidEmails] = useState(false);
-  const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
+  const [surveyQuestionParagraph, setSurveyQuestionParagraph] = useState<string | null>(null);
   const [agentLink, setAgentLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
@@ -34,16 +58,14 @@ export default function PopulationPage() {
       name: sessionData?.requester || getQueryValue(router.query.name),
       prompt: sessionData?.prompt || getQueryValue(router.query.prompt),
       sid: sidValue,
-      pin: pinValue,
-      surveyQuestions
+      pin: pinValue
     };
   }, [
     sessionData,
     router.query.name,
     router.query.prompt,
     router.query.sid,
-    router.query.pin,
-    surveyQuestions
+    router.query.pin
   ]);
 
   useEffect(() => {
@@ -52,17 +74,35 @@ export default function PopulationPage() {
     }
 
     const stored = sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as string[];
-        if (Array.isArray(parsed)) {
-          setSurveyQuestions(parsed);
-        }
-      } catch (error) {
-        console.error("Failed to parse stored survey questions", error);
-      }
+    if (!stored) {
+      return;
+    }
+
+    let normalized: string | null = null;
+
+    try {
+      normalized = normalizeSurveyQuestionValue(JSON.parse(stored));
+    } catch {
+      normalized = normalizeSurveyQuestionValue(stored);
+    }
+
+    if (normalized) {
+      setSurveyQuestionParagraph(normalized);
     }
   }, []);
+
+  useEffect(() => {
+    const normalized = normalizeSurveyQuestionValue(sessionData?.surveyQuestions ?? null);
+    if (!normalized) {
+      return;
+    }
+
+    setSurveyQuestionParagraph(normalized);
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, normalized);
+    }
+  }, [sessionData?.surveyQuestions]);
 
   useEffect(() => {
     if (sessionData && router.isReady && contextSummary.sid && contextSummary.pin) {
@@ -98,24 +138,14 @@ export default function PopulationPage() {
     setParam("sid", contextSummary.sid);
     setParam("pin", contextSummary.pin);
 
-    const encodeSurveyQuestions = () => {
-      const source = surveyQuestions.length ? surveyQuestions : null;
-
-      if (source && source.length) {
-        try {
-          const payload = JSON.stringify(source);
-          return window.btoa(unescape(encodeURIComponent(payload)));
-        } catch (error) {
-          console.error("Failed to encode survey questions for assistant link", error);
-        }
+    if (surveyQuestionParagraph) {
+      try {
+        const payload = JSON.stringify({ paragraph: surveyQuestionParagraph });
+        const encoded = window.btoa(unescape(encodeURIComponent(payload)));
+        params.set("surveyQuestions", encoded);
+      } catch (error) {
+        console.error("Failed to encode survey question paragraph for assistant link", error);
       }
-
-      return "";
-    };
-
-    const encoded = encodeSurveyQuestions();
-    if (encoded) {
-      params.set("surveyQuestions", encoded);
     }
 
     const query = params.toString();
@@ -128,7 +158,7 @@ export default function PopulationPage() {
     contextSummary.prompt,
     contextSummary.sid,
     contextSummary.pin,
-    surveyQuestions
+    surveyQuestionParagraph
   ]);
 
   const handleEmailsChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -181,9 +211,13 @@ export default function PopulationPage() {
     if (typeof window !== "undefined") {
       sessionStorage.setItem(EMAIL_PREVIEW_RECIPIENTS_KEY, JSON.stringify(unique));
       try {
-        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(surveyQuestions));
+        if (surveyQuestionParagraph) {
+          sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, surveyQuestionParagraph);
+        } else {
+          sessionStorage.removeItem(SURVEY_QUESTIONS_STORAGE_KEY);
+        }
       } catch (storageError) {
-        console.error("Failed to persist survey questions for email preview", storageError);
+        console.error("Failed to persist survey question paragraph for email preview", storageError);
       }
     }
 

@@ -1,15 +1,10 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Brief.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
-
-type DescriptionResponse = {
-  promptSummary: string;
-  researchHighlights: string;
-};
 
 type QueryValue = string | string[] | undefined;
 
@@ -37,11 +32,8 @@ export default function BriefPage() {
   
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
-  const [descriptions, setDescriptions] = useState<DescriptionResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [questions, setQuestions] = useState<string[] | null>(null);
-  const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [questionParagraph, setQuestionParagraph] = useState<string | null>(null);
+  const [questionParagraphError, setQuestionParagraphError] = useState<string | null>(null);
   const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
 
   // Clean URL after initial load if we have session data
@@ -61,24 +53,6 @@ export default function BriefPage() {
       }
     }
   }, [sessionData, router.isReady, sid, pin, router]);
-
-  const encodedSurveyQuestions = useMemo(() => {
-    if (!questions || !questions.length) {
-      return null;
-    }
-
-    try {
-      if (typeof window === "undefined") {
-        return null;
-      }
-
-      const payload = JSON.stringify(questions);
-      return window.btoa(unescape(encodeURIComponent(payload)));
-    } catch (encodedError) {
-      console.error("Failed to encode survey questions", encodedError);
-      return null;
-    }
-  }, [questions]);
 
   const launchHref = useMemo(() => {
     if (!sid || !pin) return "/assistant";
@@ -106,65 +80,19 @@ export default function BriefPage() {
     }
 
     if (!prompt.trim()) {
-      setDescriptions(null);
-      setIsLoading(false);
-      setError("A prompt is required to generate the research summary.");
-      setQuestions(null);
+      setQuestionParagraph(null);
       setAreQuestionsLoading(false);
-      setQuestionsError("A prompt is required to generate survey questions.");
+      setQuestionParagraphError("A prompt is required to generate survey questions.");
       return;
     }
 
     const controller = new AbortController();
 
-    async function fetchDescriptions() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        setDescriptions(null);
-
-        const response = await fetch("/api/descriptions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ prompt, requester: name }),
-          signal: controller.signal
-        });
-
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(
-            typeof payload.error === "string" && payload.error.trim()
-              ? payload.error
-              : "Failed to generate descriptions"
-          );
-        }
-
-        setDescriptions(payload as DescriptionResponse);
-      } catch (fetchError) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        console.error("Failed to fetch descriptions", fetchError);
-        setDescriptions(null);
-        setError(
-          fetchError instanceof Error ? fetchError.message : "Failed to generate descriptions"
-        );
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
     async function fetchQuestions() {
       try {
         setAreQuestionsLoading(true);
-        setQuestionsError(null);
-        setQuestions(null);
+        setQuestionParagraphError(null);
+        setQuestionParagraph(null);
 
         const response = await fetch("/api/questions", {
           method: "POST",
@@ -188,21 +116,21 @@ export default function BriefPage() {
           );
         }
 
-        const parsed = payload as { questions?: unknown };
+        const parsed = payload as { paragraph?: unknown };
 
-        if (!Array.isArray(parsed.questions)) {
-          throw new Error("Response is missing survey questions");
+        if (typeof parsed.paragraph !== "string" || !parsed.paragraph.trim()) {
+          throw new Error("Response is missing the survey question paragraph");
         }
 
-        setQuestions(parsed.questions as string[]);
+        setQuestionParagraph(parsed.paragraph.trim());
       } catch (fetchError) {
         if (controller.signal.aborted) {
           return;
         }
 
         console.error("Failed to fetch survey questions", fetchError);
-        setQuestions(null);
-        setQuestionsError(
+        setQuestionParagraph(null);
+        setQuestionParagraphError(
           fetchError instanceof Error ? fetchError.message : "Failed to generate survey questions"
         );
       } finally {
@@ -212,20 +140,19 @@ export default function BriefPage() {
       }
     }
 
-    fetchDescriptions();
     fetchQuestions();
 
     return () => controller.abort();
   }, [router.isReady, prompt, name]);
 
   useEffect(() => {
-    if (!questions || !sid) {
+    if (!questionParagraph || !sid) {
       return;
     }
 
     if (typeof window !== "undefined") {
       try {
-        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(questions));
+        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, questionParagraph);
       } catch (error) {
         console.error("Failed to store survey questions", error);
       }
@@ -240,30 +167,12 @@ export default function BriefPage() {
         sessionId: sid,
         requester: name,
         prompt,
-        surveyQuestions: questions
+        surveyQuestions: questionParagraph
       })
     }).catch((error) => {
       console.error("Failed to update session context with survey questions", error);
     });
-  }, [questions, sid, name, prompt]);
-
-  const summaryCopy = descriptions?.promptSummary;
-  const highlightsCopy = descriptions?.researchHighlights;
-
-  const handleQuestionChange = useCallback(
-    (index: number, event: ChangeEvent<HTMLInputElement>) => {
-      const nextValue = event.target.value;
-      setQuestions((previous) => {
-        if (!previous) {
-          return previous;
-        }
-        const updated = [...previous];
-        updated[index] = nextValue;
-        return updated;
-      });
-    },
-    []
-  );
+  }, [questionParagraph, sid, name, prompt]);
 
   return (
     <div className={styles.container}>
@@ -279,36 +188,6 @@ export default function BriefPage() {
 
       <div className={styles.card}>
 
-        {error ? <div className={styles.errorMessage}>{error}</div> : null}
-
-        <section className={styles.summaryGrid}>
-          <article className={styles.summaryBlock}>
-            <h2>Prompt summary</h2>
-            <p>
-              {summaryCopy
-                ? summaryCopy
-                : isLoading
-                  ? "Interpreting your prompt..."
-                  : error
-                    ? "Prompt research is unavailable right now."
-                    : "A summary will appear here once generated."}
-            </p>
-          </article>
-
-          <article className={styles.summaryBlock}>
-            <h2>Research highlights</h2>
-            <p>
-              {highlightsCopy
-                ? highlightsCopy
-                : isLoading
-                  ? "Collecting insights..."
-                  : error
-                    ? "Highlights are unavailable right now."
-                    : "Highlights will appear here once generated."}
-            </p>
-          </article>
-        </section>
-
         <section className={styles.questionsSection}>
           <div className={styles.questionsHeader}>
             <h2>Survey Questions</h2>
@@ -317,26 +196,17 @@ export default function BriefPage() {
             </p>
           </div>
 
-          {areQuestionsLoading && !questionsError ? (
+          {areQuestionsLoading && !questionParagraphError ? (
             <div className={styles.status}>Drafting market positioning questions…</div>
           ) : null}
 
-          {questionsError ? <div className={styles.errorMessage}>{questionsError}</div> : null}
+          {questionParagraphError ? (
+            <div className={styles.errorMessage}>{questionParagraphError}</div>
+          ) : null}
 
-          {questions && questions.length ? (
-            <ol className={styles.questionsList}>
-              {questions.map((question, index) => (
-                <li key={index}>
-                  <input
-                    value={question}
-                    onChange={(event) => handleQuestionChange(index, event)}
-                    className={styles.questionInput}
-                    aria-label={`Survey question ${index + 1}`}
-                  />
-                </li>
-              ))}
-            </ol>
-          ) : !areQuestionsLoading && !questionsError ? (
+          {questionParagraph ? (
+            <p className={styles.questionParagraph}>{questionParagraph}</p>
+          ) : !areQuestionsLoading && !questionParagraphError ? (
             <div className={styles.status}>
               Survey questions will appear here once generated.
             </div>

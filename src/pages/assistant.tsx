@@ -6,10 +6,58 @@ import styles from "@/styles/Assistant.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
 
+const normalizeSurveyQuestionValue = (input: unknown): string | null => {
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  if (Array.isArray(input)) {
+    const sanitized = input
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    return sanitized.length ? sanitized.join(" ") : null;
+  }
+
+  if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    const paragraph = record.paragraph;
+    if (typeof paragraph === "string" && paragraph.trim()) {
+      return paragraph.trim();
+    }
+  }
+
+  return null;
+};
+
+const decodeParagraphParam = (encoded: string): string | null => {
+  try {
+    const decoded = window.atob(encoded);
+    const normalized = decodeURIComponent(escape(decoded));
+
+    try {
+      const parsed = JSON.parse(normalized);
+      const fromParsed = normalizeSurveyQuestionValue(parsed);
+      if (fromParsed) {
+        return fromParsed;
+      }
+    } catch {
+      const trimmed = normalized.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to decode survey question paragraph", error);
+  }
+
+  return null;
+};
+
 export default function AssistantPage() {
   const router = useRouter();
   const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
-  const [surveyQuestions, setSurveyQuestions] = useState<string[]>([]);
+  const [surveyQuestionParagraph, setSurveyQuestionParagraph] = useState<string | null>(null);
 
   const getQueryValue = (value: string | string[] | undefined) => {
     if (Array.isArray(value)) {
@@ -23,40 +71,16 @@ export default function AssistantPage() {
       return;
     }
 
-    const trimQuestions = (input: unknown): string[] | null => {
-      if (!Array.isArray(input)) {
-        return null;
-      }
-
-      const sanitized = input
-        .map((item) => (typeof item === "string" ? item.trim() : ""))
-        .filter((item): item is string => Boolean(item));
-
-      return sanitized.length ? sanitized : null;
-    };
-
-    const decodeFromParam = (encoded: string): string[] | null => {
-      try {
-        const decoded = window.atob(encoded);
-        const normalized = decodeURIComponent(escape(decoded));
-        const parsed = JSON.parse(normalized);
-        return trimQuestions(parsed);
-      } catch (error) {
-        console.error("Failed to decode survey questions from query", error);
-        return null;
-      }
-    };
-
     const encodedParam = getQueryValue(router.query.surveyQuestions);
 
     if (encodedParam) {
-      const decoded = decodeFromParam(encodedParam);
-      if (decoded) {
-        setSurveyQuestions(decoded);
+      const decodedParagraph = decodeParagraphParam(encodedParam);
+      if (decodedParagraph) {
+        setSurveyQuestionParagraph(decodedParagraph);
         try {
-          window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(decoded));
+          window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, decodedParagraph);
         } catch (storageError) {
-          console.error("Failed to persist decoded survey questions", storageError);
+          console.error("Failed to persist decoded survey question paragraph", storageError);
         }
         return;
       }
@@ -68,15 +92,43 @@ export default function AssistantPage() {
         return;
       }
 
-      const parsed = JSON.parse(stored);
-      const sanitized = trimQuestions(parsed);
-      if (sanitized) {
-        setSurveyQuestions(sanitized);
+      const trimmed = stored.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      let normalized: string | null = null;
+      try {
+        const parsed = JSON.parse(trimmed);
+        normalized = normalizeSurveyQuestionValue(parsed);
+      } catch {
+        normalized = normalizeSurveyQuestionValue(trimmed);
+      }
+
+      if (normalized) {
+        setSurveyQuestionParagraph(normalized);
       }
     } catch (error) {
-      console.error("Failed to read stored survey questions", error);
+      console.error("Failed to read stored survey question paragraph", error);
     }
   }, [router.isReady, router.query.surveyQuestions]);
+
+  useEffect(() => {
+    const normalized = normalizeSurveyQuestionValue(sessionData?.surveyQuestions ?? null);
+    if (!normalized) {
+      return;
+    }
+
+    setSurveyQuestionParagraph(normalized);
+
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, normalized);
+      } catch (storageError) {
+        console.error("Failed to persist session survey question paragraph", storageError);
+      }
+    }
+  }, [sessionData?.surveyQuestions]);
 
   // Clean URL after initial load if we have session data
   useEffect(() => {
@@ -117,8 +169,9 @@ export default function AssistantPage() {
       getQueryValue(router.query.email) || getQueryValue(router.query.email_address);
     const promptValue = sessionData?.prompt || getQueryValue(router.query.prompt);
 
-    // Use surveyQuestions from session context (from brief page) as primary source
-    const questionsFromSession = sessionData?.surveyQuestions || surveyQuestions;
+    // Use survey question paragraph from session context (from brief page) as primary source
+    const questionsFromSession = normalizeSurveyQuestionValue(sessionData?.surveyQuestions ?? null);
+    const questionParagraph = questionsFromSession || surveyQuestionParagraph;
 
     const variables: Record<string, string> = {};
 
@@ -137,11 +190,8 @@ export default function AssistantPage() {
     if (promptValue) {
       variables.survey_prompt = promptValue;
     }
-    if (questionsFromSession && questionsFromSession.length) {
-      const enumerated = questionsFromSession
-        .map((question, index) => `${index + 1}. ${question}`)
-        .join("\n");
-      variables.List_of_Questions = enumerated;
+    if (questionParagraph) {
+      variables.List_of_Questions = questionParagraph;
     } else if (promptValue) {
       variables.List_of_Questions = promptValue;
     }
@@ -155,7 +205,7 @@ export default function AssistantPage() {
     router.query.pin,
     router.query.email,
     router.query.email_address,
-    surveyQuestions
+    surveyQuestionParagraph
   ]);
 
   useEffect(() => {

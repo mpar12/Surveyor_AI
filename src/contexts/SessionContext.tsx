@@ -12,7 +12,7 @@ export interface SessionContextData {
   desiredIcpIndustry: string | null;
   desiredIcpRegion: string | null;
   keyQuestions: string | null;
-  surveyQuestions: string[] | null;
+  surveyQuestions: string[] | string | null;
   updatedAt: string | null;
 }
 

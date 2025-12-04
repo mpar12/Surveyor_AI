@@ -39,6 +39,7 @@ interface ScorecardProps {
     desiredIcpRegion?: string | null;
     keyQuestions?: string | null;
     surveyQuestions?: string[] | null;
+    surveyQuestionParagraph?: string | null;
   } | null;
   emailsSent: number;
   responders: number;
@@ -408,6 +409,12 @@ export default function ScorecardPage({
                 <dt className={styles.contextLabel}>Prompt</dt>
                 <dd className={styles.contextValue}>{context?.prompt || "—"}</dd>
               </div>
+              {context?.surveyQuestionParagraph ? (
+                <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
+                  <dt className={styles.contextLabel}>Question guidance</dt>
+                  <dd className={styles.contextValue}>{context.surveyQuestionParagraph}</dd>
+                </div>
+              ) : null}
             </dl>
           </section>
 
@@ -729,8 +736,13 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
       };
     });
 
-    const questionListRaw = Array.isArray(contextRows[0]?.surveyQuestions)
-      ? (contextRows[0]?.surveyQuestions as unknown[])
+    const rawSurveyQuestions = contextRows[0]?.surveyQuestions;
+    const questionParagraph =
+      typeof rawSurveyQuestions === "string" && rawSurveyQuestions.trim()
+        ? rawSurveyQuestions.trim()
+        : null;
+    const questionListRaw = Array.isArray(rawSurveyQuestions)
+      ? (rawSurveyQuestions as unknown[])
       : [];
     const questionList = questionListRaw
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
@@ -764,7 +776,8 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
     const normalizedContext = rawContext
       ? {
           ...rawContext,
-          surveyQuestions: questionList.length ? questionList : null
+          surveyQuestions: questionList.length ? questionList : null,
+          surveyQuestionParagraph: questionParagraph
         }
       : null;
 

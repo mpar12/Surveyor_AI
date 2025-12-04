@@ -79,6 +79,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const normalizeSurveyQuestions = (value: unknown): string | string[] | null => {
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        return trimmed ? trimmed : null;
+      }
+
+      if (Array.isArray(value)) {
+        const sanitized = value
+          .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+          .filter((entry): entry is string => Boolean(entry));
+        return sanitized.length ? sanitized : null;
+      }
+
+      if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        if (typeof record.paragraph === "string" && record.paragraph.trim()) {
+          return record.paragraph.trim();
+        }
+      }
+
+      return null;
+    };
+
     const payload = {
       sessionId,
       requester: typeof requester === "string" ? requester : null,
@@ -90,18 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       desiredIcpIndustry: typeof desiredIcpIndustry === "string" ? desiredIcpIndustry : null,
       desiredIcpRegion: typeof desiredIcpRegion === "string" ? desiredIcpRegion : null,
       keyQuestions: typeof keyQuestions === "string" ? keyQuestions : null,
-      surveyQuestions: Array.isArray(surveyQuestions)
-        ? (surveyQuestions as string[])
-        : typeof surveyQuestions === "string" && surveyQuestions.trim()
-          ? (() => {
-              try {
-                const parsed = JSON.parse(surveyQuestions);
-                return Array.isArray(parsed) ? parsed : [surveyQuestions];
-              } catch (error) {
-                return [surveyQuestions];
-              }
-            })()
-          : null,
+      surveyQuestions: normalizeSurveyQuestions(surveyQuestions),
       updatedAt: new Date()
     };
 

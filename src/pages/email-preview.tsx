@@ -42,6 +42,30 @@ const getQueryValue = (value: string | string[] | undefined) => {
 const SENDER_EMAIL = process.env.NEXT_PUBLIC_EMAIL_FROM ?? "mihirparikh99@gmail.com";
 const SENDER_NAME = process.env.NEXT_PUBLIC_EMAIL_FROM_NAME ?? "Surveyor";
 
+const normalizeSurveyQuestionValue = (input: unknown): string | null => {
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    return trimmed || null;
+  }
+
+  if (Array.isArray(input)) {
+    const sanitized = input
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    return sanitized.length ? sanitized.join(" ") : null;
+  }
+
+  if (input && typeof input === "object") {
+    const record = input as Record<string, unknown>;
+    const paragraph = record.paragraph;
+    if (typeof paragraph === "string" && paragraph.trim()) {
+      return paragraph.trim();
+    }
+  }
+
+  return null;
+};
+
 export default function EmailPreviewPage() {
   const router = useRouter();
   const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
@@ -153,13 +177,22 @@ export default function EmailPreviewPage() {
         const stored = sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
         if (stored) {
           try {
-            const parsed = JSON.parse(stored) as unknown;
-            if (Array.isArray(parsed) && parsed.length) {
-              const payload = JSON.stringify(parsed);
+            let normalized: string | null = null;
+            try {
+              normalized = normalizeSurveyQuestionValue(JSON.parse(stored));
+            } catch {
+              normalized = normalizeSurveyQuestionValue(stored);
+            }
+
+            if (normalized) {
+              const payload = JSON.stringify({ paragraph: normalized });
               return window.btoa(unescape(encodeURIComponent(payload)));
             }
           } catch (storageError) {
-            console.error("Failed to encode stored survey questions for assistant link", storageError);
+            console.error(
+              "Failed to encode stored survey question paragraph for assistant link",
+              storageError
+            );
           }
         }
       }

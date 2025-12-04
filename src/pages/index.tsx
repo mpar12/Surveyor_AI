@@ -65,7 +65,7 @@ export default function HomePage() {
         sessionId: payload.sessionId,
         requester: form.name.trim(),
         prompt: sanitizedPrompt,
-        surveyQuestions: []
+        surveyQuestions: null
       };
 
       await fetch("/api/sessions/context", {
