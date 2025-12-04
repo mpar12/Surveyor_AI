@@ -50,8 +50,7 @@ export default async function handler(
           role: "user",
           content: `Requester: ${typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"}\nPrompt: ${prompt}\nGenerate 10 thoughtful survey questions that would help address this prompt. Questions should dig into motivations, behaviors, and desired outcomes related to the prompt\n- remain concise, free of jargon, and avoid yes/no when possible.\nReturn JSON with an array field named questions containing exactly 10 unique strings.`
         }
-      ],
-      response_format: { type: "json_object" }
+      ]
     });
 
     const textContent = completion.content?.find((block) => block.type === "text");
