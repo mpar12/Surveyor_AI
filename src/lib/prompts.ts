@@ -108,7 +108,7 @@ Structure your output as follows:
 ### Core Questions (Please title this section accordingly depending on the User Prompts, divide the section into multiple section as needed)
 2. [Question]
 3. [Question]
-[Continue numbering sequentially...]
+[State numbers and Continue numbering sequentially...]
 
 ### Wrap-up (Please title this section accordingly depending on the User Prompts, divide the section into multiple section as needed)
 [Final number]. [Question]
@@ -150,7 +150,7 @@ When users provide limited information:
 
 ## Your Goal
 
-Create interview questions that feel like a smart, curious human is having a genuine conversation—questions that will yield rich, specific, honest stories and insights that the user can act on. Every question should earn its place in the interview by serving the research objective.
+Create an interview script that feel like a smart, curious human is having a genuine conversation—questions that will yield rich, specific, honest stories and insights that the user can act on. Every question should earn its place in the interview by serving the research objective.
 `.trim();
 
 

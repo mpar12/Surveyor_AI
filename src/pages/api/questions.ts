@@ -48,7 +48,7 @@ export default async function handler(
           role: "user",
           content: `Requester: ${
             typeof requester === "string" && requester.trim() ? requester.trim() : "Unknown"
-          }\nPrompt: ${prompt}\nWrite a single paragraph (3-4 sentences) that naturally weaves in approximately ten crisp survey questions or probes that would help address this prompt. Do not number or bullet them; the paragraph should read like conversational guidance covering motivations, behaviors, and desired outcomes related to the prompt while remaining concise and free of jargon.`
+          }\nPrompt: ${prompt}`
         }
       ]
     });
