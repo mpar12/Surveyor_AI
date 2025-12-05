@@ -280,6 +280,10 @@ export default async function handler(
     });
   } catch (error) {
     console.error("Failed to build key takeaways", error);
-    return res.status(500).json({ error: "failed_to_generate_takeaways" });
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "failed_to_generate_takeaways";
+    return res.status(500).json({ error: message });
   }
 }
