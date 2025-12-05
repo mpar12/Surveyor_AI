@@ -361,220 +361,214 @@ export default function ScorecardPage({
     };
   }, [sessionId, pin]);
 
-  const formattedLatestPayload = latestRawPayload
-    ? JSON.stringify(latestRawPayload, null, 2)
-    : null;
   return (
-    <div className={styles.container}>
+    <div className={styles.labShell}>
       <Head>
         <title>Scorecard | SurvAgent</title>
         <meta name="description" content="Review responses captured for your SurvAgent session." />
       </Head>
 
-      <header className={styles.lead}>
-        <h1 className={styles.pageTitle}>Scorecard</h1>
-        {pin || createdAt || status ? (
-          <p className={styles.metaLine}>
-            PIN <strong>{pin ?? "—"}</strong>
-            {createdAt ? <> · Created {formatDate(createdAt)}</> : null}
-            {status ? <> · Status: {status}</> : null}
-          </p>
-        ) : null}
-      </header>
+      <div className={styles.waveBackdrop} aria-hidden="true" />
 
-      {pin ? (
-        <div className={styles.pinNotice}>
-          <h2 className={styles.pinTitle}>Your session PIN</h2>
-          <p>
-            Save this 4-digit PIN now: <span className={styles.pinHighlight}>{pin}</span>. You&apos;ll need it to revisit your
-            scorecard via the &ldquo;Returning?&rdquo; link on the homepage.
-          </p>
-        </div>
-      ) : null}
-
-      {error ? <div className={styles.errorBox}>{error}</div> : null}
-
-      {!error && status === "closed" ? <div className={styles.noticeBox}>This session has been closed.</div> : null}
-
-      {!error ? (
-        <div className={styles.card}>
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Survey context</h2>
-            <dl className={styles.contextGrid}>
-              <div className={styles.contextItem}>
-                <dt className={styles.contextLabel}>Requester</dt>
-                <dd className={styles.contextValue}>{context?.requester || "—"}</dd>
-              </div>
-              <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
-                <dt className={styles.contextLabel}>Prompt</dt>
-                <dd className={styles.contextValue}>{context?.prompt || "—"}</dd>
-              </div>
-              {context?.surveyQuestionParagraph ? (
-                <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
-                  <dt className={styles.contextLabel}>Question guidance</dt>
-                  <dd className={styles.contextValue}>{context.surveyQuestionParagraph}</dd>
-                </div>
-              ) : null}
-            </dl>
-          </section>
-
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Performance metrics</h2>
-            <div className={styles.metricsGrid}>
-              <div className={styles.metricCard}>
-                <span className={styles.metricTitle}>Surveys sent</span>
-                <span className={styles.metricValue}>{emailsSent}</span>
-                <span className={styles.metricHint}>Unique recipients emailed across this session.</span>
-              </div>
-              <div className={styles.metricCard}>
-                <span className={styles.metricTitle}>Responders</span>
-                <span className={`${styles.metricValue} ${styles.metricValueSuccess}`}>{responders}</span>
-                <span className={styles.metricHint}>Completed conversations with the AI agent.</span>
-              </div>
-            </div>
-          </section>
-
-          <section className={`${styles.section} ${styles.takeawaysSection}`}>
-            <div>
-              <h2 className={styles.sectionTitle}>Key takeaways</h2>
-              <p className={styles.takeawaysIntro}>
-                Highlights generated from every recorded conversation. This summary keeps the original
-                research prompt in mind so you can turn insights into action quickly.
+      <main className={styles.console}>
+        <header className={styles.commandHeader}>
+          <div className={styles.commandIntro}>
+            <p className={styles.sessionBadge}>Retro Research Lab</p>
+            <h1 className={styles.pageTitle}>Session Scorecard</h1>
+            {pin || createdAt || status ? (
+              <p className={styles.metaLine}>
+                {status ? (
+                  <>
+                    Status: <strong>{status}</strong>
+                  </>
+                ) : null}
+                {createdAt ? <> · Logged {formatDate(createdAt)}</> : null}
               </p>
+            ) : null}
+          </div>
+          {pin ? (
+            <div className={styles.pinPanel}>
+              <span className={styles.pinLabel}>PIN</span>
+              <strong className={styles.pinDigits}>{pin}</strong>
+              <p className={styles.pinHint}>Keep this code to revisit your lab report.</p>
             </div>
+          ) : null}
+        </header>
 
-            {takeawaysStatus === "loading" ? (
-              <div className={styles.statusBox}>Analyzing conversations…</div>
-            ) : takeawaysStatus === "error" ? (
-              <div className={`${styles.statusBox} ${styles.statusError}`}>
-                {takeawaysError ?? "Unable to load key takeaways."}
-              </div>
-            ) : takeaways ? (
-              <>
-                <p className={styles.analysisText}>{takeaways.analysis}</p>
-                <div className={styles.takeawaysGrid}>
-                  <article className={styles.takeawayBlock}>
-                    <h3>Recurring themes</h3>
-                    {takeaways.recurringThemes.length ? (
-                      <ul className={styles.themeList}>
-                        {takeaways.recurringThemes.map((theme, index) => (
-                          <li key={`theme-${index}`}>{theme}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className={styles.emptyState}>No recurring themes identified yet.</p>
-                    )}
-                  </article>
+        {error ? <div className={styles.errorBanner}>{error}</div> : null}
 
-                  <article className={styles.takeawayBlock}>
-                    <h3>Interesting highlights</h3>
-                    {takeaways.interestingHighlights.length ? (
-                      <ul className={styles.highlightList}>
-                        {takeaways.interestingHighlights.map((highlight, index) => (
-                          <li key={`highlight-${index}`}>
-                            <blockquote className={styles.quoteText}>&ldquo;{highlight.quote}&rdquo;</blockquote>
-                            <span className={styles.quoteAuthor}>
-                              — {highlight.participant || `Participant ${index + 1}`}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className={styles.emptyState}>No highlights to share yet.</p>
-                    )}
-                  </article>
-                </div>
-              </>
-            ) : (
-              <div className={styles.statusBox}>Key takeaways will appear here soon.</div>
-            )}
-          </section>
+        {!error && status === "closed" ? (
+          <div className={styles.noticeBox}>This session has been closed.</div>
+        ) : null}
 
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Summary of each call</h2>
-            {callSummaries.length === 0 ? (
-              <p className={styles.emptyState}>No completed calls yet.</p>
-            ) : (
-              <ul className={styles.callList}>
-                {callSummaries.map((summary) => (
-                  <li key={summary.conversationId} className={styles.callCard}>
-                    <div className={styles.callHeader}>
-                      <span>{summary.email ? summary.email : "Unknown participant"}</span>
-                      <span className={styles.callMeta}>{formatDate(summary.receivedAt)}</span>
-                    </div>
-                    <p className={styles.callSummary}>{summary.summary || "Summary not available."}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {primaryQuestions.length ? (
+        {!error ? (
+          <div className={styles.sectionStack}>
             <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Responses by scripted question</h2>
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th className={styles.tableHeadQuestion}>Question</th>
-                      <th>Answer</th>
-                      <th className={styles.tableHeadParticipant}>Participant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {primaryQuestions.map((block, index) => {
-                      const label = `Q${index + 1}: ${block.question}`;
+              <h2 className={styles.sectionTitle}>Survey context</h2>
+              <dl className={styles.contextGrid}>
+                <div className={styles.contextItem}>
+                  <dt className={styles.contextLabel}>Requester</dt>
+                  <dd className={styles.contextValue}>{context?.requester || "—"}</dd>
+                </div>
+                <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
+                  <dt className={styles.contextLabel}>Prompt</dt>
+                  <dd className={styles.contextValue}>{context?.prompt || "—"}</dd>
+                </div>
+                {context?.surveyQuestionParagraph ? (
+                  <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
+                    <dt className={styles.contextLabel}>Question guidance</dt>
+                    <dd className={styles.contextValue}>{context.surveyQuestionParagraph}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
 
-                      if (!block.answers.length) {
-                        return (
-                          <tr key={label}>
-                            <td className={styles.questionCell}>{label}</td>
-                            <td className={`${styles.answerCell} ${styles.emptyState}`}>
-                              No responses captured yet.
-                            </td>
-                            <td className={styles.participantCellEmpty}>—</td>
-                          </tr>
-                        );
-                      }
-
-                      return block.answers.map((answer, answerIndex) => (
-                        <tr key={`${label}-${answer.conversationId}-${answerIndex}`}>
-                          {answerIndex === 0 ? (
-                            <td className={styles.questionCell} rowSpan={block.answers.length}>
-                              {label}
-                            </td>
-                          ) : null}
-                          <td className={styles.answerCell}>{answer.answer}</td>
-                          <td className={styles.participantCell}>
-                            <span className={styles.answerParticipant}>
-                              {answer.email || "Unknown participant"}
-                            </span>
-                          </td>
-                        </tr>
-                      ));
-                    })}
-                  </tbody>
-                </table>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Performance metrics</h2>
+              <div className={styles.metricsGrid}>
+                <div className={styles.metricCard}>
+                  <span className={styles.metricTitle}>Surveys sent</span>
+                  <span className={styles.metricValue}>{emailsSent}</span>
+                  <span className={styles.metricHint}>Unique recipients emailed across this session.</span>
+                </div>
+                <div className={styles.metricCard}>
+                  <span className={styles.metricTitle}>Responders</span>
+                  <span className={`${styles.metricValue} ${styles.metricValueSuccess}`}>{responders}</span>
+                  <span className={styles.metricHint}>Completed conversations with the AI agent.</span>
+                </div>
               </div>
             </section>
-          ) : null}
 
-          {/* <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Latest webhook payload</h2>
-            {formattedLatestPayload ? (
-              <pre className={styles.codeBlock}>
-                <code>{formattedLatestPayload}</code>
-              </pre>
-            ) : (
-              <p className={styles.emptyState}>No webhook payload captured yet.</p>
-            )}
-          </section> */}
-        </div>
-      ) : null}
+            <section className={`${styles.section} ${styles.takeawaysSection}`}>
+              <div>
+                <h2 className={styles.sectionTitle}>Key takeaways</h2>
+                <p className={styles.takeawaysIntro}>
+                  Highlights generated from every recorded conversation. This summary keeps the original
+                  research prompt in mind so you can turn insights into action quickly.
+                </p>
+              </div>
+
+              {takeawaysStatus === "loading" ? (
+                <div className={styles.statusBox}>Analyzing conversations…</div>
+              ) : takeawaysStatus === "error" ? (
+                <div className={`${styles.statusBox} ${styles.statusError}`}>
+                  {takeawaysError ?? "Unable to load key takeaways."}
+                </div>
+              ) : takeaways ? (
+                <>
+                  <p className={styles.analysisText}>{takeaways.analysis}</p>
+                  <div className={styles.takeawaysGrid}>
+                    <article className={styles.takeawayBlock}>
+                      <h3>Recurring themes</h3>
+                      {takeaways.recurringThemes.length ? (
+                        <ul className={styles.themeList}>
+                          {takeaways.recurringThemes.map((theme, index) => (
+                            <li key={`theme-${index}`}>{theme}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className={styles.emptyState}>No recurring themes identified yet.</p>
+                      )}
+                    </article>
+
+                    <article className={styles.takeawayBlock}>
+                      <h3>Interesting highlights</h3>
+                      {takeaways.interestingHighlights.length ? (
+                        <ul className={styles.highlightList}>
+                          {takeaways.interestingHighlights.map((highlight, index) => (
+                            <li key={`highlight-${index}`}>
+                              <blockquote className={styles.quoteText}>&ldquo;{highlight.quote}&rdquo;</blockquote>
+                              <span className={styles.quoteAuthor}>
+                                — {highlight.participant || `Participant ${index + 1}`}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className={styles.emptyState}>No highlights to share yet.</p>
+                      )}
+                    </article>
+                  </div>
+                </>
+              ) : (
+                <div className={styles.statusBox}>Key takeaways will appear here soon.</div>
+              )}
+            </section>
+
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Summary of each call</h2>
+              {callSummaries.length === 0 ? (
+                <p className={styles.emptyState}>No completed calls yet.</p>
+              ) : (
+                <ul className={styles.callList}>
+                  {callSummaries.map((summary) => (
+                    <li key={summary.conversationId} className={styles.callCard}>
+                      <div className={styles.callHeader}>
+                        <span>{summary.email ? summary.email : "Unknown participant"}</span>
+                        <span className={styles.callMeta}>{formatDate(summary.receivedAt)}</span>
+                      </div>
+                      <p className={styles.callSummary}>{summary.summary || "Summary not available."}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {primaryQuestions.length ? (
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>Responses by scripted question</h2>
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th className={styles.tableHeadQuestion}>Question</th>
+                        <th>Answer</th>
+                        <th className={styles.tableHeadParticipant}>Participant</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {primaryQuestions.map((block, index) => {
+                        const label = `Q${index + 1}: ${block.question}`;
+
+                        if (!block.answers.length) {
+                          return (
+                            <tr key={label}>
+                              <td className={styles.questionCell}>{label}</td>
+                              <td className={`${styles.answerCell} ${styles.emptyState}`}>
+                                No responses captured yet.
+                              </td>
+                              <td className={styles.participantCellEmpty}>—</td>
+                            </tr>
+                          );
+                        }
+
+                        return block.answers.map((answer, answerIndex) => (
+                          <tr key={`${label}-${answer.conversationId}-${answerIndex}`}>
+                            {answerIndex === 0 ? (
+                              <td className={styles.questionCell} rowSpan={block.answers.length}>
+                                {label}
+                              </td>
+                            ) : null}
+                            <td className={styles.answerCell}>{answer.answer}</td>
+                            <td className={styles.participantCell}>
+                              <span className={styles.answerParticipant}>
+                                {answer.email || "Unknown participant"}
+                              </span>
+                            </td>
+                          </tr>
+                        ));
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
+          </div>
+        ) : null}
+      </main>
     </div>
   );
 }
-
 export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (context) => {
   const sidParam = context.query.sid;
   const pinParam = context.query.pin;

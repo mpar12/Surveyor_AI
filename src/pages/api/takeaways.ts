@@ -255,9 +255,7 @@ export default async function handler(
       messages: [
         {
           role: "user",
-          content: `Research goal (provided by requester): ${prompt || "Not specified."}\nRequester: ${
-            requester || "Unknown"
-          }\n\nTranscript excerpts:\n${transcriptPayload}\n\nTasks:\n1. Provide a short paragraph labelled "AI Analysis" that synthesizes what we learned about the research goal.\n2. Provide 3-5 recurring themes as bullet-ready strings; each should name the theme and explain the supporting evidence across participants.\n3. Provide 2-3 interesting highlights as direct quotes along with the participant label in parentheses.\n\nReturn JSON with the following shape:\n{\n  "analysis": string,\n  "recurringThemes": string[],\n  "interestingHighlights": [\n    { "quote": string, "participant": string }\n  ]\n}`
+          content: `Research goal: ${prompt || "Not specified."}\n\nTranscript excerpts:\n${transcriptPayload}`
         }
       ]
     });
