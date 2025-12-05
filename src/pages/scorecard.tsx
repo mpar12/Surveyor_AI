@@ -448,13 +448,19 @@ export default function ScorecardPage({
                 </p>
               </div>
 
-              {takeawaysStatus === "loading" ? (
-                <div className={styles.statusBox}>Analyzing conversations…</div>
-              ) : takeawaysStatus === "error" ? (
+            {takeawaysStatus === "loading" ? (
+              <div className={styles.statusBox}>Analyzing conversations…</div>
+            ) : takeawaysStatus === "error" ? (
+              <>
                 <div className={`${styles.statusBox} ${styles.statusError}`}>
                   {takeawaysError ?? "Unable to load key takeaways."}
                 </div>
-              ) : takeaways ? (
+                <div className={styles.takeawaysDebugBox}>
+                  <h4>Anthropic response</h4>
+                  <p>{takeawaysError || "The Claude request returned an unknown error."}</p>
+                </div>
+              </>
+            ) : takeaways ? (
                 <>
                   <p className={styles.analysisText}>{takeaways.analysis}</p>
                   <div className={styles.takeawaysGrid}>
