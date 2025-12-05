@@ -18,9 +18,7 @@ interface ScriptedQuestionBlock {
 }
 
 interface KeyTakeaways {
-  analysis: string;
-  recurringThemes: string[];
-  interestingHighlights: Array<{ quote: string; participant: string }>;
+  text: string;
 }
 
 interface ScorecardProps {
@@ -461,44 +459,10 @@ export default function ScorecardPage({
                 </div>
               </>
             ) : takeaways ? (
-                <>
-                  <p className={styles.analysisText}>{takeaways.analysis}</p>
-                  <div className={styles.takeawaysGrid}>
-                    <article className={styles.takeawayBlock}>
-                      <h3>Recurring themes</h3>
-                      {takeaways.recurringThemes.length ? (
-                        <ul className={styles.themeList}>
-                          {takeaways.recurringThemes.map((theme, index) => (
-                            <li key={`theme-${index}`}>{theme}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className={styles.emptyState}>No recurring themes identified yet.</p>
-                      )}
-                    </article>
-
-                    <article className={styles.takeawayBlock}>
-                      <h3>Interesting highlights</h3>
-                      {takeaways.interestingHighlights.length ? (
-                        <ul className={styles.highlightList}>
-                          {takeaways.interestingHighlights.map((highlight, index) => (
-                            <li key={`highlight-${index}`}>
-                              <blockquote className={styles.quoteText}>&ldquo;{highlight.quote}&rdquo;</blockquote>
-                              <span className={styles.quoteAuthor}>
-                                — {highlight.participant || `Participant ${index + 1}`}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className={styles.emptyState}>No highlights to share yet.</p>
-                      )}
-                    </article>
-                  </div>
-                </>
-              ) : (
-                <div className={styles.statusBox}>Key takeaways will appear here soon.</div>
-              )}
+              <pre className={styles.takeawaysRaw}>{takeaways.text}</pre>
+            ) : (
+              <div className={styles.statusBox}>Key takeaways will appear here soon.</div>
+            )}
             </section>
 
             <section className={styles.section}>

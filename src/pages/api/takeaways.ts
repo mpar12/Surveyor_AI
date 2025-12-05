@@ -12,9 +12,7 @@ const anthropic = new Anthropic({
 });
 
 type TakeawaysResponse = {
-  analysis: string;
-  recurringThemes: string[];
-  interestingHighlights: Array<{ quote: string; participant: string }>;
+  text: string;
 };
 
 type ErrorResponse = { error: string };
@@ -216,9 +214,7 @@ export default async function handler(
 
     if (!transcriptRows.length) {
       return res.status(200).json({
-        analysis: "No completed conversations yet.",
-        recurringThemes: [],
-        interestingHighlights: []
+        text: "No completed conversations yet."
       });
     }
 
@@ -267,16 +263,8 @@ export default async function handler(
       throw new Error("No content returned from Anthropic");
     }
 
-    const parsed = JSON.parse(content) as Partial<TakeawaysResponse>;
-
-    if (!parsed.analysis || !Array.isArray(parsed.recurringThemes) || !Array.isArray(parsed.interestingHighlights)) {
-      throw new Error("Response missing required fields");
-    }
-
     return res.status(200).json({
-      analysis: parsed.analysis,
-      recurringThemes: parsed.recurringThemes,
-      interestingHighlights: parsed.interestingHighlights.slice(0, 3)
+      text: content.trim()
     });
   } catch (error) {
     console.error("Failed to build key takeaways", error);
