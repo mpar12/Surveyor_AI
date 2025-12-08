@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import styles from "@/styles/Home.module.css";
+import { ChatInput } from "@/components/ChatInput";
 
 interface FormData {
   name: string;
@@ -10,7 +10,7 @@ interface FormData {
 }
 
 const INITIAL_DATA: FormData = {
-  name: "",
+  name: "Researcher",
   prompt: ""
 };
 
@@ -21,10 +21,7 @@ export default function HomePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const REQUIRED_FIELDS: Array<keyof FormData> = useMemo(
-    () => [
-      "name",
-      "prompt"
-    ],
+    () => ["prompt"],
     []
   );
 
@@ -60,10 +57,11 @@ export default function HomePage() {
       }
 
       const sanitizedPrompt = form.prompt.trim();
+      const sanitizedName = form.name.trim() || "Researcher";
 
       const contextPayload: Record<string, unknown> = {
         sessionId: payload.sessionId,
-        requester: form.name.trim(),
+        requester: sanitizedName,
         prompt: sanitizedPrompt,
         surveyQuestions: null
       };
@@ -79,7 +77,7 @@ export default function HomePage() {
       });
 
       const query: Record<string, string> = {
-        name: form.name,
+        name: sanitizedName,
         prompt: sanitizedPrompt,
         sid: payload.sessionId,
         pin: payload.pin
@@ -96,71 +94,36 @@ export default function HomePage() {
   };
 
   return (
-    <div className={styles.shell}>
+    <div className="min-h-screen w-full bg-grain px-6 md:px-16 lg:px-24 font-sans text-[#1a1a1a] selection:bg-black/10 relative overflow-hidden">
       <Head>
         <title>SurvAgent Intake</title>
         <meta name="description" content="Kick off your AI-powered survey with SurvAgent." />
       </Head>
 
-      <main className={styles.appShell}>
-        <section className={styles.hero}>
-          <span className={styles.badge}>Surveyor Beta</span>
-          <h1 className={styles.heroTitle}>AI Interviews to understand your customers at scale (fast)</h1>
-          <p className={styles.heroSubtitle}>
+      <div className="max-w-7xl mx-auto pt-28 pb-20 relative z-10">
+        <section className="flex flex-col gap-6 mb-14 max-w-4xl">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-[#1a1a1a]">
+            AI interviews to understand your customers at scale (fast)
+          </h1>
+          <p className="text-xl md:text-2xl text-[#6b6b6b] leading-relaxed max-w-2xl">
             Generate research briefs, scripted surveys, and voice agents in seconds. Launch interviews instantly and
             revisit transcripts, insights, and key takeaways in one place.
           </p>
-          <div className={styles.heroChips}>
-            <div className={styles.chip}>Enterprise-ready</div>
-            <div className={styles.chip}>10-question templates</div>
-            <div className={styles.chip}>PIN-protected scorecards</div>
-          </div>
         </section>
 
-        <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
-          <div className={styles.formHeadings}>
-            <h2>Spin up a research session</h2>
-            <p>Tell us who you are and what you want to learn. We&apos;ll draft everything else.</p>
-          </div>
-
-          {submitError ? <div className={styles.errorBanner}>{submitError}</div> : null}
-
-          <label className={styles.fieldGroup}>
-            <span className={styles.inputLabel}>
-              Your name <span className={styles.requiredTag}>Required</span>
-            </span>
-            <input
-              id="name"
-              name="name"
-              className={styles.input}
-              placeholder="Ada Lovelace"
-              value={form.name}
-              onChange={(event) => setForm((previous) => ({ ...previous, name: event.target.value }))}
-              required
-            />
-          </label>
-
-          <label className={styles.fieldGroup}>
-            <span className={styles.inputLabel}>
-              What would you like to learn today? <span className={styles.requiredTag}>Required</span>
-            </span>
-            <textarea
-              id="prompt"
-              name="prompt"
-              className={styles.textarea}
-              placeholder='Example: "Understand why enterprise design leaders churn from our research suite."'
-              value={form.prompt}
-              onChange={(event) => setForm((previous) => ({ ...previous, prompt: event.target.value }))}
-              rows={6}
-              required
-            />
-          </label>
-
-          <button className={styles.submitButton} type="submit" disabled={!isFormComplete || isSubmitting}>
-            {isSubmitting ? "Creating session…" : "Create session"}
-          </button>
+        <form className="max-w-3xl space-y-4" onSubmit={handleSubmit} noValidate>
+          {submitError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50/70 px-4 py-3 text-red-700 text-sm">
+              {submitError}
+            </div>
+          ) : null}
+          <ChatInput
+            value={form.prompt}
+            onChange={(value) => setForm((previous) => ({ ...previous, prompt: value }))}
+            isSubmitting={isSubmitting}
+          />
         </form>
-      </main>
+      </div>
     </div>
   );
 }
