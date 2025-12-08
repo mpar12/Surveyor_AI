@@ -1,10 +1,10 @@
 import Head from "next/head";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, emailSends, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
-import styles from "@/styles/Scorecard.module.css";
 
 interface QuestionAnswerRow {
   answer: string;
@@ -360,181 +360,216 @@ export default function ScorecardPage({
   }, [sessionId, pin]);
 
   return (
-    <div className={styles.labShell}>
+    <div className="min-h-screen w-full bg-warm-cream">
       <Head>
         <title>Scorecard | SurvAgent</title>
         <meta name="description" content="Review responses captured for your SurvAgent session." />
       </Head>
 
-      <div className={styles.waveBackdrop} aria-hidden="true" />
+      <header className="sticky top-0 z-10 flex items-center justify-end bg-warm-cream/95 backdrop-blur-sm px-6 md:px-12 py-5 border-b border-light-gray/30">
+        <Link
+          href="/return"
+          className="rounded-full px-6 py-2.5 text-sm font-medium bg-white/80 border border-light-gray/50 text-charcoal hover:bg-white hover:border-light-gray transition-all duration-300 shadow-sm"
+        >
+          Returning? Click here to input PIN and view previous results
+        </Link>
+      </header>
 
-      <main className={styles.console}>
-        <header className={styles.commandHeader}>
-          <div className={styles.commandIntro}>
-            <p className={styles.sessionBadge}>Retro Research Lab</p>
-            <h1 className={styles.pageTitle}>Session Scorecard</h1>
+      <main className="flex flex-col items-center w-full px-6 md:px-12 lg:px-20 py-10 md:py-16">
+        <div className="flex flex-col gap-16 w-full max-w-6xl">
+          <section className="flex flex-col gap-4">
+            <h1 className="text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight">Scorecard</h1>
             {pin || createdAt || status ? (
-              <p className={styles.metaLine}>
+              <p className="text-lg text-soft-gray font-medium">
+                PIN <strong className="text-charcoal">{pin ?? "—"}</strong>
+                {createdAt ? <> · Created {formatDate(createdAt)}</> : null}
                 {status ? (
                   <>
-                    Status: <strong>{status}</strong>
+                    {" "}
+                    · Status:{" "}
+                    <span className="text-orange-accent font-semibold capitalize">
+                      {status.toLowerCase()}
+                    </span>
                   </>
                 ) : null}
-                {createdAt ? <> · Logged {formatDate(createdAt)}</> : null}
               </p>
             ) : null}
-          </div>
+          </section>
+
           {pin ? (
-            <div className={styles.pinPanel}>
-              <span className={styles.pinLabel}>PIN</span>
-              <strong className={styles.pinDigits}>{pin}</strong>
-              <p className={styles.pinHint}>Keep this code to revisit your lab report.</p>
+            <div className="bg-white/70 backdrop-blur-sm border-l-4 border-orange-accent rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <h2 className="text-2xl font-bold text-charcoal mb-3 tracking-tight">Your session PIN</h2>
+              <p className="text-lg text-charcoal leading-relaxed font-medium">
+                Save this 4-digit PIN now:{" "}
+                <span className="font-bold text-2xl text-orange-accent">{pin}</span>. You&apos;ll need it to revisit
+                your scorecard via the &ldquo;Returning?&rdquo; link on the homepage.
+              </p>
             </div>
           ) : null}
-        </header>
 
-        {error ? <div className={styles.errorBanner}>{error}</div> : null}
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
+              {error}
+            </div>
+          ) : null}
 
-        {!error && status === "closed" ? (
-          <div className={styles.noticeBox}>This session has been closed.</div>
-        ) : null}
+          {!error && status === "closed" ? (
+            <div className="rounded-2xl border border-light-gray bg-white/80 px-6 py-4 text-soft-gray font-medium">
+              This session has been closed.
+            </div>
+          ) : null}
 
-        {!error ? (
-          <div className={styles.sectionStack}>
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Survey context</h2>
-              <dl className={styles.contextGrid}>
-                <div className={styles.contextItem}>
-                  <dt className={styles.contextLabel}>Requester</dt>
-                  <dd className={styles.contextValue}>{context?.requester || "—"}</dd>
-                </div>
-                <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
-                  <dt className={styles.contextLabel}>Prompt</dt>
-                  <dd className={styles.contextValue}>{context?.prompt || "—"}</dd>
-                </div>
-                {context?.surveyQuestionParagraph ? (
-                  <div className={`${styles.contextItem} ${styles.contextItemFull}`}>
-                    <dt className={styles.contextLabel}>Question guidance</dt>
-                    <dd className={styles.contextValue}>{context.surveyQuestionParagraph}</dd>
+          {!error ? (
+            <div className="flex flex-col gap-16">
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-light-gray/40">
+                <h2 className="text-3xl font-bold text-charcoal mb-8 tracking-tight">Survey context</h2>
+                <dl className="grid gap-8 md:grid-cols-3">
+                  <div className="flex flex-col gap-3">
+                    <dt className="text-xs uppercase tracking-widest text-charcoal/60 font-bold">Requester</dt>
+                    <dd className="font-semibold text-xl text-charcoal">{context?.requester || "—"}</dd>
                   </div>
-                ) : null}
-              </dl>
-            </section>
+                  <div className="flex flex-col gap-3 md:col-span-3">
+                    <dt className="text-xs uppercase tracking-widest text-charcoal/60 font-bold">Prompt</dt>
+                    <dd className="font-medium text-xl text-charcoal leading-relaxed">{context?.prompt || "—"}</dd>
+                  </div>
+                  {context?.surveyQuestionParagraph ? (
+                    <div className="flex flex-col gap-3 md:col-span-3">
+                      <dt className="text-xs uppercase tracking-widest text-charcoal/60 font-bold">
+                        Question guidance
+                      </dt>
+                      <dd className="font-medium text-lg text-charcoal leading-relaxed">
+                        {context.surveyQuestionParagraph}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </section>
 
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Performance metrics</h2>
-              <div className={styles.metricsGrid}>
-                <div className={styles.metricCard}>
-                  <span className={styles.metricTitle}>Surveys sent</span>
-                  <span className={styles.metricValue}>{emailsSent}</span>
-                  <span className={styles.metricHint}>Unique recipients emailed across this session.</span>
-                </div>
-                <div className={styles.metricCard}>
-                  <span className={styles.metricTitle}>Responders</span>
-                  <span className={`${styles.metricValue} ${styles.metricValueSuccess}`}>{responders}</span>
-                  <span className={styles.metricHint}>Completed conversations with the AI agent.</span>
-                </div>
-              </div>
-            </section>
-
-            <section className={`${styles.section} ${styles.takeawaysSection}`}>
-              <div>
-                <h2 className={styles.sectionTitle}>Key takeaways</h2>
-                <p className={styles.takeawaysIntro}>
-                  Highlights generated from every recorded conversation. This summary keeps the original
-                  research prompt in mind so you can turn insights into action quickly.
-                </p>
-              </div>
-
-            {takeawaysStatus === "loading" ? (
-              <div className={styles.statusBox}>Analyzing conversations…</div>
-            ) : takeawaysStatus === "error" ? (
-              <>
-                <div className={`${styles.statusBox} ${styles.statusError}`}>
-                  {takeawaysError ?? "Unable to load key takeaways."}
-                </div>
-                <div className={styles.takeawaysDebugBox}>
-                  <h4>Anthropic response</h4>
-                  <p>{takeawaysError || "The Claude request returned an unknown error."}</p>
-                </div>
-              </>
-            ) : takeaways ? (
-              <pre className={styles.takeawaysRaw}>{takeaways.text}</pre>
-            ) : (
-              <div className={styles.statusBox}>Key takeaways will appear here soon.</div>
-            )}
-            </section>
-
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Summary of each call</h2>
-              {callSummaries.length === 0 ? (
-                <p className={styles.emptyState}>No completed calls yet.</p>
-              ) : (
-                <ul className={styles.callList}>
-                  {callSummaries.map((summary) => (
-                    <li key={summary.conversationId} className={styles.callCard}>
-                      <div className={styles.callHeader}>
-                        <span>{summary.email ? summary.email : "Unknown participant"}</span>
-                        <span className={styles.callMeta}>{formatDate(summary.receivedAt)}</span>
-                      </div>
-                      <p className={styles.callSummary}>{summary.summary || "Summary not available."}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            {primaryQuestions.length ? (
-              <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Responses by scripted question</h2>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th className={styles.tableHeadQuestion}>Question</th>
-                        <th>Answer</th>
-                        <th className={styles.tableHeadParticipant}>Participant</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {primaryQuestions.map((block, index) => {
-                        const label = `Q${index + 1}: ${block.question}`;
-
-                        if (!block.answers.length) {
-                          return (
-                            <tr key={label}>
-                              <td className={styles.questionCell}>{label}</td>
-                              <td className={`${styles.answerCell} ${styles.emptyState}`}>
-                                No responses captured yet.
-                              </td>
-                              <td className={styles.participantCellEmpty}>—</td>
-                            </tr>
-                          );
-                        }
-
-                        return block.answers.map((answer, answerIndex) => (
-                          <tr key={`${label}-${answer.conversationId}-${answerIndex}`}>
-                            {answerIndex === 0 ? (
-                              <td className={styles.questionCell} rowSpan={block.answers.length}>
-                                {label}
-                              </td>
-                            ) : null}
-                            <td className={styles.answerCell}>{answer.answer}</td>
-                            <td className={styles.participantCell}>
-                              <span className={styles.answerParticipant}>
-                                {answer.email || "Unknown participant"}
-                              </span>
-                            </td>
-                          </tr>
-                        ));
-                      })}
-                    </tbody>
-                  </table>
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-light-gray/40">
+                <h2 className="text-3xl font-bold text-charcoal mb-8 tracking-tight">Performance metrics</h2>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="flex flex-col gap-4 border-l-4 border-orange-accent bg-white/70 backdrop-blur-sm rounded-xl px-8 py-8 shadow-md">
+                    <span className="text-lg font-bold text-charcoal tracking-tight">Surveys sent</span>
+                    <span className="text-5xl font-bold text-orange-accent">{emailsSent}</span>
+                    <span className="text-soft-gray text-base font-medium leading-relaxed">
+                      Unique recipients emailed across this session.
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-4 border-l-4 border-orange-accent bg-white/70 backdrop-blur-sm rounded-xl px-8 py-8 shadow-md">
+                    <span className="text-lg font-bold text-charcoal tracking-tight">Responders</span>
+                    <span className="text-5xl font-bold text-orange-accent">{responders}</span>
+                    <span className="text-soft-gray text-base font-medium leading-relaxed">
+                      Completed conversations with the AI agent.
+                    </span>
+                  </div>
                 </div>
               </section>
-            ) : null}
-          </div>
-        ) : null}
+
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-light-gray/40">
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-charcoal tracking-tight">Key takeaways</h2>
+                  <p className="text-soft-gray leading-relaxed mt-4 text-lg font-medium">
+                    Highlights generated from every recorded conversation. This summary keeps the original research
+                    prompt in mind so you can turn insights into action quickly.
+                  </p>
+                </div>
+                {takeawaysStatus === "loading" ? (
+                  <div className="rounded-2xl border border-light-gray/60 px-6 py-6 text-soft-gray text-lg font-medium">
+                    Analyzing conversations…
+                  </div>
+                ) : takeawaysStatus === "error" ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
+                      {takeawaysError ?? "Unable to load key takeaways."}
+                    </div>
+                    <div className="rounded-2xl border border-orange-accent/30 bg-white/70 px-6 py-4 text-soft-gray text-sm">
+                      {takeawaysError || "The Claude request returned an unknown error."}
+                    </div>
+                  </div>
+                ) : takeaways ? (
+                  <pre className="rounded-2xl border border-light-gray/40 bg-white/80 px-6 py-6 text-charcoal text-base leading-relaxed whitespace-pre-wrap">
+                    {takeaways.text}
+                  </pre>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-light-gray/60 px-6 py-6 text-soft-gray text-lg font-medium">
+                    Key takeaways will appear here soon.
+                  </div>
+                )}
+              </section>
+
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-light-gray/40">
+                <h2 className="text-3xl font-bold text-charcoal mb-8 tracking-tight">Summary of each call</h2>
+                {callSummaries.length === 0 ? (
+                  <p className="text-soft-gray text-lg font-medium">No completed calls yet.</p>
+                ) : (
+                  <ul className="grid gap-5">
+                    {callSummaries.map((summary) => (
+                      <li key={summary.conversationId} className="rounded-xl border border-light-gray/40 bg-white/80 px-6 py-4 shadow-sm">
+                        <div className="flex justify-between flex-wrap gap-2 text-charcoal font-semibold">
+                          <span>{summary.email ? summary.email : "Unknown participant"}</span>
+                          <span className="text-soft-gray font-medium">{formatDate(summary.receivedAt)}</span>
+                        </div>
+                        <p className="mt-3 text-soft-gray leading-relaxed">
+                          {summary.summary || "Summary not available."}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-light-gray/40">
+                <h2 className="text-3xl font-bold text-charcoal mb-8 tracking-tight">
+                  Responses by scripted question
+                </h2>
+                {primaryQuestions.length ? (
+                  <div className="overflow-hidden border border-light-gray/40 rounded-xl shadow-md">
+                    <table className="w-full border-collapse bg-white/80">
+                      <thead className="bg-warm-beige/50 text-left">
+                        <tr>
+                          <th className="text-sm font-bold text-charcoal px-6 py-4 tracking-tight">Question</th>
+                          <th className="text-sm font-bold text-charcoal px-6 py-4 tracking-tight">Answer</th>
+                          <th className="text-sm font-bold text-charcoal px-6 py-4 tracking-tight w-48">Participant</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {primaryQuestions.map((block, index) => {
+                          const label = `Q${index + 1}: ${block.question}`;
+
+                          if (!block.answers.length) {
+                            return (
+                              <tr key={label} className="border-t border-light-gray/30">
+                                <td className="px-6 py-4 font-semibold text-charcoal align-top">{label}</td>
+                                <td className="px-6 py-4 text-soft-gray align-top">No responses captured yet.</td>
+                                <td className="px-6 py-4 text-soft-gray align-top">—</td>
+                              </tr>
+                            );
+                          }
+
+                          return block.answers.map((answer, answerIndex) => (
+                            <tr key={`${label}-${answer.conversationId}-${answerIndex}`} className="border-t border-light-gray/30">
+                              {answerIndex === 0 ? (
+                                <td className="px-6 py-4 font-semibold text-charcoal align-top" rowSpan={block.answers.length}>
+                                  {label}
+                                </td>
+                              ) : null}
+                              <td className="px-6 py-4 text-soft-gray align-top">{answer.answer}</td>
+                              <td className="px-6 py-4 text-charcoal font-semibold align-top">
+                                {answer.email || "Unknown participant"}
+                              </td>
+                            </tr>
+                          ));
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-soft-gray text-lg font-medium">No scripted questions have responses yet.</p>
+                )}
+              </section>
+            </div>
+          ) : null}
+        </div>
       </main>
     </div>
   );
