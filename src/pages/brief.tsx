@@ -2,309 +2,205 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  PointerSensor,
-  KeyboardSensor,
-  closestCenter,
-  type DragEndEvent,
-  useSensor,
-  useSensors
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
-import { Input } from "@/components/ui/input";
+import type { InterviewScript } from "@/types/interviewScript";
+import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
 
-type QueryValue = string | string[] | undefined;
+interface ScriptState {
+  data: InterviewScript | null;
+  error: string | null;
+  debug: string | null;
+  loading: boolean;
+}
 
-const getQueryValue = (value: QueryValue) => {
+const getQueryValue = (value: string | string[] | undefined) => {
   if (Array.isArray(value)) {
     return value[0] ?? "";
   }
   return value ?? "";
 };
 
-type SortableQuestion = {
-  id: string;
-  text: string;
+const cloneScript = (script: InterviewScript) =>
+  typeof structuredClone === "function"
+    ? structuredClone(script)
+    : (JSON.parse(JSON.stringify(script)) as InterviewScript);
+
+const DEFAULT_SCRIPT: InterviewScript = {
+  title: "Interview Script: Loading…",
+  researchObjective: "Our AI is preparing your research objective summary.",
+  targetAudience: "Audience details will appear shortly.",
+  estimatedDuration: "10-15 minutes",
+  sections: [
+    {
+      sectionName: "Warm-up",
+      questions: [
+        {
+          questionNumber: 1,
+          questionText: "Describe your role and the customers you interact with most often.",
+          questionType: "open-ended",
+          options: null,
+          scale: null,
+          followUp: "What makes these conversations unique?"
+        }
+      ]
+    }
+  ],
+  interviewerNotes: [
+    "Listen for specific examples and stories.",
+    "Probe deeper if responses stay high-level.",
+    "Clarify acronyms or internal jargon.",
+    "Keep the tone conversational and neutral."
+  ],
+  analysisConsiderations: [
+    "Identify recurring themes around needs and blockers.",
+    "Flag quantitative callouts (ratings, rankings).",
+    "Note surprising feedback or contradictions."
+  ]
 };
-
-type SortableQuestionRowProps = SortableQuestion & { index: number };
-
-const DEFAULT_SAMPLE_QUESTIONS: string[] = [
-  "What prompted you to start exploring this topic recently?",
-  "Can you walk me through the last time you encountered this challenge?",
-  "How are you currently addressing this need today?",
-  "Which teams or stakeholders feel the impact of this most acutely?",
-  "If you could change one part of the current experience, what would it be and why?",
-  "What signals would tell you that a solution is really working?",
-  "How do you evaluate trade-offs when prioritizing initiatives like this?",
-  "What objections or hesitations do you hear from others about solving this now?",
-  "Where do you go today for insight or inspiration when making these decisions?",
-  "Looking ahead six months, what would success look like for this project?"
-];
-
-function SortableQuestionRow({ id, text, index }: SortableQuestionRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-start gap-4 p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-light-gray/40 hover:bg-white hover:border-orange-accent/30 hover:shadow-lg transition-all duration-300 ${
-        isDragging ? "opacity-60 shadow-xl scale-[1.01]" : "shadow-sm"
-      }`}
-    >
-      <button
-        type="button"
-        className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-orange-accent text-white text-sm font-bold cursor-grab active:cursor-grabbing hover:bg-orange-hover hover:scale-110 transition-all duration-200 shadow-md"
-        {...attributes}
-        {...listeners}
-      >
-        {index + 1}
-      </button>
-      <Input
-        readOnly
-        value={text}
-        aria-label={`Survey question ${index + 1}`}
-        className="flex-1 border-0 border-b border-light-gray/50 rounded-none bg-transparent px-0 py-2.5 text-base text-charcoal focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-orange-accent"
-      />
-    </div>
-  );
-}
 
 export default function BriefPage() {
   const router = useRouter();
-  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
+  const { sessionData } = useSessionContext();
+  const [scriptState, setScriptState] = useState<ScriptState>({
+    data: null,
+    error: null,
+    debug: null,
+    loading: false
+  });
+  const [editingPath, setEditingPath] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("" );
 
-  // Extract data from session context or fallback to URL params for initial load
-  const name = useMemo(() => {
-    if (sessionData?.requester) return sessionData.requester;
-    return getQueryValue(router.query.name);
-  }, [sessionData?.requester, router.query.name]);
-  
   const prompt = useMemo(() => {
     if (sessionData?.prompt) return sessionData.prompt;
     return getQueryValue(router.query.prompt);
   }, [sessionData?.prompt, router.query.prompt]);
-  
+
+  const name = useMemo(() => {
+    if (sessionData?.requester) return sessionData.requester;
+    return getQueryValue(router.query.name);
+  }, [sessionData?.requester, router.query.name]);
+
   const sid = useMemo(() => getQueryValue(router.query.sid), [router.query.sid]);
   const pin = useMemo(() => getQueryValue(router.query.pin), [router.query.pin]);
-  const [questionParagraph, setQuestionParagraph] = useState<string | null>(null);
-  const [questionParagraphError, setQuestionParagraphError] = useState<string | null>(null);
-  const [questionDebugInfo, setQuestionDebugInfo] = useState<string | null>(null);
-  const [areQuestionsLoading, setAreQuestionsLoading] = useState(false);
-  const derivedQuestionTexts = useMemo(() => {
-    const normalizeStringList = (value: string) =>
-      value
-        .split(/[\n•-]|(?<=\?)/)
-        .map((entry) => entry.replace(/^[\d\.\-\s]+/, "").trim())
-        .filter(Boolean);
 
-    const raw = sessionData?.surveyQuestions;
-    if (Array.isArray(raw) && raw.length) {
-      return raw.map((entry) => (typeof entry === "string" ? entry.trim() : "")).filter(Boolean);
-    }
-
-    if (typeof raw === "string" && raw.trim()) {
-      return normalizeStringList(raw);
-    }
-
-    if (questionParagraph && questionParagraph.trim()) {
-      return normalizeStringList(questionParagraph);
-    }
-
-    return [];
-  }, [sessionData?.surveyQuestions, questionParagraph]);
-
-  const [questionItems, setQuestionItems] = useState<SortableQuestion[]>([]);
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  useEffect(() => {
-    const baseList = derivedQuestionTexts.length ? derivedQuestionTexts : DEFAULT_SAMPLE_QUESTIONS;
-    setQuestionItems(
-      baseList.map((text, index) => ({
-        id: `question-${index}`,
-        text
-      }))
-    );
-  }, [derivedQuestionTexts]);
-
-  // Clean URL after initial load if we have session data
-  useEffect(() => {
-    if (sessionData && router.isReady && sid && pin) {
-      // Check if URL has more than just sid and pin
-      const hasExtraParams = Object.keys(router.query).some(key => 
-        key !== 'sid' && key !== 'pin' && router.query[key]
-      );
-      
-      if (hasExtraParams) {
-        // Replace URL with clean version
-        router.replace({
-          pathname: router.pathname,
-          query: { sid, pin }
-        }, undefined, { shallow: true });
-      }
-    }
-  }, [sessionData, router.isReady, sid, pin, router]);
-
+  const canLaunchAgent = Boolean(sid) && Boolean(pin);
   const launchHref = useMemo(() => {
     if (!sid || !pin) return "/assistant";
-    
-    const params = new URLSearchParams();
-    params.set("sid", sid);
-    params.set("pin", pin);
-
+    const params = new URLSearchParams({ sid, pin });
     return `/assistant?${params.toString()}`;
   }, [sid, pin]);
-
-  const canLaunchAgent = useMemo(() => Boolean(sid) && Boolean(pin), [sid, pin]);
 
   const handleLaunchAgent = useCallback(() => {
     if (typeof window === "undefined" || !router.isReady || !canLaunchAgent) {
       return;
     }
-
     window.open(launchHref, "_blank", "noopener,noreferrer");
   }, [router.isReady, canLaunchAgent, launchHref]);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) {
-        return;
-      }
-
-      setQuestionItems((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        if (oldIndex === -1 || newIndex === -1) {
-          return items;
-        }
-
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    },
-    [setQuestionItems]
-  );
-
+  // Load script from session context or storage on mount
   useEffect(() => {
-    if (!router.isReady) {
+    if (scriptState.data) {
       return;
     }
 
-    if (!prompt.trim()) {
-      setQuestionParagraph(null);
-      setAreQuestionsLoading(false);
-      setQuestionParagraphError("A prompt is required to generate survey questions.");
+    const candidate = sessionData?.surveyQuestions;
+    if (candidate) {
+      if (isInterviewScript(candidate)) {
+        setScriptState((previous) => ({ ...previous, data: candidate as InterviewScript }));
+        return;
+      }
+      if (typeof candidate === "string") {
+        try {
+          const parsed = JSON.parse(candidate);
+          if (isInterviewScript(parsed)) {
+            setScriptState((previous) => ({ ...previous, data: parsed as InterviewScript }));
+            return;
+          }
+        } catch (error) {
+          // ignore
+        }
+      }
+    }
+
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (isInterviewScript(parsed)) {
+          setScriptState((previous) => ({ ...previous, data: parsed as InterviewScript }));
+        }
+      } catch (error) {
+        // ignore
+      }
+    }
+  }, [scriptState.data, sessionData?.surveyQuestions]);
+
+  // Fetch script whenever prompt changes
+  useEffect(() => {
+    if (!router.isReady || !prompt.trim()) {
+      setScriptState((previous) => ({
+        ...previous,
+        error: "A prompt is required to generate the research summary.",
+        loading: false
+      }));
       return;
     }
 
     const controller = new AbortController();
 
-    async function fetchQuestions() {
+    async function fetchScript() {
       try {
-        setAreQuestionsLoading(true);
-        setQuestionParagraphError(null);
-        setQuestionDebugInfo(null);
-        setQuestionParagraph(null);
-
+        setScriptState((previous) => ({ ...previous, error: null, debug: null, loading: true }));
         const response = await fetch("/api/questions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            prompt,
-            requester: name
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, requester: name }),
           signal: controller.signal
         });
 
-        const rawText = await response.text();
-
+        const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          let errorMessage = rawText;
-          if (rawText) {
-            try {
-              const parsed = JSON.parse(rawText);
-              if (typeof parsed.error === "string" && parsed.error.trim()) {
-                errorMessage = parsed.error.trim();
-              }
-            } catch {
-              // ignore JSON parse errors for error payloads
-            }
-          }
-
-          throw new Error(errorMessage || "Failed to generate survey questions");
+          throw new Error(
+            typeof payload.error === "string" && payload.error.trim()
+              ? payload.error
+              : "Failed to generate interview script"
+          );
         }
 
-        const normalized = rawText.trim();
-
-        if (!normalized) {
-          throw new Error("Response is missing the survey question paragraph");
+        const parsed = payload as InterviewScript;
+        if (!isInterviewScript(parsed)) {
+          throw new Error("Interview script response was malformed");
         }
 
-        setQuestionParagraph(normalized);
-        setQuestionDebugInfo(null);
-      } catch (fetchError) {
+        setScriptState({ data: parsed, error: null, debug: null, loading: false });
+      } catch (error) {
         if (controller.signal.aborted) {
           return;
         }
-
-        console.error("Failed to fetch survey questions", fetchError);
-        setQuestionParagraph(null);
-        setQuestionParagraphError(
-          fetchError instanceof Error ? fetchError.message : "Failed to generate survey questions"
-        );
-        setQuestionDebugInfo(() => {
-          if (fetchError instanceof Error) {
-            const stack = fetchError.stack;
-            return stack && stack !== fetchError.message ? stack : fetchError.message;
-          }
-          try {
-            return JSON.stringify(fetchError);
-          } catch {
-            return String(fetchError);
-          }
-        });
-      } finally {
-        if (!controller.signal.aborted) {
-          setAreQuestionsLoading(false);
-        }
+        const message = error instanceof Error ? error.message : "Failed to generate interview script";
+        setScriptState((previous) => ({ ...previous, error: message, debug: JSON.stringify(error, null, 2), loading: false }));
       }
     }
 
-    fetchQuestions();
-
+    fetchScript();
     return () => controller.abort();
   }, [router.isReady, prompt, name]);
 
+  // Persist script to session storage and backend
   useEffect(() => {
-    if (!questionParagraph || !sid) {
+    if (!scriptState.data || !sid) {
       return;
     }
 
     if (typeof window !== "undefined") {
       try {
-        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, questionParagraph);
+        window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(scriptState.data));
       } catch (error) {
-        console.error("Failed to store survey questions", error);
+        console.error("Failed to store interview script", error);
       }
     }
 
@@ -317,20 +213,103 @@ export default function BriefPage() {
         sessionId: sid,
         requester: name,
         prompt,
-        surveyQuestions: questionParagraph
+        surveyQuestions: scriptState.data
       })
     }).catch((error) => {
-      console.error("Failed to update session context with survey questions", error);
+      console.error("Failed to update session context with interview script", error);
     });
-  }, [questionParagraph, sid, name, prompt]);
+  }, [scriptState.data, sid, name, prompt]);
 
-  const promptSummaryText = prompt?.trim()
-    ? prompt.trim()
-    : "Prompt not available yet. Provide a prompt on the intake page to generate your research brief.";
-  const questionIntroText = prompt?.trim()
-    ? `Grounded in your prompt: “${prompt.trim()}”.`
-    : "Grounded in your research prompt.";
-  const isPopulationDisabled = !sid || !pin;
+  const startEditing = useCallback((path: string, currentValue: string | null | undefined) => {
+    setEditingPath(path);
+    setEditingValue(currentValue ?? "");
+  }, []);
+
+  const commitEditing = useCallback(() => {
+    if (!scriptState.data || !editingPath) {
+      setEditingPath(null);
+      return;
+    }
+    setScriptState((previous) => {
+      if (!previous.data || !editingPath) {
+        return previous;
+      }
+      const draft = cloneScript(previous.data);
+      const segments = editingPath.split(".");
+      let cursor: any = draft;
+      for (let index = 0; index < segments.length - 1; index += 1) {
+        const key = segments[index];
+        const numeric = Number(key);
+        if (!Number.isNaN(numeric) && key === numeric.toString()) {
+          cursor = cursor[numeric];
+        } else {
+          cursor = cursor[key];
+        }
+        if (cursor === undefined) {
+          return previous;
+        }
+      }
+      const finalKey = segments[segments.length - 1];
+      const numericFinal = Number(finalKey);
+      if (!Number.isNaN(numericFinal) && finalKey === numericFinal.toString()) {
+        cursor[numericFinal] = editingValue;
+      } else {
+        cursor[finalKey] = editingValue;
+      }
+      return { ...previous, data: draft };
+    });
+    setEditingPath(null);
+    setEditingValue("");
+  }, [editingPath, editingValue, scriptState.data]);
+
+  const cancelEditing = useCallback(() => {
+    setEditingPath(null);
+    setEditingValue("");
+  }, []);
+
+  const renderEditableField = useCallback(
+    (
+      path: string,
+      value: string | null | undefined,
+      placeholder?: string,
+      className?: string,
+      allowEdit = true
+    ) => {
+      if (!allowEdit) {
+        return (
+          <p className={`text-charcoal leading-relaxed ${className ?? ""}`}>
+            {value && value.trim().length ? value : placeholder ?? "Awaiting AI output…"}
+          </p>
+        );
+      }
+
+      if (editingPath === path) {
+        return (
+          <textarea
+            className={`w-full rounded-xl border border-light-gray/60 bg-white/90 px-4 py-3 text-base text-charcoal focus:outline-none focus:ring-2 focus:ring-orange-accent ${className ?? ""}`}
+            value={editingValue}
+            onChange={(event) => setEditingValue(event.target.value)}
+            onBlur={commitEditing}
+            autoFocus
+          />
+        );
+      }
+      return (
+        <p
+          className={`text-charcoal leading-relaxed ${className ?? ""}`}
+          onDoubleClick={() => startEditing(path, value)}
+        >
+          {value && value.trim().length ? value : placeholder ?? "Double-click to edit."}
+        </p>
+      );
+    },
+    [editingPath, editingValue, commitEditing, startEditing]
+  );
+
+  const script = scriptState.data;
+  const displayScript = script ?? DEFAULT_SCRIPT;
+  const flattenedQuestions = useMemo(() => extractQuestionsFromScript(displayScript), [displayScript]);
+  const isEditable = Boolean(scriptState.data);
 
   return (
     <div className="min-h-screen w-full bg-warm-cream">
@@ -349,62 +328,167 @@ export default function BriefPage() {
       </header>
 
       <main className="flex flex-col items-center w-full px-6 md:px-12 lg:px-20 py-12 md:py-20">
-        <div className="flex flex-col gap-20 w-full max-w-6xl">
+        <div className="flex flex-col gap-16 w-full max-w-6xl">
           <section className="flex flex-col gap-8 animate-fade-in">
-            <h1 className="text-6xl md:text-7xl font-bold text-charcoal leading-[1.1] tracking-tight">Survey Questions</h1>
-            <p className="text-2xl md:text-3xl text-soft-gray leading-relaxed max-w-4xl font-medium">
-              Our AI analyzes your prompt to draft a research brief and custom conversation starters.
-              <span className="text-orange-accent"> Feel free to tweak anything you see.</span>
-            </p>
-          </section>
-
-          <section className="flex flex-col gap-6 p-10 bg-white/70 backdrop-blur-sm rounded-2xl border-l-4 border-orange-accent shadow-lg animate-fade-in">
-            <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest">Prompt summary</h3>
-            <p className="text-xl text-charcoal leading-relaxed font-medium">{promptSummaryText}</p>
-            {questionParagraphError ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {questionParagraphError}
+            <p className="text-xs tracking-[0.45em] uppercase text-soft-gray">Research Brief</p>
+            {renderEditableField("title", displayScript.title, "Interview Script Title", "text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight", isEditable)}
+            <div className="grid gap-6 md:grid-cols-2">
+              <div>
+                <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Research objective</h3>
+                {renderEditableField("researchObjective", displayScript.researchObjective, "Provide a prompt to generate objective.", "text-lg text-charcoal font-medium", isEditable)}
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Target audience</h3>
+                {renderEditableField("targetAudience", displayScript.targetAudience, "Provide a prompt to define audience.", "text-lg text-charcoal font-medium", isEditable)}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
+                Duration: {renderEditableField("estimatedDuration", displayScript.estimatedDuration, undefined, "inline-block font-semibold", isEditable)}
+              </div>
+              <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
+                Questions: {flattenedQuestions.length}
+              </div>
+            </div>
+            {!isEditable ? (
+              <div className="rounded-2xl border border-light-gray/60 bg-white/70 px-6 py-4 text-soft-gray text-sm">
+                {scriptState.loading ? "Generating interview script…" : "Provide a prompt to generate interview questions."}
               </div>
             ) : null}
-            {questionDebugInfo ? (
-              <pre className="rounded-xl border border-orange-accent/40 bg-white/70 px-4 py-3 text-sm text-soft-gray whitespace-pre-wrap">
-                {questionDebugInfo}
-              </pre>
-            ) : null}
           </section>
-        </div>
 
-        <section className="w-full max-w-6xl mt-24 animate-fade-in">
-          <div className="mb-10 flex flex-col gap-4">
-            <h3 className="text-4xl font-bold text-charcoal tracking-tight">Survey Questions</h3>
-            <p className="text-xl text-soft-gray">
-              {questionIntroText}{" "}
-              <span className="font-semibold text-orange-accent">Drag to reorder.</span>
-            </p>
-          </div>
-
-          {areQuestionsLoading ? (
-            <div className="rounded-2xl border border-light-gray/40 bg-white/70 px-6 py-10 text-center text-soft-gray text-lg">
-              Drafting market positioning questions…
+          {scriptState.error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
+              {scriptState.error}
             </div>
-          ) : questionItems.length ? (
-            <div className="animate-fade-in delay-100">
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={questionItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+          ) : null}
+          {scriptState.debug ? (
+            <pre className="rounded-2xl border border-orange-accent/30 bg-white/80 px-6 py-4 text-soft-gray text-sm whitespace-pre-wrap">
+              {scriptState.debug}
+            </pre>
+          ) : null}
+
+          {displayScript ? (
+            <section className="flex flex-col gap-16">
+              {displayScript.sections.map((section, sectionIndex) => (
+                <div
+                  key={`${section.sectionName}-${sectionIndex}`}
+                  className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40 animate-fade-in"
+                >
+                  <header className="mb-6">
+                    <h2 className="text-3xl font-bold text-charcoal tracking-tight">{section.sectionName}</h2>
+                    <p className="text-sm text-soft-gray mt-2">Double-click any question to edit the wording.</p>
+                  </header>
                   <div className="flex flex-col gap-5">
-                    {questionItems.map((item, index) => (
-                      <SortableQuestionRow key={item.id} id={item.id} text={item.text} index={index} />
+                    {section.questions.map((question, questionIndex) => (
+                      <article
+                        key={`${question.questionNumber}-${questionIndex}`}
+                        className="p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-light-gray/40 hover:border-orange-accent/30 hover:shadow-lg transition-all duration-300"
+                      >
+                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                          <span className="text-sm font-bold text-charcoal">
+                            Q{question.questionNumber}
+                          </span>
+                          {question.questionType ? (
+                            <span className="text-xs uppercase tracking-widest text-soft-gray font-semibold">
+                              {question.questionType}
+                            </span>
+                          ) : null}
+                        </div>
+                        {renderEditableField(
+                          `sections.${sectionIndex}.questions.${questionIndex}.questionText`,
+                          question.questionText,
+                          "Question text",
+                          "text-lg font-semibold text-charcoal",
+                          isEditable
+                        )}
+                        {question.options && question.options.length ? (
+                          <div className="mt-4">
+                            <h4 className="text-sm font-bold text-orange-accent mb-2">Options</h4>
+                            <ul className="list-disc pl-5 space-y-1 text-charcoal">
+                              {question.options.map((option, optionIndex) => (
+                                <li key={`${option}-${optionIndex}`} onDoubleClick={() => startEditing(`sections.${sectionIndex}.questions.${questionIndex}.options.${optionIndex}`, option)}>
+                                  {editingPath === `sections.${sectionIndex}.questions.${questionIndex}.options.${optionIndex}` ? (
+                                    <input
+                                      className="rounded-lg border border-light-gray/60 px-3 py-1 text-sm"
+                                      value={editingPath === `sections.${sectionIndex}.questions.${questionIndex}.options.${optionIndex}` ? editingValue : option}
+                                      autoFocus
+                                      onBlur={commitEditing}
+                                      onChange={(event) => setEditingValue(event.target.value)}
+                                    />
+                                  ) : (
+                                    option
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {question.scale ? (
+                          <p className="mt-3 text-sm text-soft-gray">
+                            Scale: {renderEditableField(
+                              `sections.${sectionIndex}.questions.${questionIndex}.scale`,
+                              question.scale,
+                              undefined,
+                              "inline text-soft-gray",
+                              isEditable
+                            )}
+                          </p>
+                        ) : null}
+                        {question.followUp ? (
+                          <div className="mt-3">
+                            <h4 className="text-sm font-bold text-charcoal">Follow-up</h4>
+                            {renderEditableField(
+                              `sections.${sectionIndex}.questions.${questionIndex}.followUp`,
+                              question.followUp,
+                              "Follow-up prompt",
+                              "text-sm text-soft-gray",
+                              isEditable
+                            )}
+                          </div>
+                        ) : null}
+                      </article>
                     ))}
                   </div>
-                </SortableContext>
-              </DndContext>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-light-gray/60 px-6 py-10 text-center text-soft-gray text-lg">
-              Survey questions will appear here once generated.
-            </div>
-          )}
-        </section>
+                </div>
+              ))}
+
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
+                <h3 className="text-3xl font-bold text-charcoal mb-6">Interviewer notes</h3>
+                <ul className="list-disc pl-6 space-y-3 text-charcoal">
+                  {displayScript.interviewerNotes.map((note, noteIndex) => (
+                    <li key={`note-${noteIndex}`}>
+                      {renderEditableField(
+                        `interviewerNotes.${noteIndex}`,
+                        note,
+                        "Double-click to edit note",
+                        "text-base",
+                        isEditable
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
+                <h3 className="text-3xl font-bold text-charcoal mb-6">Analysis considerations</h3>
+                <ul className="list-disc pl-6 space-y-3 text-charcoal">
+                  {displayScript.analysisConsiderations.map((item, itemIndex) => (
+                    <li key={`analysis-${itemIndex}`}>
+                      {renderEditableField(
+                        `analysisConsiderations.${itemIndex}`,
+                        item,
+                        "Double-click to edit consideration",
+                        "text-base",
+                        isEditable
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </section>
+          ) : null}
+        </div>
 
         <div className="flex flex-wrap items-center justify-center gap-5 mt-20 w-full max-w-5xl animate-fade-in delay-200">
           <button
@@ -418,15 +502,9 @@ export default function BriefPage() {
 
           <Link
             className={`rounded-full border-2 border-orange-accent/40 bg-white/80 px-10 py-4 text-lg font-semibold text-charcoal transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 active:scale-100 ${
-              isPopulationDisabled ? "pointer-events-none opacity-60" : "hover:bg-white hover:border-orange-accent"
+              !sid || !pin ? "pointer-events-none opacity-60" : "hover:bg-white hover:border-orange-accent"
             }`}
-            href={{
-              pathname: "/population",
-              query: {
-                sid,
-                pin
-              }
-            }}
+            href={{ pathname: "/population", query: { sid, pin } }}
           >
             Choose Interview Participants →
           </Link>

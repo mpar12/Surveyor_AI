@@ -5,46 +5,49 @@ import { useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Assistant.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
+import type { InterviewScript } from "@/types/interviewScript";
+import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
 
-const normalizeSurveyQuestionValue = (input: unknown): string | null => {
-  if (typeof input === "string") {
-    const trimmed = input.trim();
-    return trimmed ? trimmed : null;
-  }
+  const normalizeSurveyQuestionValue = (input: unknown): string | null => {
+    if (typeof input === "string") {
+      const trimmed = input.trim();
+      return trimmed ? trimmed : null;
+    }
 
-  if (Array.isArray(input)) {
+    if (Array.isArray(input)) {
     const sanitized = input
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
       .filter(Boolean);
     return sanitized.length ? sanitized.join(" ") : null;
   }
 
-  if (input && typeof input === "object") {
-    const record = input as Record<string, unknown>;
-    const paragraph = record.paragraph;
-    if (typeof paragraph === "string" && paragraph.trim()) {
-      return paragraph.trim();
+    if (isInterviewScript(input)) {
+      const flattened = extractQuestionsFromScript(input as InterviewScript);
+      return flattened.join("\n");
     }
-  }
 
-  return null;
-};
+    return null;
+  };
 
-const decodeParagraphParam = (encoded: string): string | null => {
-  try {
-    const decoded = window.atob(encoded);
-    const normalized = decodeURIComponent(escape(decoded));
-
+  const decodeParagraphParam = (encoded: string): string | null => {
     try {
-      const parsed = JSON.parse(normalized);
-      const fromParsed = normalizeSurveyQuestionValue(parsed);
-      if (fromParsed) {
-        return fromParsed;
-      }
-    } catch {
-      const trimmed = normalized.trim();
-      if (trimmed) {
-        return trimmed;
+      const decoded = window.atob(encoded);
+      const normalized = decodeURIComponent(escape(decoded));
+
+      try {
+        const parsed = JSON.parse(normalized);
+        if (isInterviewScript(parsed)) {
+          const flattened = extractQuestionsFromScript(parsed as InterviewScript);
+          return flattened.join("\n");
+        }
+        const fromParsed = normalizeSurveyQuestionValue(parsed);
+        if (fromParsed) {
+          return fromParsed;
+        }
+      } catch {
+        const trimmed = normalized.trim();
+        if (trimmed) {
+          return trimmed;
       }
     }
   } catch (error) {

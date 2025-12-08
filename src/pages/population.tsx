@@ -4,31 +4,17 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import styles from "@/styles/Population.module.css";
 import { EMAIL_PREVIEW_RECIPIENTS_KEY, SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
+import type { InterviewScript } from "@/types/interviewScript";
+import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const normalizeSurveyQuestionValue = (input: unknown): string | null => {
-  if (typeof input === "string") {
-    const trimmed = input.trim();
-    return trimmed || null;
+const flattenScriptToParagraph = (script: InterviewScript | null): string | null => {
+  if (!script) {
+    return null;
   }
-
-  if (Array.isArray(input)) {
-    const sanitized = input
-      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter(Boolean);
-    return sanitized.length ? sanitized.join(" ") : null;
-  }
-
-  if (input && typeof input === "object") {
-    const record = input as Record<string, unknown>;
-    const paragraph = record.paragraph;
-    if (typeof paragraph === "string" && paragraph.trim()) {
-      return paragraph.trim();
-    }
-  }
-
-  return null;
+  const questions = extractQuestionsFromScript(script);
+  return questions.length ? questions.join("\n") : null;
 };
 
 type QueryValue = string | string[] | undefined;
@@ -47,6 +33,7 @@ export default function PopulationPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [hasValidEmails, setHasValidEmails] = useState(false);
   const [surveyQuestionParagraph, setSurveyQuestionParagraph] = useState<string | null>(null);
+  const [surveyScript, setSurveyScript] = useState<InterviewScript | null>(null);
   const [agentLink, setAgentLink] = useState("");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
 
@@ -78,29 +65,42 @@ export default function PopulationPage() {
       return;
     }
 
-    let normalized: string | null = null;
-
     try {
-      normalized = normalizeSurveyQuestionValue(JSON.parse(stored));
+      const parsed = JSON.parse(stored);
+      if (isInterviewScript(parsed)) {
+        setSurveyScript(parsed as InterviewScript);
+        setSurveyQuestionParagraph(flattenScriptToParagraph(parsed as InterviewScript));
+        return;
+      }
+      if (typeof parsed === "string") {
+        setSurveyQuestionParagraph(parsed.trim() || null);
+      }
     } catch {
-      normalized = normalizeSurveyQuestionValue(stored);
-    }
-
-    if (normalized) {
-      setSurveyQuestionParagraph(normalized);
+      setSurveyQuestionParagraph(stored.trim() || null);
     }
   }, []);
 
   useEffect(() => {
-    const normalized = normalizeSurveyQuestionValue(sessionData?.surveyQuestions ?? null);
-    if (!normalized) {
+    const payload = sessionData?.surveyQuestions;
+    if (!payload) {
       return;
     }
 
-    setSurveyQuestionParagraph(normalized);
+    if (isInterviewScript(payload)) {
+      const script = payload as InterviewScript;
+      setSurveyScript(script);
+      setSurveyQuestionParagraph(flattenScriptToParagraph(script));
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(script));
+      }
+      return;
+    }
 
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, normalized);
+    if (typeof payload === "string") {
+      setSurveyQuestionParagraph(payload.trim() || null);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, payload);
+      }
     }
   }, [sessionData?.surveyQuestions]);
 
@@ -138,7 +138,15 @@ export default function PopulationPage() {
     setParam("sid", contextSummary.sid);
     setParam("pin", contextSummary.pin);
 
-    if (surveyQuestionParagraph) {
+    if (surveyScript) {
+      try {
+        const payload = JSON.stringify(surveyScript);
+        const encoded = window.btoa(unescape(encodeURIComponent(payload)));
+        params.set("surveyQuestions", encoded);
+      } catch (error) {
+        console.error("Failed to encode interview script for assistant link", error);
+      }
+    } else if (surveyQuestionParagraph) {
       try {
         const payload = JSON.stringify({ paragraph: surveyQuestionParagraph });
         const encoded = window.btoa(unescape(encodeURIComponent(payload)));
@@ -158,7 +166,8 @@ export default function PopulationPage() {
     contextSummary.prompt,
     contextSummary.sid,
     contextSummary.pin,
-    surveyQuestionParagraph
+    surveyQuestionParagraph,
+    surveyScript
   ]);
 
   const handleEmailsChange = (event: ChangeEvent<HTMLTextAreaElement>) => {

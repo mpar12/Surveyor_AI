@@ -8,6 +8,8 @@ import {
   SURVEY_QUESTIONS_STORAGE_KEY
 } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
+import type { InterviewScript } from "@/types/interviewScript";
+import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -42,28 +44,12 @@ const getQueryValue = (value: string | string[] | undefined) => {
 const SENDER_EMAIL = process.env.NEXT_PUBLIC_EMAIL_FROM ?? "mihirparikh99@gmail.com";
 const SENDER_NAME = process.env.NEXT_PUBLIC_EMAIL_FROM_NAME ?? "Surveyor";
 
-const normalizeSurveyQuestionValue = (input: unknown): string | null => {
-  if (typeof input === "string") {
-    const trimmed = input.trim();
-    return trimmed || null;
+const flattenScriptToParagraph = (script: InterviewScript | null): string | null => {
+  if (!script) {
+    return null;
   }
-
-  if (Array.isArray(input)) {
-    const sanitized = input
-      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter(Boolean);
-    return sanitized.length ? sanitized.join(" ") : null;
-  }
-
-  if (input && typeof input === "object") {
-    const record = input as Record<string, unknown>;
-    const paragraph = record.paragraph;
-    if (typeof paragraph === "string" && paragraph.trim()) {
-      return paragraph.trim();
-    }
-  }
-
-  return null;
+  const questions = extractQuestionsFromScript(script);
+  return questions.length ? questions.join("\n") : null;
 };
 
 export default function EmailPreviewPage() {
@@ -177,22 +163,17 @@ export default function EmailPreviewPage() {
         const stored = sessionStorage.getItem(SURVEY_QUESTIONS_STORAGE_KEY);
         if (stored) {
           try {
-            let normalized: string | null = null;
-            try {
-              normalized = normalizeSurveyQuestionValue(JSON.parse(stored));
-            } catch {
-              normalized = normalizeSurveyQuestionValue(stored);
+            const parsed = JSON.parse(stored);
+            if (isInterviewScript(parsed)) {
+              const payload = JSON.stringify(parsed);
+              return window.btoa(unescape(encodeURIComponent(payload)));
             }
-
-            if (normalized) {
-              const payload = JSON.stringify({ paragraph: normalized });
+            if (typeof parsed === "string" && parsed.trim()) {
+              const payload = JSON.stringify({ paragraph: parsed.trim() });
               return window.btoa(unescape(encodeURIComponent(payload)));
             }
           } catch (storageError) {
-            console.error(
-              "Failed to encode stored survey question paragraph for assistant link",
-              storageError
-            );
+            console.error("Failed to encode stored survey script for assistant link", storageError);
           }
         }
       }

@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "@/db/client";
 import { sessionContexts, sessions } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import type { InterviewScript } from "@/types/interviewScript";
+import { isInterviewScript } from "@/types/interviewScript";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
@@ -79,10 +81,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const normalizeSurveyQuestions = (value: unknown): string | string[] | null => {
-      if (typeof value === "string") {
-        const trimmed = value.trim();
-        return trimmed ? trimmed : null;
+    const normalizeSurveyQuestions = (value: unknown): string | string[] | InterviewScript | null => {
+      if (isInterviewScript(value)) {
+        return value as InterviewScript;
       }
 
       if (Array.isArray(value)) {
@@ -92,11 +93,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return sanitized.length ? sanitized : null;
       }
 
-      if (value && typeof value === "object") {
-        const record = value as Record<string, unknown>;
-        if (typeof record.paragraph === "string" && record.paragraph.trim()) {
-          return record.paragraph.trim();
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
         }
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (isInterviewScript(parsed)) {
+            return parsed;
+          }
+          if (Array.isArray(parsed)) {
+            const sanitized = parsed
+              .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+              .filter((entry): entry is string => Boolean(entry));
+            return sanitized.length ? sanitized : [trimmed];
+          }
+        } catch (error) {
+          // ignore parse error, treat as raw string array
+        }
+        return trimmed;
       }
 
       return null;

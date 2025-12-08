@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 
+import type { InterviewScript } from '@/types/interviewScript';
+
 export interface SessionContextData {
   sessionId: string;
   requester: string | null;
@@ -12,7 +14,7 @@ export interface SessionContextData {
   desiredIcpIndustry: string | null;
   desiredIcpRegion: string | null;
   keyQuestions: string | null;
-  surveyQuestions: string[] | string | null;
+  surveyQuestions: string[] | string | InterviewScript | null;
   updatedAt: string | null;
 }
 

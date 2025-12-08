@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 import { QUESTION_GENERATION_SYSTEM_PROMPT } from "@/lib/prompts";
+import type { InterviewScript } from "@/types/interviewScript";
 
 type ErrorResponse = {
   error: string;
@@ -19,7 +20,7 @@ const getAnthropicClient = () => {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<string | ErrorResponse>
+  res: NextApiResponse<InterviewScript | ErrorResponse>
 ) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -62,14 +63,19 @@ export default async function handler(
       throw new Error("No content returned from Anthropic");
     }
 
-    const paragraph = content.trim();
-
-    if (!paragraph) {
-      throw new Error("Anthropic returned an empty paragraph.");
+    let parsed: InterviewScript;
+    try {
+      parsed = JSON.parse(content) as InterviewScript;
+    } catch (parseError) {
+      console.error("Failed to parse interview script JSON", parseError, content);
+      throw new Error("Claude returned invalid JSON for interview script");
     }
 
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    return res.status(200).send(paragraph);
+    if (!parsed || typeof parsed !== "object" || !parsed.sections) {
+      throw new Error("Interview script JSON is missing required fields");
+    }
+
+    return res.status(200).json(parsed);
   } catch (error) {
     console.error("Failed to generate survey questions", error);
     const errorMessage =

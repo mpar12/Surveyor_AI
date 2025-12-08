@@ -5,6 +5,8 @@ import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, emailSends, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
+import type { InterviewScript } from "@/types/interviewScript";
+import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
 
 interface QuestionAnswerRow {
   answer: string;
@@ -736,16 +738,20 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
     });
 
     const rawSurveyQuestions = contextRows[0]?.surveyQuestions;
-    const questionParagraph =
-      typeof rawSurveyQuestions === "string" && rawSurveyQuestions.trim()
-        ? rawSurveyQuestions.trim()
-        : null;
-    const questionListRaw = Array.isArray(rawSurveyQuestions)
-      ? (rawSurveyQuestions as unknown[])
-      : [];
-    const questionList = questionListRaw
-      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-      .filter((entry) => entry);
+    let questionParagraph: string | null = null;
+    let questionList: string[] = [];
+
+    if (isInterviewScript(rawSurveyQuestions)) {
+      const script = rawSurveyQuestions as InterviewScript;
+      questionParagraph = script.title || null;
+      questionList = extractQuestionsFromScript(script);
+    } else if (typeof rawSurveyQuestions === "string" && rawSurveyQuestions.trim()) {
+      questionParagraph = rawSurveyQuestions.trim();
+    } else if (Array.isArray(rawSurveyQuestions)) {
+      questionList = (rawSurveyQuestions as unknown[])
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry);
+    }
 
     const transcriptsForBreakdown = transcriptRows.map((row, index) => {
       const dynamicVars =
