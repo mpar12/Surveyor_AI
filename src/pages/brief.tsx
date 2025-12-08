@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
+import { Input } from "@/components/ui/input";
 
 type QueryValue = string | string[] | undefined;
 
@@ -62,7 +63,7 @@ function SortableQuestionRow({ id, text, index }: SortableQuestionRowProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-start gap-4 p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-light-gray/40 hover:bg-white hover:border-orange-accent/30 hover:shadow-lg transition-all duration-300 ${
+      className={`flex items-start gap-4 p-6 bg-white/70 backdrop-blur-sm rounded-xl border border-light-gray/40 hover:bg-white hover:border-orange-accent/30 hover:shadow-lg transition-all duration-300 ${
         isDragging ? "opacity-60 shadow-xl scale-[1.01]" : "shadow-sm"
       }`}
     >
@@ -74,9 +75,12 @@ function SortableQuestionRow({ id, text, index }: SortableQuestionRowProps) {
       >
         {index + 1}
       </button>
-      <p className="flex-1 text-base text-charcoal border-b border-light-gray/40 pb-2 mb-0">
-        {text}
-      </p>
+      <Input
+        readOnly
+        value={text}
+        aria-label={`Survey question ${index + 1}`}
+        className="flex-1 border-0 border-b border-light-gray/50 rounded-none bg-transparent px-0 py-2.5 text-base text-charcoal focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-orange-accent"
+      />
     </div>
   );
 }
@@ -320,7 +324,9 @@ export default function BriefPage() {
     });
   }, [questionParagraph, sid, name, prompt]);
 
-  const promptSummaryText = prompt?.trim() ? prompt.trim() : "Prompt not available yet.";
+  const promptSummaryText = prompt?.trim()
+    ? prompt.trim()
+    : "Prompt not available yet. Provide a prompt on the intake page to generate your research brief.";
   const questionIntroText = prompt?.trim()
     ? `Grounded in your prompt: “${prompt.trim()}”.`
     : "Grounded in your research prompt.";
@@ -333,7 +339,7 @@ export default function BriefPage() {
         <meta name="description" content="Review AI-generated context for your survey outreach." />
       </Head>
 
-      <header className="sticky top-0 z-10 flex items-center justify-end bg-warm-cream/95 backdrop-blur-sm px-6 md:px-12 py-5 border-b border-light-gray/30">
+      <header className="sticky top-0 z-10 flex items-center justify-end bg-warm-cream/95 backdrop-blur-sm px-6 md:px-12 py-5 border-b border-light-gray/30 animate-fade-in">
         <Link
           href="/return"
           className="rounded-full px-6 py-2.5 text-sm font-medium bg-white/80 border border-light-gray/50 text-charcoal hover:bg-white hover:border-light-gray transition-all duration-300 shadow-sm"
@@ -343,39 +349,35 @@ export default function BriefPage() {
       </header>
 
       <main className="flex flex-col items-center w-full px-6 md:px-12 lg:px-20 py-12 md:py-20">
-        <div className="flex flex-col gap-16 w-full max-w-6xl">
+        <div className="flex flex-col gap-20 w-full max-w-6xl">
           <section className="flex flex-col gap-8 animate-fade-in">
-            <h1 className="text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight">
-              Survey Questions
-            </h1>
-            <p className="text-2xl text-soft-gray leading-relaxed max-w-4xl font-medium">
+            <h1 className="text-6xl md:text-7xl font-bold text-charcoal leading-[1.1] tracking-tight">Survey Questions</h1>
+            <p className="text-2xl md:text-3xl text-soft-gray leading-relaxed max-w-4xl font-medium">
               Our AI analyzes your prompt to draft a research brief and custom conversation starters.
               <span className="text-orange-accent"> Feel free to tweak anything you see.</span>
             </p>
           </section>
 
-          <section className="flex flex-col gap-4 p-8 bg-white/70 backdrop-blur-sm rounded-2xl border-l-4 border-orange-accent shadow-lg animate-fade-in">
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest">Prompt summary</h3>
-              <p className="text-lg text-charcoal leading-relaxed font-medium">{promptSummaryText}</p>
-            </div>
+          <section className="flex flex-col gap-6 p-10 bg-white/70 backdrop-blur-sm rounded-2xl border-l-4 border-orange-accent shadow-lg animate-fade-in">
+            <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest">Prompt summary</h3>
+            <p className="text-xl text-charcoal leading-relaxed font-medium">{promptSummaryText}</p>
             {questionParagraphError ? (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {questionParagraphError}
               </div>
             ) : null}
             {questionDebugInfo ? (
-              <pre className="rounded-xl border border-orange-accent/40 bg-white/70 px-4 py-3 text-sm text-soft-gray">
+              <pre className="rounded-xl border border-orange-accent/40 bg-white/70 px-4 py-3 text-sm text-soft-gray whitespace-pre-wrap">
                 {questionDebugInfo}
               </pre>
             ) : null}
           </section>
         </div>
 
-        <section className="w-full max-w-6xl mt-16 animate-fade-in">
-          <div className="mb-8 flex flex-col gap-3">
-            <h3 className="text-3xl md:text-4xl font-bold text-charcoal tracking-tight">Survey Questions</h3>
-            <p className="text-lg text-soft-gray">
+        <section className="w-full max-w-6xl mt-24 animate-fade-in">
+          <div className="mb-10 flex flex-col gap-4">
+            <h3 className="text-4xl font-bold text-charcoal tracking-tight">Survey Questions</h3>
+            <p className="text-xl text-soft-gray">
               {questionIntroText}{" "}
               <span className="font-semibold text-orange-accent">Drag to reorder.</span>
             </p>
@@ -386,15 +388,17 @@ export default function BriefPage() {
               Drafting market positioning questions…
             </div>
           ) : questionItems.length ? (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={questionItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-5">
-                  {questionItems.map((item, index) => (
-                    <SortableQuestionRow key={item.id} id={item.id} text={item.text} index={index} />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+            <div className="animate-fade-in delay-100">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={questionItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                  <div className="flex flex-col gap-5">
+                    {questionItems.map((item, index) => (
+                      <SortableQuestionRow key={item.id} id={item.id} text={item.text} index={index} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-light-gray/60 px-6 py-10 text-center text-soft-gray text-lg">
               Survey questions will appear here once generated.
@@ -402,7 +406,7 @@ export default function BriefPage() {
           )}
         </section>
 
-        <div className="flex flex-wrap items-center justify-center gap-5 mt-16 w-full max-w-5xl animate-fade-in">
+        <div className="flex flex-wrap items-center justify-center gap-5 mt-20 w-full max-w-5xl animate-fade-in delay-200">
           <button
             type="button"
             onClick={handleLaunchAgent}

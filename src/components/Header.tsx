@@ -1,38 +1,12 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function Header() {
   return (
-    <header
-      style={{
-        width: "100%",
-        padding: "1rem 2rem",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        background: "#ffffff",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
-        boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)"
-      }}
-    >
-      <Link
-        href="/return"
-        style={{
-          fontSize: "0.95rem",
-          fontWeight: 600,
-          color: "#0f172a",
-          textDecoration: "none",
-          padding: "0.6rem 1.2rem",
-          borderRadius: "999px",
-          border: "1px solid rgba(15, 23, 42, 0.12)",
-          transition: "background 0.2s ease, color 0.2s ease",
-          background: "rgba(37, 99, 235, 0.08)"
-        }}
-      >
-        Returning? Click here to input PIN and view previous results
-      </Link>
+    <header className="sticky top-0 z-30 flex items-center justify-end bg-warm-cream/95 backdrop-blur-sm px-6 md:px-12 py-4 border-b border-light-gray/40">
+      <Button variant="outline" asChild className="rounded-full px-6 py-2.5 text-sm font-medium bg-white/80 border border-light-gray/50 text-charcoal hover:bg-white hover:border-light-gray transition-all duration-300 shadow-sm">
+        <Link href="/return">Returning? Click here to input PIN</Link>
+      </Button>
     </header>
   );
 }
