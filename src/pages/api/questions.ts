@@ -40,7 +40,7 @@ export default async function handler(
     const anthropic = getAnthropicClient();
     const completion = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 600,
+      max_tokens: 10000,
       temperature: 0.2,
       system: QUESTION_GENERATION_SYSTEM_PROMPT,
       messages: [

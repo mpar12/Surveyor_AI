@@ -245,7 +245,7 @@ export default async function handler(
 
     const completion = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 1000,
+      max_tokens: 20000,
       temperature: 0.2,
       system: TAKEAWAYS_SYSTEM_PROMPT,
       messages: [
