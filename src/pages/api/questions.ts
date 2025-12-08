@@ -68,7 +68,7 @@ export default async function handler(
       parsed = JSON.parse(content) as InterviewScript;
     } catch (parseError) {
       console.error("Failed to parse interview script JSON", parseError, content);
-      throw new Error("Claude returned invalid JSON for interview script");
+      throw new Error(`Claude returned invalid JSON for interview script. Raw output: ${content}`);
     }
 
     if (!parsed || typeof parsed !== "object" || !parsed.sections) {
