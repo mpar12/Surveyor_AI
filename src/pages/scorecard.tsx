@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { useEffect, useState } from "react";
 import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
@@ -119,21 +120,94 @@ const renderParagraphs = (text: string) =>
     ));
 
 export default function ScorecardPage({
+  sessionId,
   pin,
   createdAt,
   status,
   context,
-  analysisReport,
+  analysisReport: initialAnalysisReport,
   analysisGeneratedAt,
-  error
+  error: sessionError
 }: ScorecardProps) {
+  const [analysisReport, setAnalysisReport] = useState<InterviewAnalysisReport | null>(
+    initialAnalysisReport
+  );
+  const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(analysisGeneratedAt);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(
+    !initialAnalysisReport && !sessionError && Boolean(sessionId && pin)
+  );
+
+  useEffect(() => {
+    if (sessionError || analysisReport || !sessionId || !pin) {
+      setAnalysisLoading(false);
+      return;
+    }
+
+    let aborted = false;
+    const runAnalysis = async () => {
+      setAnalysisLoading(true);
+      setAnalysisError(null);
+
+      try {
+        const response = await fetch("/api/takeaways", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, pin })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          const message =
+            typeof payload?.error === "string" && payload.error.trim()
+              ? payload.error
+              : "Unable to fetch interview analysis.";
+          throw new Error(message);
+        }
+
+        const rawText = typeof payload?.text === "string" ? payload.text.trim() : "";
+        if (!rawText) {
+          throw new Error("Interview analysis agent returned an empty response.");
+        }
+
+        const parsed = parseAnalysisReport(rawText);
+        if (!parsed) {
+          throw new Error("Unable to parse interview analysis JSON.");
+        }
+
+        if (!aborted) {
+          setAnalysisReport(parsed);
+          setAnalysisTimestamp(new Date().toISOString());
+        }
+      } catch (fetchError) {
+        if (!aborted) {
+          setAnalysisError(
+            fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
+          );
+        }
+      } finally {
+        if (!aborted) {
+          setAnalysisLoading(false);
+        }
+      }
+    };
+
+    runAnalysis();
+    return () => {
+      aborted = true;
+    };
+  }, [sessionError, analysisReport, sessionId, pin]);
+
   const pageTitle = analysisReport?.title?.trim() || "Interview Analysis Report";
   const detailItems = [
     pin ? `PIN ${pin}` : null,
     createdAt ? `Created ${formatDate(createdAt)}` : null,
     status ? `Status ${status.toLowerCase()}` : null,
-    analysisGeneratedAt ? `Updated ${formatDate(analysisGeneratedAt)}` : null
+    analysisTimestamp ? `Updated ${formatDate(analysisTimestamp)}` : null
   ].filter(Boolean);
+
+  const blockingError = sessionError || analysisError;
 
   return (
     <div className="min-h-screen w-full bg-warm-cream">
@@ -166,9 +240,9 @@ export default function ScorecardPage({
             ) : null}
           </section>
 
-          {error ? (
+          {blockingError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
-              {error}
+              {blockingError}
             </div>
           ) : analysisReport ? (
             <>
@@ -303,6 +377,14 @@ export default function ScorecardPage({
                 </section>
               )}
             </>
+          ) : analysisLoading ? (
+            <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
+              <h2 className="text-3xl font-bold text-charcoal tracking-tight mb-4">Analyzing conversations</h2>
+              <p className="text-lg text-soft-gray leading-relaxed">
+                The interview analysis agent is processing your transcripts. This usually takes a minute—feel free to
+                refresh if the status doesn&apos;t update automatically.
+              </p>
+            </section>
           ) : (
             <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
               <h2 className="text-3xl font-bold text-charcoal tracking-tight mb-4">Analysis pending</h2>
