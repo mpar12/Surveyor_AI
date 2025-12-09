@@ -100,7 +100,7 @@ Your interview script should contain a mix of question types that will yield ana
 You MUST return your interview script as a valid JSON object with the following structure. Return ONLY the JSON object with no markdown formatting, no code blocks, no preamble, and no explanation.
 
 {
-"title": "Interview Script: [Clear, Descriptive Title]",
+"title": "[Clear, Descriptive Title]",
 "researchObjective": "[1-2 sentences summarizing what this interview aims to discover]",
 "targetAudience": "[Brief description of who should be interviewed]",
 "estimatedDuration": "[10-15 minutes, 15-20 minutes, or 20-25 minutes]",

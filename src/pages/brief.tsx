@@ -27,7 +27,7 @@ const cloneScript = (script: InterviewScript) =>
     : (JSON.parse(JSON.stringify(script)) as InterviewScript);
 
 const DEFAULT_SCRIPT: InterviewScript = {
-  title: "Loading interview script…",
+  title: "",
   researchObjective: "Loading…",
   targetAudience: "Loading…",
   estimatedDuration: "Loading…",
@@ -265,11 +265,13 @@ export default function BriefPage() {
       value: string | null | undefined,
       placeholder?: string,
       className?: string,
-      allowEdit = true
+      allowEdit = true,
+      prefix = ""
     ) => {
       if (!allowEdit) {
         return (
           <p className={`text-charcoal leading-relaxed ${className ?? ""}`}>
+            {prefix}
             {value && value.trim().length ? value : placeholder ?? ""}
           </p>
         );
@@ -277,13 +279,16 @@ export default function BriefPage() {
 
       if (editingPath === path) {
         return (
-          <textarea
-            className={`w-full rounded-xl border border-light-gray/60 bg-white/90 px-4 py-3 text-base text-charcoal focus:outline-none focus:ring-2 focus:ring-orange-accent ${className ?? ""}`}
-            value={editingValue}
-            onChange={(event) => setEditingValue(event.target.value)}
-            onBlur={commitEditing}
-            autoFocus
-          />
+          <div className={`flex flex-col gap-1 ${className ?? ""}`}>
+            {prefix ? <span className="text-sm font-semibold text-soft-gray">{prefix}</span> : null}
+            <textarea
+              className="w-full rounded-xl border border-light-gray/60 bg-white/90 px-4 py-3 text-base text-charcoal focus:outline-none focus:ring-2 focus:ring-orange-accent"
+              value={editingValue}
+              onChange={(event) => setEditingValue(event.target.value)}
+              onBlur={commitEditing}
+              autoFocus
+            />
+          </div>
         );
       }
       return (
@@ -291,6 +296,7 @@ export default function BriefPage() {
           className={`text-charcoal leading-relaxed ${className ?? ""}`}
           onDoubleClick={() => startEditing(path, value)}
         >
+          {prefix}
           {value && value.trim().length ? value : placeholder ?? "Double-click to edit."}
         </p>
       );
@@ -323,7 +329,14 @@ export default function BriefPage() {
         <div className="flex flex-col gap-16 w-full max-w-6xl">
           <section className="flex flex-col gap-8 animate-fade-in">
             <p className="text-xs tracking-[0.45em] uppercase text-soft-gray">Research Brief</p>
-            {renderEditableField("title", script?.title ?? "", "", "text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight", isEditable)}
+            {renderEditableField(
+              "title",
+              script?.title ?? "",
+              "",
+              "text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight",
+              isEditable,
+              "Interview Script: "
+            )}
             <div className="grid gap-6 md:grid-cols-2">
               <div>
                 <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Research objective</h3>
@@ -339,7 +352,7 @@ export default function BriefPage() {
                 Duration: {renderEditableField("estimatedDuration", script?.estimatedDuration ?? "", "", "inline-block font-semibold", isEditable)}
               </div>
               <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
-                Questions: {flattenedQuestions.length}
+                Questions: {isPlaceholder ? "—" : flattenedQuestions.length}
               </div>
             </div>
             {!isEditable ? (

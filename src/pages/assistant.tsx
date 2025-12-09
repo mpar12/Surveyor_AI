@@ -6,61 +6,108 @@ import styles from "@/styles/Assistant.module.css";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
 import type { InterviewScript } from "@/types/interviewScript";
-import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
+import { isInterviewScript } from "@/types/interviewScript";
 
-  const normalizeSurveyQuestionValue = (input: unknown): string | null => {
-    if (typeof input === "string") {
-      const trimmed = input.trim();
-      return trimmed ? trimmed : null;
+const formatScriptForAgent = (script: InterviewScript): string => {
+  const lines: string[] = [];
+  script.sections.forEach((section) => {
+    lines.push(`${section.sectionName}:`);
+    section.questions.forEach((question) => {
+      lines.push(`Q${question.questionNumber}. ${question.questionText}`);
+      if (question.followUp && question.followUp.trim()) {
+        lines.push(`Follow-up: ${question.followUp.trim()}`);
+      }
+    });
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+};
+
+const extractInterviewScript = (value: unknown): InterviewScript | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (isInterviewScript(value)) {
+    return value as InterviewScript;
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (isInterviewScript(parsed)) {
+        return parsed as InterviewScript;
+      }
+    } catch {
+      return null;
     }
+  }
 
-    if (Array.isArray(input)) {
+  return null;
+};
+
+const normalizeSurveyQuestionValue = (input: unknown): string | null => {
+  const potentialScript = extractInterviewScript(input);
+  if (potentialScript) {
+    return formatScriptForAgent(potentialScript);
+  }
+
+  if (typeof input === "string") {
+    const trimmed = input.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  if (Array.isArray(input)) {
     const sanitized = input
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
       .filter(Boolean);
     return sanitized.length ? sanitized.join(" ") : null;
   }
 
-    if (isInterviewScript(input)) {
-      const flattened = extractQuestionsFromScript(input as InterviewScript);
-      return flattened.join("\n");
-    }
+  if (isInterviewScript(input)) {
+    return formatScriptForAgent(input as InterviewScript);
+  }
 
-    return null;
-  };
+  return null;
+};
 
-  const decodeParagraphParam = (encoded: string): string | null => {
+const decodeParagraphParam = (
+  encoded: string
+): { formatted: string | null; script: InterviewScript | null } => {
+  try {
+    const decoded = window.atob(encoded);
+    const normalized = decodeURIComponent(escape(decoded));
+
     try {
-      const decoded = window.atob(encoded);
-      const normalized = decodeURIComponent(escape(decoded));
-
-      try {
-        const parsed = JSON.parse(normalized);
-        if (isInterviewScript(parsed)) {
-          const flattened = extractQuestionsFromScript(parsed as InterviewScript);
-          return flattened.join("\n");
-        }
-        const fromParsed = normalizeSurveyQuestionValue(parsed);
-        if (fromParsed) {
-          return fromParsed;
-        }
-      } catch {
-        const trimmed = normalized.trim();
-        if (trimmed) {
-          return trimmed;
+      const parsed = JSON.parse(normalized);
+      if (isInterviewScript(parsed)) {
+        return {
+          formatted: formatScriptForAgent(parsed as InterviewScript),
+          script: parsed as InterviewScript
+        };
+      }
+      const fromParsed = normalizeSurveyQuestionValue(parsed);
+      if (fromParsed) {
+        return { formatted: fromParsed, script: null };
+      }
+    } catch {
+      const trimmed = normalized.trim();
+      if (trimmed) {
+        return { formatted: trimmed, script: null };
       }
     }
   } catch (error) {
     console.error("Failed to decode survey question paragraph", error);
   }
 
-  return null;
+  return { formatted: null, script: null };
 };
 
 export default function AssistantPage() {
   const router = useRouter();
   const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
   const [surveyQuestionParagraph, setSurveyQuestionParagraph] = useState<string | null>(null);
+  const [localScript, setLocalScript] = useState<InterviewScript | null>(null);
 
   const getQueryValue = (value: string | string[] | undefined) => {
     if (Array.isArray(value)) {
@@ -77,13 +124,18 @@ export default function AssistantPage() {
     const encodedParam = getQueryValue(router.query.surveyQuestions);
 
     if (encodedParam) {
-      const decodedParagraph = decodeParagraphParam(encodedParam);
-      if (decodedParagraph) {
-        setSurveyQuestionParagraph(decodedParagraph);
+      const decodedResult = decodeParagraphParam(encodedParam);
+      if (decodedResult.formatted) {
+        setSurveyQuestionParagraph(decodedResult.formatted);
         try {
-          window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, decodedParagraph);
+          if (decodedResult.script) {
+            setLocalScript(decodedResult.script);
+            window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(decodedResult.script));
+          } else {
+            window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, decodedResult.formatted);
+          }
         } catch (storageError) {
-          console.error("Failed to persist decoded survey question paragraph", storageError);
+          console.error("Failed to persist decoded survey questions", storageError);
         }
         return;
       }
@@ -101,11 +153,16 @@ export default function AssistantPage() {
       }
 
       let normalized: string | null = null;
+      let parsedValue: unknown = null;
       try {
-        const parsed = JSON.parse(trimmed);
-        normalized = normalizeSurveyQuestionValue(parsed);
+        parsedValue = JSON.parse(trimmed);
+        normalized = normalizeSurveyQuestionValue(parsedValue);
       } catch {
         normalized = normalizeSurveyQuestionValue(trimmed);
+      }
+
+      if (parsedValue && isInterviewScript(parsedValue)) {
+        setLocalScript(parsedValue as InterviewScript);
       }
 
       if (normalized) {
@@ -122,6 +179,22 @@ export default function AssistantPage() {
       return;
     }
 
+    const candidate = sessionData?.surveyQuestions;
+    if (candidate && isInterviewScript(candidate)) {
+      const scriptCandidate = candidate as InterviewScript;
+      setLocalScript(scriptCandidate);
+      const formatted = formatScriptForAgent(scriptCandidate);
+      setSurveyQuestionParagraph(formatted);
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(SURVEY_QUESTIONS_STORAGE_KEY, JSON.stringify(scriptCandidate));
+        } catch (storageError) {
+          console.error("Failed to persist interview script", storageError);
+        }
+      }
+      return;
+    }
+
     setSurveyQuestionParagraph(normalized);
 
     if (typeof window !== "undefined") {
@@ -132,6 +205,17 @@ export default function AssistantPage() {
       }
     }
   }, [sessionData?.surveyQuestions]);
+
+  const scriptFromSession = useMemo(
+    () => extractInterviewScript(sessionData?.surveyQuestions ?? null),
+    [sessionData?.surveyQuestions]
+  );
+
+  useEffect(() => {
+    if (scriptFromSession) {
+      setLocalScript(scriptFromSession);
+    }
+  }, [scriptFromSession]);
 
   // Clean URL after initial load if we have session data
   useEffect(() => {
@@ -175,8 +259,16 @@ export default function AssistantPage() {
     // Use survey question paragraph from session context (from brief page) as primary source
     const questionsFromSession = normalizeSurveyQuestionValue(sessionData?.surveyQuestions ?? null);
     const questionParagraph = questionsFromSession || surveyQuestionParagraph;
+    const activeScript = scriptFromSession || localScript;
+    const formattedScript = activeScript ? formatScriptForAgent(activeScript) : questionParagraph;
 
-    const variables: Record<string, string> = {};
+    const variables: Record<string, string> = {
+      research_objective: "",
+      duration: "",
+      List_of_questions: "",
+      Interview_Notes: "",
+      title: ""
+    };
 
     if (name) {
       variables.user_name = name;
@@ -193,10 +285,34 @@ export default function AssistantPage() {
     if (promptValue) {
       variables.survey_prompt = promptValue;
     }
-    if (questionParagraph) {
-      variables.List_of_Questions = questionParagraph;
+    if (formattedScript) {
+      variables.List_of_questions = formattedScript;
     } else if (promptValue) {
-      variables.List_of_Questions = promptValue;
+      variables.List_of_questions = promptValue;
+    }
+
+    if (activeScript) {
+      const objective = activeScript.researchObjective?.trim();
+      if (objective) {
+        variables.research_objective = objective;
+      }
+
+      const duration = activeScript.estimatedDuration?.trim();
+      if (duration) {
+        variables.duration = duration;
+      }
+
+      const title = activeScript.title?.trim();
+      if (title) {
+        variables.title = title;
+      }
+
+      const interviewerNotes = Array.isArray(activeScript.interviewerNotes)
+        ? activeScript.interviewerNotes.map((note) => note.trim()).filter(Boolean)
+        : [];
+      if (interviewerNotes.length) {
+        variables.Interview_Notes = interviewerNotes.map((note) => `• ${note}`).join("\n");
+      }
     }
 
     return variables;
@@ -208,7 +324,9 @@ export default function AssistantPage() {
     router.query.pin,
     router.query.email,
     router.query.email_address,
-    surveyQuestionParagraph
+    surveyQuestionParagraph,
+    localScript,
+    scriptFromSession
   ]);
 
   useEffect(() => {
