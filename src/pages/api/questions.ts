@@ -55,12 +55,18 @@ export default async function handler(
     });
 
     const textContent = completion.content.find((block) => block.type === "text");
-    const content =
-      textContent && "text" in textContent ? (textContent as { text: string }).text : null;
+    let content = textContent && "text" in textContent ? (textContent as { text: string }).text : null;
 
     if (!content) {
       console.error("No content returned from Anthropic. Response:", JSON.stringify(completion, null, 2));
       throw new Error("No content returned from Anthropic");
+    }
+
+    content = content.trim();
+    if (content.startsWith("```")) {
+      // Strip leading ```json or ``` and trailing ```
+      content = content.replace(/^```(?:json)?\s*/i, "");
+      content = content.replace(/```$/, "").trim();
     }
 
     let parsed: InterviewScript;

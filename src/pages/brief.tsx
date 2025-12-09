@@ -27,37 +27,29 @@ const cloneScript = (script: InterviewScript) =>
     : (JSON.parse(JSON.stringify(script)) as InterviewScript);
 
 const DEFAULT_SCRIPT: InterviewScript = {
-  title: "Interview Script: Loading…",
-  researchObjective: "Our AI is preparing your research objective summary.",
-  targetAudience: "Audience details will appear shortly.",
-  estimatedDuration: "10-15 minutes",
+  title: "Loading interview script…",
+  researchObjective: "Loading…",
+  targetAudience: "Loading…",
+  estimatedDuration: "Loading…",
   sections: [
     {
-      sectionName: "Warm-up",
+      sectionName: "Loading section…",
       questions: [
         {
           questionNumber: 1,
-          questionText: "Describe your role and the customers you interact with most often.",
+          questionText: "Loading question…",
           questionType: "open-ended",
           options: null,
           scale: null,
-          followUp: "What makes these conversations unique?"
+          followUp: null
         }
       ]
     }
   ],
-  interviewerNotes: [
-    "Listen for specific examples and stories.",
-    "Probe deeper if responses stay high-level.",
-    "Clarify acronyms or internal jargon.",
-    "Keep the tone conversational and neutral."
-  ],
-  analysisConsiderations: [
-    "Identify recurring themes around needs and blockers.",
-    "Flag quantitative callouts (ratings, rankings).",
-    "Note surprising feedback or contradictions."
-  ]
+  interviewerNotes: ["Loading notes…"],
+  analysisConsiderations: ["Loading considerations…"]
 };
+
 
 export default function BriefPage() {
   const router = useRouter();
@@ -278,7 +270,7 @@ export default function BriefPage() {
       if (!allowEdit) {
         return (
           <p className={`text-charcoal leading-relaxed ${className ?? ""}`}>
-            {value && value.trim().length ? value : placeholder ?? "Awaiting AI output…"}
+            {value && value.trim().length ? value : placeholder ?? ""}
           </p>
         );
       }
@@ -306,9 +298,9 @@ export default function BriefPage() {
     [editingPath, editingValue, commitEditing, startEditing]
   );
 
-  const script = scriptState.data;
-  const displayScript = script ?? DEFAULT_SCRIPT;
-  const flattenedQuestions = useMemo(() => extractQuestionsFromScript(displayScript), [displayScript]);
+  const script = scriptState.data ?? DEFAULT_SCRIPT;
+  const isPlaceholder = !scriptState.data;
+  const flattenedQuestions = useMemo(() => extractQuestionsFromScript(script), [script]);
   const isEditable = Boolean(scriptState.data);
 
   return (
@@ -331,20 +323,20 @@ export default function BriefPage() {
         <div className="flex flex-col gap-16 w-full max-w-6xl">
           <section className="flex flex-col gap-8 animate-fade-in">
             <p className="text-xs tracking-[0.45em] uppercase text-soft-gray">Research Brief</p>
-            {renderEditableField("title", displayScript.title, "Interview Script Title", "text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight", isEditable)}
+            {renderEditableField("title", script?.title ?? "", "", "text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight", isEditable)}
             <div className="grid gap-6 md:grid-cols-2">
               <div>
                 <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Research objective</h3>
-                {renderEditableField("researchObjective", displayScript.researchObjective, "Provide a prompt to generate objective.", "text-lg text-charcoal font-medium", isEditable)}
+                {renderEditableField("researchObjective", script?.researchObjective ?? "", "", "text-lg text-charcoal font-medium", isEditable)}
               </div>
               <div>
                 <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Target audience</h3>
-                {renderEditableField("targetAudience", displayScript.targetAudience, "Provide a prompt to define audience.", "text-lg text-charcoal font-medium", isEditable)}
+                {renderEditableField("targetAudience", script?.targetAudience ?? "", "", "text-lg text-charcoal font-medium", isEditable)}
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
               <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
-                Duration: {renderEditableField("estimatedDuration", displayScript.estimatedDuration, undefined, "inline-block font-semibold", isEditable)}
+                Duration: {renderEditableField("estimatedDuration", script?.estimatedDuration ?? "", "", "inline-block font-semibold", isEditable)}
               </div>
               <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
                 Questions: {flattenedQuestions.length}
@@ -368,9 +360,9 @@ export default function BriefPage() {
             </pre>
           ) : null}
 
-          {displayScript ? (
+          {script ? (
             <section className="flex flex-col gap-16">
-              {displayScript.sections.map((section, sectionIndex) => (
+              {script.sections.map((section, sectionIndex) => (
                 <div
                   key={`${section.sectionName}-${sectionIndex}`}
                   className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40 animate-fade-in"
@@ -456,7 +448,7 @@ export default function BriefPage() {
               <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
                 <h3 className="text-3xl font-bold text-charcoal mb-6">Interviewer notes</h3>
                 <ul className="list-disc pl-6 space-y-3 text-charcoal">
-                  {displayScript.interviewerNotes.map((note, noteIndex) => (
+                  {script.interviewerNotes.map((note, noteIndex) => (
                     <li key={`note-${noteIndex}`}>
                       {renderEditableField(
                         `interviewerNotes.${noteIndex}`,
@@ -473,7 +465,7 @@ export default function BriefPage() {
               <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
                 <h3 className="text-3xl font-bold text-charcoal mb-6">Analysis considerations</h3>
                 <ul className="list-disc pl-6 space-y-3 text-charcoal">
-                  {displayScript.analysisConsiderations.map((item, itemIndex) => (
+                  {script.analysisConsiderations.map((item, itemIndex) => (
                     <li key={`analysis-${itemIndex}`}>
                       {renderEditableField(
                         `analysisConsiderations.${itemIndex}`,
