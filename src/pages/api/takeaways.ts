@@ -5,6 +5,7 @@ import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
 import { TAKEAWAYS_SYSTEM_PROMPT } from "@/lib/prompts";
 import { sanitizeJsonLikeString } from "@/lib/jsonUtils";
+import { isInterviewAnalysisReport } from "@/types/interviewAnalysis";
 
 const CLAUDE_API_KEY = process.env.claude_api_key ?? process.env.CLAUDE_API_KEY;
 
@@ -207,16 +208,40 @@ export default async function handler(
       .select({
         conversationId: convaiTranscripts.conversationId,
         dynamicVariables: convaiTranscripts.dynamicVariables,
-        transcript: convaiTranscripts.transcript
+        transcript: convaiTranscripts.transcript,
+        receivedAt: convaiTranscripts.receivedAt
       })
       .from(convaiTranscripts)
       .where(transcriptCondition)
       .orderBy(desc(convaiTranscripts.receivedAt));
 
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    (req.socket as any).setTimeout?.(0);
+    req.socket.setNoDelay?.(true);
+    req.socket.setKeepAlive?.(true);
+    // @ts-expect-error flushHeaders may not exist in all runtimes
+    res.flushHeaders?.();
+
+    const sendEvent = (event: string, data: Record<string, unknown>) => {
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      // @ts-expect-error flush might not exist
+      if (typeof res.flush === "function") {
+        res.flush();
+      }
+    };
+
     if (!transcriptRows.length) {
-      return res.status(200).json({
-        text: "No completed conversations yet."
+      sendEvent("done", {
+        text: "No completed conversations yet.",
+        report: null,
+        generatedAt: new Date().toISOString(),
+        error: "No completed conversations yet."
       });
+      res.end();
+      return;
     }
 
     const formattedTranscripts = transcriptRows.map((row, index) => {
@@ -244,11 +269,18 @@ export default async function handler(
       )
       .join("\n\n");
 
+    sendEvent("start", {
+      message: "analysis_started",
+      requester,
+      prompt
+    });
+
     const completion = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
       max_tokens: 20000,
       temperature: 0.2,
       system: TAKEAWAYS_SYSTEM_PROMPT,
+      stream: true,
       messages: [
         {
           role: "user",
@@ -257,26 +289,59 @@ export default async function handler(
       ]
     });
 
-    const textBlock = completion.content.find((block) => block.type === "text");
-    const content = textBlock && "text" in textBlock ? textBlock.text : null;
+    let aggregatedContent = "";
 
-    if (!content) {
-      throw new Error("No content returned from Anthropic");
+    try {
+      for await (const event of completion) {
+        if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+          const text = event.delta.text;
+          aggregatedContent += text;
+          sendEvent("delta", { text });
+        } else if (event.type === "message_stop") {
+          break;
+        } else if (event.type === "error") {
+          const message = event.error?.message || "Anthropic streaming error.";
+          sendEvent("error", { message });
+          res.end();
+          return;
+        }
+      }
+    } catch (streamError) {
+      console.error("Anthropic streaming failed", streamError);
+      sendEvent("error", {
+        message: streamError instanceof Error ? streamError.message : "Unable to stream analysis."
+      });
+      res.end();
+      return;
     }
 
-    const trimmedContent = content.trim();
+    const trimmedContent = aggregatedContent.trim();
     const latestTranscript = transcriptRows[0];
+    const generatedAt = new Date().toISOString();
+    let parsedReport: unknown = null;
 
-    if (latestTranscript?.conversationId) {
+    if (trimmedContent) {
+      const sanitized = sanitizeJsonLikeString(trimmedContent);
+      if (sanitized) {
+        try {
+          parsedReport = JSON.parse(sanitized);
+        } catch (parseError) {
+          console.error("Failed to parse streamed analysis JSON", parseError);
+        }
+      }
+    }
+
+    const resolvedReport =
+      parsedReport && isInterviewAnalysisReport(parsedReport) ? parsedReport : null;
+
+    if (resolvedReport && latestTranscript?.conversationId) {
       try {
-        const sanitized = sanitizeJsonLikeString(trimmedContent);
-        const parsed = JSON.parse(sanitized || trimmedContent);
         await db
           .update(convaiTranscripts)
           .set({
             analysis: {
-              generatedAt: new Date().toISOString(),
-              analysisReport: parsed
+              generatedAt,
+              analysisReport: resolvedReport
             }
           })
           .where(eq(convaiTranscripts.conversationId, latestTranscript.conversationId));
@@ -285,15 +350,31 @@ export default async function handler(
       }
     }
 
-    return res.status(200).json({
-      text: trimmedContent
-    });
+    const donePayload: Record<string, unknown> = {
+      text: trimmedContent,
+      report: resolvedReport,
+      generatedAt
+    };
+
+    if (!resolvedReport) {
+      donePayload.error = trimmedContent
+        ? "Unable to parse interview analysis JSON."
+        : "Interview analysis agent returned an empty response.";
+    }
+
+    sendEvent("done", donePayload);
+    res.end();
   } catch (error) {
     console.error("Failed to build key takeaways", error);
     const message =
       error instanceof Error && error.message
         ? error.message
         : "failed_to_generate_takeaways";
-    return res.status(500).json({ error: message });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: message });
+    }
+    res.write(`event: error\n`);
+    res.write(`data: ${JSON.stringify({ message })}\n\n`);
+    res.end();
   }
 }

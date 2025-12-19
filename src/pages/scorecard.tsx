@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
@@ -132,7 +132,15 @@ const shouldRefreshAnalysis = (
   latestTranscriptAt: string | null
 ) => {
   if (!hasReport) {
-    return true;
+    const transcriptMs = parseTimestamp(latestTranscriptAt);
+    if (transcriptMs == null) {
+      return false;
+    }
+    const analysisMs = parseTimestamp(analysisGeneratedAt);
+    if (analysisMs == null) {
+      return true;
+    }
+    return transcriptMs > analysisMs;
   }
 
   const transcriptMs = parseTimestamp(latestTranscriptAt);
@@ -175,16 +183,47 @@ export default function ScorecardPage({
   );
   const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(analysisGeneratedAt);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(() => {
-    if (sessionError || !sessionId || !pin) {
-      return false;
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const fetchControllerRef = useRef<AbortController | null>(null);
+
+  const showStreamingPreview = isStreaming || Boolean(streamingText.trim());
+
+  const buildStreamingParagraphs = () => {
+    if (!streamingText.trim()) {
+      return [
+        <p key="streaming-placeholder" className="text-lg text-soft-gray leading-relaxed">
+          The interview analysis agent is synthesizing your transcripts…
+        </p>
+      ];
     }
-    return shouldRefreshAnalysis(
-      Boolean(initialAnalysisReport),
-      analysisGeneratedAt,
-      latestTranscriptAt
-    );
-  });
+    return renderParagraphs(streamingText);
+  };
+
+  const renderStreamingSection = () => (
+    <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40 animate-fade-in delay-150">
+      <div className="space-y-3 mb-8">
+        <p className="text-xs uppercase tracking-[0.4em] text-charcoal/60 font-semibold">Live analysis</p>
+        <h2 className="text-3xl font-bold text-charcoal tracking-tight">Insights are being generated</h2>
+        <p className="text-lg text-soft-gray leading-relaxed">
+          We&apos;re streaming fresh findings from your latest transcripts. This view will update once the full report
+          is ready.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-8">
+        <article className="rounded-2xl border border-light-gray/40 bg-white/80 p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.4em] text-charcoal/60 font-semibold">Live question</p>
+            <h3 className="text-2xl font-semibold text-charcoal leading-tight">Synthesis in progress</h3>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-4">{buildStreamingParagraphs()}</div>
+        </article>
+      </div>
+    </section>
+  );
 
   useEffect(() => {
     if (sessionError || !sessionId || !pin) {
@@ -197,21 +236,125 @@ export default function ScorecardPage({
       return;
     }
 
+    if (analysisLoading || isStreaming) {
+      return;
+    }
+
     let aborted = false;
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
+
+    const handleSseEvent = (eventType: string, payload: string) => {
+      if (!payload) {
+        return;
+      }
+
+      let data: unknown;
+      try {
+        data = JSON.parse(payload);
+      } catch {
+        return;
+      }
+
+      if (eventType === "delta") {
+        const text = typeof (data as { text?: unknown }).text === "string" ? (data as { text: string }).text : "";
+        if (text) {
+          setStreamingText((previous) => previous + text);
+        }
+        return;
+      }
+
+      if (eventType === "error") {
+        const message =
+          data && typeof (data as { message?: unknown }).message === "string"
+            ? (data as { message: string }).message
+            : "Unable to fetch interview analysis.";
+        setAnalysisError(message);
+        setIsStreaming(false);
+        setStreamingText("");
+        return;
+      }
+
+      if (eventType === "done") {
+        const record = data as {
+          text?: string;
+          report?: unknown;
+          generatedAt?: string;
+          error?: string;
+        };
+        const finalText = typeof record.text === "string" ? record.text : "";
+        const providedReport =
+          record.report && isInterviewAnalysisReport(record.report) ? record.report : null;
+        const parsedReport = providedReport ?? parseAnalysisReport(finalText);
+
+        if (record.error) {
+          setAnalysisError(record.error);
+        }
+
+        const finalTimestamp =
+          record.generatedAt && record.generatedAt.trim()
+            ? record.generatedAt
+            : new Date().toISOString();
+
+        if (parsedReport) {
+          setAnalysisReport(parsedReport);
+          setAnalysisError(null);
+        } else if (!record.error) {
+          setAnalysisError("Unable to parse interview analysis JSON.");
+        }
+
+        setAnalysisTimestamp(finalTimestamp);
+
+        setStreamingText("");
+        setIsStreaming(false);
+      }
+    };
+
+    const processRawEvent = (rawEvent: string) => {
+      if (!rawEvent.trim()) {
+        return;
+      }
+
+      const lines = rawEvent.split("\n");
+      let eventType = "message";
+      let dataPayload = "";
+
+      for (const line of lines) {
+        if (!line.trim()) {
+          continue;
+        }
+
+        if (line.startsWith("event:")) {
+          eventType = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          const value = line.slice(5).trim();
+          dataPayload = dataPayload ? `${dataPayload}\n${value}` : value;
+        }
+      }
+
+      if (!dataPayload) {
+        return;
+      }
+
+      handleSseEvent(eventType, dataPayload);
+    };
+
     const runAnalysis = async () => {
       setAnalysisLoading(true);
+      setIsStreaming(true);
+      setStreamingText("");
       setAnalysisError(null);
 
       try {
         const response = await fetch("/api/takeaways", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, pin })
+          body: JSON.stringify({ sessionId, pin }),
+          signal: controller.signal
         });
 
-        const payload = await response.json().catch(() => ({}));
-
         if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
           const message =
             typeof payload?.error === "string" && payload.error.trim()
               ? payload.error
@@ -219,38 +362,73 @@ export default function ScorecardPage({
           throw new Error(message);
         }
 
-        const rawText = typeof payload?.text === "string" ? payload.text.trim() : "";
-        if (!rawText) {
+        if (!response.body) {
           throw new Error("Interview analysis agent returned an empty response.");
         }
 
-        const parsed = parseAnalysisReport(rawText);
-        if (!parsed) {
-          throw new Error("Unable to parse interview analysis JSON.");
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+
+          let separatorIndex = buffer.indexOf("\n\n");
+          while (separatorIndex !== -1) {
+            const rawEvent = buffer.slice(0, separatorIndex);
+            buffer = buffer.slice(separatorIndex + 2);
+            processRawEvent(rawEvent);
+            separatorIndex = buffer.indexOf("\n\n");
+          }
         }
 
-        if (!aborted) {
-          setAnalysisReport(parsed);
-          setAnalysisTimestamp(new Date().toISOString());
+        if (buffer.trim()) {
+          processRawEvent(buffer);
         }
       } catch (fetchError) {
-        if (!aborted) {
-          setAnalysisError(
-            fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
-          );
+        if (aborted) {
+          return;
         }
+        setAnalysisError(
+          fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
+        );
+        setStreamingText("");
+        setIsStreaming(false);
       } finally {
         if (!aborted) {
           setAnalysisLoading(false);
+          setIsStreaming(false);
+          if (fetchControllerRef.current === controller) {
+            fetchControllerRef.current = null;
+          }
         }
       }
     };
 
     runAnalysis();
+
     return () => {
       aborted = true;
+      if (fetchControllerRef.current === controller) {
+        fetchControllerRef.current = null;
+      }
+      controller.abort();
     };
-  }, [sessionError, analysisReport, sessionId, pin, analysisTimestamp, latestTranscriptAt]);
+  }, [
+    sessionError,
+    sessionId,
+    pin,
+    analysisReport,
+    analysisTimestamp,
+    latestTranscriptAt,
+    analysisLoading,
+    isStreaming
+  ]);
 
   const pageTitle = analysisReport?.title?.trim() || "Interview Analysis Report";
   const detailItems = [
@@ -297,18 +475,32 @@ export default function ScorecardPage({
             <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
               {blockingError}
             </div>
-          ) : analysisReport ? (
+          ) : analysisReport || showStreamingPreview ? (
             <>
               <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40 animate-fade-in delay-100">
                 <div className="space-y-4">
                   <h2 className="text-3xl font-bold text-charcoal tracking-tight">Executive summary</h2>
-                  <p className="text-lg text-charcoal leading-relaxed font-medium">
-                    {analysisReport.executiveSummary?.context ||
-                      "The interview analysis is being prepared. Once ready, the executive summary will highlight the study context and overall learnings."}
-                  </p>
+                  {analysisReport ? (
+                    <p className="text-lg text-charcoal leading-relaxed font-medium">
+                      {analysisReport.executiveSummary?.context ||
+                        "The interview analysis is being prepared. Once ready, the executive summary will highlight the study context and overall learnings."}
+                    </p>
+                  ) : showStreamingPreview ? (
+                    <div className="flex flex-col gap-4">{buildStreamingParagraphs()}</div>
+                  ) : (
+                    <p className="text-lg text-charcoal leading-relaxed font-medium">
+                      The interview analysis is being prepared. Once ready, the executive summary will highlight the study
+                      context and overall learnings.
+                    </p>
+                  )}
+                  {showStreamingPreview && analysisReport ? (
+                    <p className="text-sm text-amber-600 font-semibold uppercase tracking-widest">
+                      Live: New insights are streaming in.
+                    </p>
+                  ) : null}
                 </div>
 
-                {analysisReport.executiveSummary?.keyFindings?.length ? (
+                {analysisReport?.executiveSummary?.keyFindings?.length ? (
                   <div className="mt-10 grid gap-6 md:grid-cols-2">
                     {analysisReport.executiveSummary.keyFindings.map((finding, index) => (
                       <article
@@ -323,6 +515,10 @@ export default function ScorecardPage({
                       </article>
                     ))}
                   </div>
+                ) : showStreamingPreview ? (
+                  <p className="text-soft-gray text-lg font-medium mt-8">
+                    We&apos;re constructing your key findings now—this section will update automatically.
+                  </p>
                 ) : (
                   <p className="text-soft-gray text-lg font-medium mt-8">
                     Key findings will appear as soon as the transcripts have been analyzed.
@@ -330,7 +526,9 @@ export default function ScorecardPage({
                 )}
               </section>
 
-              {analysisReport.sections.length ? (
+              {showStreamingPreview ? renderStreamingSection() : null}
+
+              {analysisReport?.sections?.length ? (
                 analysisReport.sections.map((section, sectionIndex) => (
                   <section
                     key={`${section.sectionName}-${sectionIndex}`}
@@ -409,7 +607,9 @@ export default function ScorecardPage({
                                       <p className="text-lg text-charcoal leading-relaxed">“{quote.quote}”</p>
                                       <div className="text-sm text-soft-gray font-medium mt-2">
                                         {quote.participantId || "Participant"}
-                                        {quote.context ? <span className="text-soft-gray/80"> · {quote.context}</span> : null}
+                                        {quote.context ? (
+                                          <span className="text-soft-gray/80"> · {quote.context}</span>
+                                        ) : null}
                                       </div>
                                     </blockquote>
                                   ))}
@@ -422,13 +622,13 @@ export default function ScorecardPage({
                     </div>
                   </section>
                 ))
-              ) : (
+              ) : !showStreamingPreview ? (
                 <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
                   <p className="text-lg text-soft-gray font-medium">
                     Section-level insights will appear here once the Interview Analysis agent returns results.
                   </p>
                 </section>
-              )}
+              ) : null}
             </>
           ) : analysisLoading ? (
             <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
