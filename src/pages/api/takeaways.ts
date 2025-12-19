@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
 import { TAKEAWAYS_SYSTEM_PROMPT } from "@/lib/prompts";
+import { sanitizeJsonLikeString } from "@/lib/jsonUtils";
 
 const CLAUDE_API_KEY = process.env.claude_api_key ?? process.env.CLAUDE_API_KEY;
 
@@ -263,8 +264,29 @@ export default async function handler(
       throw new Error("No content returned from Anthropic");
     }
 
+    const trimmedContent = content.trim();
+    const latestTranscript = transcriptRows[0];
+
+    if (latestTranscript?.conversationId) {
+      try {
+        const sanitized = sanitizeJsonLikeString(trimmedContent);
+        const parsed = JSON.parse(sanitized || trimmedContent);
+        await db
+          .update(convaiTranscripts)
+          .set({
+            analysis: {
+              generatedAt: new Date().toISOString(),
+              analysisReport: parsed
+            }
+          })
+          .where(eq(convaiTranscripts.conversationId, latestTranscript.conversationId));
+      } catch (persistError) {
+        console.error("Failed to persist interview analysis JSON", persistError);
+      }
+    }
+
     return res.status(200).json({
-      text: content.trim()
+      text: trimmedContent
     });
   } catch (error) {
     console.error("Failed to build key takeaways", error);

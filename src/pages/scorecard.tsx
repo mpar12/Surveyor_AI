@@ -6,6 +6,7 @@ import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
 import type { InterviewAnalysisReport } from "@/types/interviewAnalysis";
 import { isInterviewAnalysisReport } from "@/types/interviewAnalysis";
+import { sanitizeJsonLikeString } from "@/lib/jsonUtils";
 
 interface ScorecardProps {
   sessionId: string | null;
@@ -18,6 +19,7 @@ interface ScorecardProps {
   } | null;
   analysisReport: InterviewAnalysisReport | null;
   analysisGeneratedAt: string | null;
+  latestTranscriptAt: string | null;
   error?: string | null;
 }
 
@@ -30,38 +32,7 @@ const formatDate = (value: string | null) => {
   }
 };
 
-const sanitizeJsonLikeString = (input: string) => {
-  let text = input.trim();
-  if (!text) {
-    return text;
-  }
-
-  if (text.startsWith("```")) {
-    text = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  }
-
-  if (text.startsWith("'''")) {
-    text = text.replace(/^'''(?:json)?/i, "").replace(/'''$/, "").trim();
-  }
-
-  const lower = text.toLowerCase();
-  if (lower.startsWith("json:") || lower.startsWith("json=")) {
-    const firstBrace = text.indexOf("{");
-    if (firstBrace !== -1) {
-      text = text.slice(firstBrace);
-    } else {
-      text = text.slice(text.indexOf(":") + 1).trim();
-    }
-  }
-
-  const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace >= firstBrace) {
-    text = text.slice(firstBrace, lastBrace + 1);
-  }
-
-  return text;
-};
+const ANALYSIS_NESTED_KEYS = ["analysis", "report", "analysisReport"] as const;
 
 const parseAnalysisReport = (raw: unknown): InterviewAnalysisReport | null => {
   if (!raw) {
@@ -88,8 +59,7 @@ const parseAnalysisReport = (raw: unknown): InterviewAnalysisReport | null => {
       return candidate;
     }
 
-    const nestedKeys = ["analysis", "report", "analysisReport"];
-    for (const key of nestedKeys) {
+    for (const key of ANALYSIS_NESTED_KEYS) {
       const nested = (candidate as Record<string, unknown>)[key];
       if (!nested) {
         continue;
@@ -106,6 +76,76 @@ const parseAnalysisReport = (raw: unknown): InterviewAnalysisReport | null => {
   }
 
   return null;
+};
+
+const extractGeneratedAt = (raw: unknown): string | null => {
+  if (!raw) {
+    return null;
+  }
+
+  if (typeof raw === "string") {
+    const sanitized = sanitizeJsonLikeString(raw);
+    if (!sanitized) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(sanitized);
+      return extractGeneratedAt(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof raw === "object") {
+    const candidate = raw as Record<string, unknown>;
+    if (typeof candidate.generatedAt === "string") {
+      return candidate.generatedAt;
+    }
+
+    for (const key of ANALYSIS_NESTED_KEYS) {
+      const nested = candidate[key];
+      if (!nested) {
+        continue;
+      }
+      const nestedValue = extractGeneratedAt(nested);
+      if (nestedValue) {
+        return nestedValue;
+      }
+    }
+  }
+
+  return null;
+};
+
+const parseTimestamp = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const shouldRefreshAnalysis = (
+  hasReport: boolean,
+  analysisGeneratedAt: string | null,
+  latestTranscriptAt: string | null
+) => {
+  if (!hasReport) {
+    return true;
+  }
+
+  const transcriptMs = parseTimestamp(latestTranscriptAt);
+  if (transcriptMs == null) {
+    return false;
+  }
+
+  const analysisMs = parseTimestamp(analysisGeneratedAt);
+  if (analysisMs == null) {
+    return true;
+  }
+
+  return transcriptMs > analysisMs;
 };
 
 const renderParagraphs = (text: string) =>
@@ -127,6 +167,7 @@ export default function ScorecardPage({
   context,
   analysisReport: initialAnalysisReport,
   analysisGeneratedAt,
+  latestTranscriptAt,
   error: sessionError
 }: ScorecardProps) {
   const [analysisReport, setAnalysisReport] = useState<InterviewAnalysisReport | null>(
@@ -134,12 +175,24 @@ export default function ScorecardPage({
   );
   const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(analysisGeneratedAt);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(
-    !initialAnalysisReport && !sessionError && Boolean(sessionId && pin)
-  );
+  const [analysisLoading, setAnalysisLoading] = useState(() => {
+    if (sessionError || !sessionId || !pin) {
+      return false;
+    }
+    return shouldRefreshAnalysis(
+      Boolean(initialAnalysisReport),
+      analysisGeneratedAt,
+      latestTranscriptAt
+    );
+  });
 
   useEffect(() => {
-    if (sessionError || analysisReport || !sessionId || !pin) {
+    if (sessionError || !sessionId || !pin) {
+      setAnalysisLoading(false);
+      return;
+    }
+
+    if (!shouldRefreshAnalysis(Boolean(analysisReport), analysisTimestamp, latestTranscriptAt)) {
       setAnalysisLoading(false);
       return;
     }
@@ -197,7 +250,7 @@ export default function ScorecardPage({
     return () => {
       aborted = true;
     };
-  }, [sessionError, analysisReport, sessionId, pin]);
+  }, [sessionError, analysisReport, sessionId, pin, analysisTimestamp, latestTranscriptAt]);
 
   const pageTitle = analysisReport?.title?.trim() || "Interview Analysis Report";
   const detailItems = [
@@ -416,6 +469,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         context: null,
         analysisReport: null,
         analysisGeneratedAt: null,
+        latestTranscriptAt: null,
         error: "Missing session identifier."
       }
     };
@@ -431,6 +485,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         context: null,
         analysisReport: null,
         analysisGeneratedAt: null,
+        latestTranscriptAt: null,
         error: "Missing or invalid session PIN."
       }
     };
@@ -460,6 +515,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
           context: null,
           analysisReport: null,
           analysisGeneratedAt: null,
+          latestTranscriptAt: null,
           error: "Session not found."
         }
       };
@@ -476,6 +532,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
           context: null,
           analysisReport: null,
           analysisGeneratedAt: null,
+          latestTranscriptAt: null,
           error: "Session PIN did not match."
         }
       };
@@ -505,12 +562,22 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
 
     let analysisReport: InterviewAnalysisReport | null = null;
     let analysisGeneratedAt: string | null = null;
+    const latestTranscriptAt: string | null = transcriptRows.length
+      ? transcriptRows[0].receivedAt
+        ? transcriptRows[0].receivedAt.toISOString()
+        : null
+      : null;
 
     for (const row of transcriptRows) {
       const parsed = parseAnalysisReport(row.analysis);
       if (parsed) {
         analysisReport = parsed;
-        analysisGeneratedAt = row.receivedAt ? row.receivedAt.toISOString() : null;
+        const storedGeneratedAt = extractGeneratedAt(row.analysis);
+        analysisGeneratedAt = storedGeneratedAt
+          ? storedGeneratedAt
+          : row.receivedAt
+          ? row.receivedAt.toISOString()
+          : null;
         break;
       }
     }
@@ -524,6 +591,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         context: contextRows[0] ?? null,
         analysisReport,
         analysisGeneratedAt,
+        latestTranscriptAt,
         error: null
       }
     };
@@ -538,6 +606,7 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
         context: null,
         analysisReport: null,
         analysisGeneratedAt: null,
+        latestTranscriptAt: null,
         error: "Unable to load scorecard right now."
       }
     };
