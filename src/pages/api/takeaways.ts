@@ -221,15 +221,16 @@ export default async function handler(
     (req.socket as any).setTimeout?.(0);
     req.socket.setNoDelay?.(true);
     req.socket.setKeepAlive?.(true);
-    // @ts-expect-error flushHeaders may not exist in all runtimes
-    res.flushHeaders?.();
+    if (typeof (res as NextApiResponse & { flushHeaders?: () => void }).flushHeaders === "function") {
+      (res as NextApiResponse & { flushHeaders?: () => void }).flushHeaders();
+    }
 
     const sendEvent = (event: string, data: Record<string, unknown>) => {
       res.write(`event: ${event}\n`);
       res.write(`data: ${JSON.stringify(data)}\n\n`);
-      // @ts-expect-error flush might not exist
-      if (typeof res.flush === "function") {
-        res.flush();
+      const flusher = (res as NextApiResponse & { flush?: () => void }).flush;
+      if (typeof flusher === "function") {
+        flusher.call(res);
       }
     };
 
