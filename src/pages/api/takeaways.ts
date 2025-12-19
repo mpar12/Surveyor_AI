@@ -300,8 +300,9 @@ export default async function handler(
           sendEvent("delta", { text });
         } else if (event.type === "message_stop") {
           break;
-        } else if (event.type === "error") {
-          const message = event.error?.message || "Anthropic streaming error.";
+        } else if ("error" in event) {
+          const errorEvent = event as { error?: { message?: string } };
+          const message = errorEvent.error?.message || "Anthropic streaming error.";
           sendEvent("error", { message });
           res.end();
           return;
