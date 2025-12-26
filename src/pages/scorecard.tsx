@@ -345,6 +345,9 @@ export default function ScorecardPage({
             error?: string;
           };
           const finalText = typeof record.text === "string" ? record.text : "";
+          if (finalText) {
+            setRawAnalysisOutput(finalText);
+          }
           const providedReport =
             record.report && isInterviewAnalysisReport(record.report) ? record.report : null;
           const parsedReport = providedReport ?? parseAnalysisReport(finalText);
@@ -364,7 +367,6 @@ export default function ScorecardPage({
             setRawAnalysisOutput(null);
           } else if (!record.error) {
             setAnalysisError("Unable to parse interview analysis JSON.");
-            setRawAnalysisOutput(finalText || rawAnalysisOutput || null);
           }
 
           setAnalysisTimestamp(finalTimestamp);
@@ -498,8 +500,7 @@ export default function ScorecardPage({
       analysisTimestamp,
       latestTranscriptAt,
       analysisLoading,
-      isStreaming,
-      rawAnalysisOutput
+      isStreaming
     ]
   );
 
@@ -583,10 +584,13 @@ export default function ScorecardPage({
           {blockingError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium space-y-4">
               <p>{blockingError}</p>
-              {analysisError === "Unable to parse interview analysis JSON." && rawAnalysisOutput ? (
-                <pre className="max-h-72 overflow-auto rounded-xl bg-white/80 p-4 text-sm text-charcoal">
-                  {rawAnalysisOutput}
-                </pre>
+              {rawAnalysisOutput ? (
+                <div className="space-y-2">
+                  <p className="text-sm uppercase tracking-wide text-red-800">Raw analysis output</p>
+                  <pre className="max-h-72 overflow-auto rounded-xl bg-white/80 p-4 text-sm text-charcoal">
+                    {rawAnalysisOutput}
+                  </pre>
+                </div>
               ) : null}
             </div>
           ) : analysisReport || showStreamingPreview ? (
