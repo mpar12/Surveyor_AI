@@ -6,7 +6,7 @@ export interface AnalysisQuote {
 
 export interface AnalysisQuestion {
   questionText: string;
-  analysis: string;
+  analysis: string | string[];
   quantitativeData?: Record<string, string> | null;
   quotes?: AnalysisQuote[] | null;
 }
@@ -21,7 +21,7 @@ export interface ExecutiveSummary {
   context?: string | null;
   keyFindings?: Array<{
     theme: string;
-    analysis: string;
+    analysis: string | string[];
   }>;
 }
 
@@ -48,7 +48,12 @@ export function isInterviewAnalysisReport(value: unknown): value is InterviewAna
       typeof section.sectionName === "string" &&
       Array.isArray(section.questions) &&
       section.questions.every(
-        (question) => !!question && typeof question.questionText === "string" && typeof question.analysis === "string"
+        (question) =>
+          !!question &&
+          typeof question.questionText === "string" &&
+          (typeof question.analysis === "string" ||
+            (Array.isArray(question.analysis) &&
+              question.analysis.every((entry) => typeof entry === "string")))
       )
   );
 
@@ -58,6 +63,20 @@ export function isInterviewAnalysisReport(value: unknown): value is InterviewAna
 
   if (report.executiveSummary && typeof report.executiveSummary !== "object") {
     return false;
+  }
+
+  if (report.executiveSummary?.keyFindings) {
+    const findingsValid = report.executiveSummary.keyFindings.every(
+      (finding) =>
+        !!finding &&
+        typeof finding.theme === "string" &&
+        (typeof finding.analysis === "string" ||
+          (Array.isArray(finding.analysis) &&
+            finding.analysis.every((entry) => typeof entry === "string")))
+    );
+    if (!findingsValid) {
+      return false;
+    }
   }
 
   return true;
