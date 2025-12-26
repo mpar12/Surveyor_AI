@@ -254,7 +254,9 @@ export default async function handler(
     const requester = contextRows[0]?.requester ?? "";
     const interviewScript = parseInterviewScript(contextRows[0]?.surveyQuestions ?? null);
     const analysisConsiderations = Array.isArray(interviewScript?.analysisConsiderations)
-      ? interviewScript?.analysisConsiderations.filter((item): item is string => typeof item === "string" && item.trim())
+      ? interviewScript?.analysisConsiderations.filter(
+          (item): item is string => typeof item === "string" && item.trim().length > 0
+        )
       : [];
     const flattenedQuestionMap = buildQuestionMap(interviewScript);
 
