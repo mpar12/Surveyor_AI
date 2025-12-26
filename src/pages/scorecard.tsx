@@ -161,8 +161,24 @@ const shouldRefreshAnalysis = (
   return transcriptMs > analysisMs;
 };
 
-const renderParagraphs = (text: string) =>
-  text
+const renderParagraphs = (content: string | string[]) => {
+  if (Array.isArray(content)) {
+    const normalizedItems = content
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+    if (!normalizedItems.length) {
+      return null;
+    }
+    return (
+      <ul className="list-disc pl-6 space-y-2 text-lg text-charcoal leading-relaxed">
+        {normalizedItems.map((item, index) => (
+          <li key={`${item.slice(0, 25)}-${index}`}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return content
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
@@ -171,6 +187,7 @@ const renderParagraphs = (text: string) =>
         {paragraph}
       </p>
     ));
+};
 
 const parseInterviewScript = (raw: unknown): InterviewScript | null => {
   if (!raw) {
@@ -629,7 +646,9 @@ export default function ScorecardPage({
                           Key finding {index + 1}
                         </p>
                         <h3 className="text-2xl font-semibold text-charcoal mt-3">{finding.theme}</h3>
-                        <p className="text-lg text-soft-gray mt-3 leading-relaxed">{finding.analysis}</p>
+                        <div className="text-lg text-soft-gray mt-3 leading-relaxed">
+                          {renderParagraphs(finding.analysis as string | string[])}
+                        </div>
                       </article>
                     ))}
                   </div>
