@@ -6,6 +6,8 @@ import { desc, eq, or } from "drizzle-orm";
 import { TAKEAWAYS_SYSTEM_PROMPT } from "@/lib/prompts";
 import { sanitizeJsonLikeString } from "@/lib/jsonUtils";
 import { isInterviewAnalysisReport } from "@/types/interviewAnalysis";
+import type { InterviewScript } from "@/types/interviewScript";
+import { isInterviewScript } from "@/types/interviewScript";
 
 const CLAUDE_API_KEY = process.env.claude_api_key ?? process.env.CLAUDE_API_KEY;
 
@@ -149,6 +151,56 @@ const buildTranscriptSummary = (turns: TranscriptTurn[]): string => {
     .join("\n");
 };
 
+const parseInterviewScript = (raw: unknown): InterviewScript | null => {
+  if (!raw) {
+    return null;
+  }
+
+  if (isInterviewScript(raw)) {
+    return raw;
+  }
+
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (isInterviewScript(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
+type QuestionMapEntry = {
+  questionNumber: number;
+  questionText: string;
+  sectionName: string;
+};
+
+const buildQuestionMap = (script: InterviewScript | null): QuestionMapEntry[] => {
+  if (!script) {
+    return [];
+  }
+
+  const entries: QuestionMapEntry[] = [];
+  script.sections.forEach((section) => {
+    section.questions.forEach((question) => {
+      if (typeof question.questionNumber === "number" && question.questionText) {
+        entries.push({
+          questionNumber: question.questionNumber,
+          questionText: question.questionText,
+          sectionName: section.sectionName
+        });
+      }
+    });
+  });
+
+  return entries;
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<TakeawaysResponse | ErrorResponse>
@@ -191,7 +243,8 @@ export default async function handler(
     const contextRows = await db
       .select({
         prompt: sessionContexts.prompt,
-        requester: sessionContexts.requester
+        requester: sessionContexts.requester,
+        surveyQuestions: sessionContexts.surveyQuestions
       })
       .from(sessionContexts)
       .where(eq(sessionContexts.sessionId, sessionId))
@@ -199,6 +252,11 @@ export default async function handler(
 
     const prompt = contextRows[0]?.prompt ?? "";
     const requester = contextRows[0]?.requester ?? "";
+    const interviewScript = parseInterviewScript(contextRows[0]?.surveyQuestions ?? null);
+    const analysisConsiderations = Array.isArray(interviewScript?.analysisConsiderations)
+      ? interviewScript?.analysisConsiderations.filter((item): item is string => typeof item === "string" && item.trim())
+      : [];
+    const flattenedQuestionMap = buildQuestionMap(interviewScript);
 
     const transcriptCondition = normalizedPin
       ? or(eq(convaiTranscripts.sessionId, sessionId), eq(convaiTranscripts.pinCode, normalizedPin))
@@ -270,10 +328,52 @@ export default async function handler(
       )
       .join("\n\n");
 
+    const scriptMetadataBlock = interviewScript
+      ? [
+          "Interview script metadata:",
+          `- Title: ${interviewScript.title}`,
+          `- Research objective: ${interviewScript.researchObjective}`,
+          `- Target audience: ${interviewScript.targetAudience}`,
+          `- Estimated duration: ${interviewScript.estimatedDuration}`
+        ].join("\n")
+      : "Interview script metadata: Not provided.";
+
+    const analysisConsiderationsBlock = analysisConsiderations.length
+      ? `Analysis considerations:\n${analysisConsiderations
+          .map((item, index) => `${index + 1}. ${item}`)
+          .join("\n")}`
+      : "Analysis considerations: None were provided with the script.";
+
+    const questionMapBlock = flattenedQuestionMap.length
+      ? `Question map:\n${flattenedQuestionMap
+          .map(
+            (entry) =>
+              `Q${entry.questionNumber} · ${entry.sectionName}: ${entry.questionText}`
+          )
+          .join("\n")}`
+      : "Question map: Script did not include numbered questions.";
+
+    const interviewScriptJsonBlock = interviewScript
+      ? `Interview script JSON:\n${JSON.stringify(interviewScript, null, 2)}`
+      : "";
+
+    const userContent = [
+      `Research goal: ${prompt || "Not specified."}`,
+      scriptMetadataBlock,
+      analysisConsiderationsBlock,
+      questionMapBlock,
+      interviewScriptJsonBlock,
+      `Transcript excerpts:\n${transcriptPayload}`
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     sendEvent("start", {
       message: "analysis_started",
       requester,
-      prompt
+      prompt,
+      scriptProvided: Boolean(interviewScript),
+      analysisConsiderationsCount: analysisConsiderations.length
     });
 
     const completion = await anthropic.messages.create({
@@ -285,7 +385,7 @@ export default async function handler(
       messages: [
         {
           role: "user",
-          content: `Research goal: ${prompt || "Not specified."}\n\nTranscript excerpts:\n${transcriptPayload}`
+          content: userContent
         }
       ]
     });

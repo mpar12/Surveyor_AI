@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GetServerSideProps } from "next";
 import { db } from "@/db/client";
 import { convaiTranscripts, sessionContexts, sessions } from "@/db/schema";
@@ -7,6 +7,8 @@ import { desc, eq, or } from "drizzle-orm";
 import type { InterviewAnalysisReport } from "@/types/interviewAnalysis";
 import { isInterviewAnalysisReport } from "@/types/interviewAnalysis";
 import { sanitizeJsonLikeString } from "@/lib/jsonUtils";
+import type { InterviewScript } from "@/types/interviewScript";
+import { isInterviewScript } from "@/types/interviewScript";
 
 interface ScorecardProps {
   sessionId: string | null;
@@ -16,6 +18,9 @@ interface ScorecardProps {
   context?: {
     requester?: string | null;
     prompt?: string | null;
+    researchObjective?: string | null;
+    company?: string | null;
+    product?: string | null;
   } | null;
   analysisReport: InterviewAnalysisReport | null;
   analysisGeneratedAt: string | null;
@@ -167,6 +172,29 @@ const renderParagraphs = (text: string) =>
       </p>
     ));
 
+const parseInterviewScript = (raw: unknown): InterviewScript | null => {
+  if (!raw) {
+    return null;
+  }
+
+  if (isInterviewScript(raw)) {
+    return raw;
+  }
+
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (isInterviewScript(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
 export default function ScorecardPage({
   sessionId,
   pin,
@@ -187,6 +215,7 @@ export default function ScorecardPage({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const analysisCleanupRef = useRef<(() => void) | null>(null);
 
   const showStreamingPreview = isStreaming || Boolean(streamingText.trim());
 
@@ -225,211 +254,6 @@ export default function ScorecardPage({
     </section>
   );
 
-  useEffect(() => {
-    if (sessionError || !sessionId || !pin) {
-      setAnalysisLoading(false);
-      return;
-    }
-
-    if (!shouldRefreshAnalysis(Boolean(analysisReport), analysisTimestamp, latestTranscriptAt)) {
-      setAnalysisLoading(false);
-      return;
-    }
-
-    if (analysisLoading || isStreaming) {
-      return;
-    }
-
-    let aborted = false;
-    const controller = new AbortController();
-    fetchControllerRef.current = controller;
-
-    const handleSseEvent = (eventType: string, payload: string) => {
-      if (!payload) {
-        return;
-      }
-
-      let data: unknown;
-      try {
-        data = JSON.parse(payload);
-      } catch {
-        return;
-      }
-
-      if (eventType === "delta") {
-        const text = typeof (data as { text?: unknown }).text === "string" ? (data as { text: string }).text : "";
-        if (text) {
-          setStreamingText((previous) => previous + text);
-        }
-        return;
-      }
-
-      if (eventType === "error") {
-        const message =
-          data && typeof (data as { message?: unknown }).message === "string"
-            ? (data as { message: string }).message
-            : "Unable to fetch interview analysis.";
-        setAnalysisError(message);
-        setIsStreaming(false);
-        setStreamingText("");
-        return;
-      }
-
-      if (eventType === "done") {
-        const record = data as {
-          text?: string;
-          report?: unknown;
-          generatedAt?: string;
-          error?: string;
-        };
-        const finalText = typeof record.text === "string" ? record.text : "";
-        const providedReport =
-          record.report && isInterviewAnalysisReport(record.report) ? record.report : null;
-        const parsedReport = providedReport ?? parseAnalysisReport(finalText);
-
-        if (record.error) {
-          setAnalysisError(record.error);
-        }
-
-        const finalTimestamp =
-          record.generatedAt && record.generatedAt.trim()
-            ? record.generatedAt
-            : new Date().toISOString();
-
-        if (parsedReport) {
-          setAnalysisReport(parsedReport);
-          setAnalysisError(null);
-        } else if (!record.error) {
-          setAnalysisError("Unable to parse interview analysis JSON.");
-        }
-
-        setAnalysisTimestamp(finalTimestamp);
-
-        setStreamingText("");
-        setIsStreaming(false);
-      }
-    };
-
-    const processRawEvent = (rawEvent: string) => {
-      if (!rawEvent.trim()) {
-        return;
-      }
-
-      const lines = rawEvent.split("\n");
-      let eventType = "message";
-      let dataPayload = "";
-
-      for (const line of lines) {
-        if (!line.trim()) {
-          continue;
-        }
-
-        if (line.startsWith("event:")) {
-          eventType = line.slice(6).trim();
-        } else if (line.startsWith("data:")) {
-          const value = line.slice(5).trim();
-          dataPayload = dataPayload ? `${dataPayload}\n${value}` : value;
-        }
-      }
-
-      if (!dataPayload) {
-        return;
-      }
-
-      handleSseEvent(eventType, dataPayload);
-    };
-
-    const runAnalysis = async () => {
-      setAnalysisLoading(true);
-      setIsStreaming(true);
-      setStreamingText("");
-      setAnalysisError(null);
-
-      try {
-        const response = await fetch("/api/takeaways", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, pin }),
-          signal: controller.signal
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}));
-          const message =
-            typeof payload?.error === "string" && payload.error.trim()
-              ? payload.error
-              : "Unable to fetch interview analysis.";
-          throw new Error(message);
-        }
-
-        if (!response.body) {
-          throw new Error("Interview analysis agent returned an empty response.");
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-
-          let separatorIndex = buffer.indexOf("\n\n");
-          while (separatorIndex !== -1) {
-            const rawEvent = buffer.slice(0, separatorIndex);
-            buffer = buffer.slice(separatorIndex + 2);
-            processRawEvent(rawEvent);
-            separatorIndex = buffer.indexOf("\n\n");
-          }
-        }
-
-        if (buffer.trim()) {
-          processRawEvent(buffer);
-        }
-      } catch (fetchError) {
-        if (aborted) {
-          return;
-        }
-        setAnalysisError(
-          fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
-        );
-        setStreamingText("");
-        setIsStreaming(false);
-      } finally {
-        if (!aborted) {
-          setAnalysisLoading(false);
-          setIsStreaming(false);
-          if (fetchControllerRef.current === controller) {
-            fetchControllerRef.current = null;
-          }
-        }
-      }
-    };
-
-    runAnalysis();
-
-    return () => {
-      aborted = true;
-      if (fetchControllerRef.current === controller) {
-        fetchControllerRef.current = null;
-      }
-      controller.abort();
-    };
-  }, [
-    sessionError,
-    sessionId,
-    pin,
-    analysisReport,
-    analysisTimestamp,
-    latestTranscriptAt,
-    analysisLoading,
-    isStreaming
-  ]);
-
   const pageTitle = analysisReport?.title?.trim() || "Interview Analysis Report";
   const detailItems = [
     pin ? `PIN ${pin}` : null,
@@ -437,6 +261,259 @@ export default function ScorecardPage({
     status ? `Status ${status.toLowerCase()}` : null,
     analysisTimestamp ? `Updated ${formatDate(analysisTimestamp)}` : null
   ].filter(Boolean);
+
+  const researchObjective = context?.researchObjective?.trim();
+  const interviewContextItems = [
+    context?.company ? `Company: ${context.company}` : null,
+    context?.product ? `Product: ${context.product}` : null,
+    researchObjective ? `Research objective: ${researchObjective}` : null
+  ].filter(Boolean);
+  const canRequestAnalysis = Boolean(sessionId && pin && !sessionError);
+  const manualRefreshDisabled = !canRequestAnalysis || analysisLoading || isStreaming;
+
+  const runAnalysis = useCallback(
+    (force = false) => {
+      if (sessionError || !sessionId || !pin) {
+        setAnalysisLoading(false);
+        return () => {};
+      }
+
+      const needsRefresh = shouldRefreshAnalysis(
+        Boolean(analysisReport),
+        analysisTimestamp,
+        latestTranscriptAt
+      );
+
+      if (!force && !needsRefresh) {
+        return () => {};
+      }
+
+      if (analysisLoading || isStreaming) {
+        return () => {};
+      }
+
+      let aborted = false;
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
+
+      if (force) {
+        setAnalysisReport(null);
+        setAnalysisTimestamp(null);
+      }
+
+      const handleSseEvent = (eventType: string, payload: string) => {
+        if (!payload) {
+          return;
+        }
+
+        let data: unknown;
+        try {
+          data = JSON.parse(payload);
+        } catch {
+          return;
+        }
+
+        if (eventType === "delta") {
+          const text =
+            typeof (data as { text?: unknown }).text === "string"
+              ? (data as { text: string }).text
+              : "";
+          if (text) {
+            setStreamingText((previous) => previous + text);
+          }
+          return;
+        }
+
+        if (eventType === "error") {
+          const message =
+            data && typeof (data as { message?: unknown }).message === "string"
+              ? (data as { message: string }).message
+              : "Unable to fetch interview analysis.";
+          setAnalysisError(message);
+          setIsStreaming(false);
+          setStreamingText("");
+          return;
+        }
+
+        if (eventType === "done") {
+          const record = data as {
+            text?: string;
+            report?: unknown;
+            generatedAt?: string;
+            error?: string;
+          };
+          const finalText = typeof record.text === "string" ? record.text : "";
+          const providedReport =
+            record.report && isInterviewAnalysisReport(record.report) ? record.report : null;
+          const parsedReport = providedReport ?? parseAnalysisReport(finalText);
+
+          if (record.error) {
+            setAnalysisError(record.error);
+          }
+
+          const finalTimestamp =
+            record.generatedAt && record.generatedAt.trim()
+              ? record.generatedAt
+              : new Date().toISOString();
+
+          if (parsedReport) {
+            setAnalysisReport(parsedReport);
+            setAnalysisError(null);
+          } else if (!record.error) {
+            setAnalysisError("Unable to parse interview analysis JSON.");
+          }
+
+          setAnalysisTimestamp(finalTimestamp);
+          setStreamingText("");
+          setIsStreaming(false);
+        }
+      };
+
+      const processRawEvent = (rawEvent: string) => {
+        if (!rawEvent.trim()) {
+          return;
+        }
+
+        const lines = rawEvent.split("\n");
+        let eventType = "message";
+        let dataPayload = "";
+
+        for (const line of lines) {
+          if (!line.trim()) {
+            continue;
+          }
+
+          if (line.startsWith("event:")) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            const value = line.slice(5).trim();
+            dataPayload = dataPayload ? `${dataPayload}\n${value}` : value;
+          }
+        }
+
+        if (!dataPayload) {
+          return;
+        }
+
+        handleSseEvent(eventType, dataPayload);
+      };
+
+      const fetchAnalysis = async () => {
+        setAnalysisLoading(true);
+        setIsStreaming(true);
+        setStreamingText("");
+        setAnalysisError(null);
+
+        try {
+          const response = await fetch("/api/takeaways", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, pin }),
+            signal: controller.signal
+          });
+
+          if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            const message =
+              typeof payload?.error === "string" && payload.error.trim()
+                ? payload.error
+                : "Unable to fetch interview analysis.";
+            throw new Error(message);
+          }
+
+          if (!response.body) {
+            throw new Error("Interview analysis agent returned an empty response.");
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+
+            let separatorIndex = buffer.indexOf("\n\n");
+            while (separatorIndex !== -1) {
+              const rawEvent = buffer.slice(0, separatorIndex);
+              buffer = buffer.slice(separatorIndex + 2);
+              processRawEvent(rawEvent);
+              separatorIndex = buffer.indexOf("\n\n");
+            }
+          }
+
+          if (buffer.trim()) {
+            processRawEvent(buffer);
+          }
+        } catch (fetchError) {
+          if (aborted) {
+            return;
+          }
+          setAnalysisError(
+            fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
+          );
+          setStreamingText("");
+          setIsStreaming(false);
+        } finally {
+          if (!aborted) {
+            setAnalysisLoading(false);
+            setIsStreaming(false);
+            if (fetchControllerRef.current === controller) {
+              fetchControllerRef.current = null;
+            }
+            analysisCleanupRef.current = null;
+          }
+        }
+      };
+
+      fetchAnalysis();
+
+      const cleanup = () => {
+        aborted = true;
+        if (fetchControllerRef.current === controller) {
+          fetchControllerRef.current = null;
+        }
+        controller.abort();
+        analysisCleanupRef.current = null;
+      };
+
+      analysisCleanupRef.current = cleanup;
+      return cleanup;
+    },
+    [
+      sessionError,
+      sessionId,
+      pin,
+      analysisReport,
+      analysisTimestamp,
+      latestTranscriptAt,
+      analysisLoading,
+      isStreaming
+    ]
+  );
+
+  const autoRefreshNeeded = shouldRefreshAnalysis(
+    Boolean(analysisReport),
+    analysisTimestamp,
+    latestTranscriptAt
+  );
+
+  useEffect(() => {
+    if (!autoRefreshNeeded) {
+      return;
+    }
+    return runAnalysis(false);
+  }, [autoRefreshNeeded, runAnalysis]);
+
+  useEffect(() => {
+    return () => {
+      analysisCleanupRef.current?.();
+    };
+  }, []);
 
   const blockingError = sessionError || analysisError;
 
@@ -459,15 +536,40 @@ export default function ScorecardPage({
             <h1 className="text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight">
               {pageTitle}
             </h1>
-            <p className="text-xl text-soft-gray leading-relaxed max-w-3xl">
-              {context?.prompt
-                ? context.prompt
-                : "A structured synthesis of every conversation captured by your SurvAgent AI interviewer."}
-            </p>
-            {detailItems.length ? (
-              <p className="text-sm text-soft-gray font-medium uppercase tracking-widest">
-                {detailItems.join(" · ")}
+            <div className="space-y-3 text-xl text-soft-gray leading-relaxed max-w-3xl">
+              <p>
+                {context?.prompt
+                  ? context.prompt
+                  : "A structured synthesis of every conversation captured by your SurvAgent AI interviewer."}
               </p>
+              {interviewContextItems.length ? (
+                <div className="text-base text-charcoal/80 space-y-1">
+                  {interviewContextItems.map((item, index) => (
+                    <p key={`${item}-${index}`} className="font-medium">
+                      {item}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            {(detailItems.length || canRequestAnalysis) ? (
+              <div className="flex flex-wrap items-center gap-4">
+                {detailItems.length ? (
+                  <p className="text-sm text-soft-gray font-medium uppercase tracking-widest">
+                    {detailItems.join(" · ")}
+                  </p>
+                ) : null}
+                {canRequestAnalysis ? (
+                  <button
+                    type="button"
+                    onClick={() => runAnalysis(true)}
+                    disabled={manualRefreshDisabled}
+                    className="inline-flex items-center gap-2 rounded-full border border-charcoal/20 px-4 py-2 text-sm font-semibold text-charcoal hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {analysisLoading || isStreaming ? "Re-running…" : "Re-run analysis"}
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </section>
 
@@ -741,7 +843,10 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
     const contextRows = await db
       .select({
         requester: sessionContexts.requester,
-        prompt: sessionContexts.prompt
+        prompt: sessionContexts.prompt,
+        company: sessionContexts.company,
+        product: sessionContexts.product,
+        surveyQuestions: sessionContexts.surveyQuestions
       })
       .from(sessionContexts)
       .where(eq(sessionContexts.sessionId, sid))
@@ -782,13 +887,25 @@ export const getServerSideProps: GetServerSideProps<ScorecardProps> = async (con
       }
     }
 
+    const interviewScript = parseInterviewScript(contextRows[0]?.surveyQuestions ?? null);
+    const researchObjective =
+      typeof interviewScript?.researchObjective === "string"
+        ? interviewScript.researchObjective
+        : null;
+
     return {
       props: {
         sessionId: sessionRecord.sessionId,
         status: sessionRecord.status,
         createdAt: sessionRecord.createdAt ? sessionRecord.createdAt.toISOString() : null,
         pin: normalizedPin,
-        context: contextRows[0] ?? null,
+        context: {
+          requester: contextRows[0]?.requester ?? null,
+          prompt: contextRows[0]?.prompt ?? null,
+          company: contextRows[0]?.company ?? null,
+          product: contextRows[0]?.product ?? null,
+          researchObjective
+        },
         analysisReport,
         analysisGeneratedAt,
         latestTranscriptAt,
