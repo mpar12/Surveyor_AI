@@ -211,6 +211,7 @@ export default function ScorecardPage({
   );
   const [analysisTimestamp, setAnalysisTimestamp] = useState<string | null>(analysisGeneratedAt);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [rawAnalysisOutput, setRawAnalysisOutput] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -299,6 +300,7 @@ export default function ScorecardPage({
       if (force) {
         setAnalysisReport(null);
         setAnalysisTimestamp(null);
+        setRawAnalysisOutput(null);
       }
 
       const handleSseEvent = (eventType: string, payload: string) => {
@@ -359,8 +361,10 @@ export default function ScorecardPage({
           if (parsedReport) {
             setAnalysisReport(parsedReport);
             setAnalysisError(null);
+            setRawAnalysisOutput(null);
           } else if (!record.error) {
             setAnalysisError("Unable to parse interview analysis JSON.");
+            setRawAnalysisOutput(finalText || rawAnalysisOutput || null);
           }
 
           setAnalysisTimestamp(finalTimestamp);
@@ -398,11 +402,12 @@ export default function ScorecardPage({
         handleSseEvent(eventType, dataPayload);
       };
 
-      const fetchAnalysis = async () => {
-        setAnalysisLoading(true);
-        setIsStreaming(true);
-        setStreamingText("");
-        setAnalysisError(null);
+    const fetchAnalysis = async () => {
+      setAnalysisLoading(true);
+      setIsStreaming(true);
+      setStreamingText("");
+      setAnalysisError(null);
+      setRawAnalysisOutput(null);
 
         try {
           const response = await fetch("/api/takeaways", {
@@ -453,15 +458,16 @@ export default function ScorecardPage({
           if (aborted) {
             return;
           }
-          setAnalysisError(
-            fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
-          );
-          setStreamingText("");
+        setAnalysisError(
+          fetchError instanceof Error ? fetchError.message : "Unable to fetch interview analysis."
+        );
+        setStreamingText("");
+        setIsStreaming(false);
+        setRawAnalysisOutput(null);
+      } finally {
+        if (!aborted) {
+          setAnalysisLoading(false);
           setIsStreaming(false);
-        } finally {
-          if (!aborted) {
-            setAnalysisLoading(false);
-            setIsStreaming(false);
             if (fetchControllerRef.current === controller) {
               fetchControllerRef.current = null;
             }
@@ -492,7 +498,8 @@ export default function ScorecardPage({
       analysisTimestamp,
       latestTranscriptAt,
       analysisLoading,
-      isStreaming
+      isStreaming,
+      rawAnalysisOutput
     ]
   );
 
@@ -574,8 +581,13 @@ export default function ScorecardPage({
           </section>
 
           {blockingError ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
-              {blockingError}
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium space-y-4">
+              <p>{blockingError}</p>
+              {analysisError === "Unable to parse interview analysis JSON." && rawAnalysisOutput ? (
+                <pre className="max-h-72 overflow-auto rounded-xl bg-white/80 p-4 text-sm text-charcoal">
+                  {rawAnalysisOutput}
+                </pre>
+              ) : null}
             </div>
           ) : analysisReport || showStreamingPreview ? (
             <>
