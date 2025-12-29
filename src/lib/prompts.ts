@@ -66,6 +66,8 @@ Your interview script should contain a mix of question types that will yield ana
 
 1. Warm-up questions (1-2 questions)
     - Easy, non-threatening questions to build rapport
+    - Factual questions, routine/concrete questions or preferences should be asked to establish rapport 
+    - Avoid large, intimidating questions at the beginning of the interview
     - Can be general context-setting
     - Depending on whether it is a political interview or market research interview, your context setting questions should be different
     - Do not ask demographic questions under any circumstances
