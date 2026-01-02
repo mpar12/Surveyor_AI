@@ -365,7 +365,7 @@ Return ONLY valid JSON. No markdown, no code blocks, no explanation.
     "context": "[1-2 sentences: research focus, sample size/audience, method]",
     "keyFindings": [
       {
-        "findingTitle": "[Clear theme title]",
+        "theme": "[Clear theme title]",
         "analysis": "[Bullet point 1]\\n[Bullet point 2]\\n[Bullet point 3]"
       }
     ]
@@ -432,7 +432,7 @@ Use these patterns to structure your analysis bullets:
 
 Example:
 
-"findingTitle": "Price Sensitivity Masks Value Perception Gap",
+"theme": "Price Sensitivity Masks Value Perception Gap",
 "analysis": "68% cited price as primary barrier, but deeper probing revealed confusion about ROI calculation—most couldn't articulate specific savings\\nCurrent positioning emphasizes features over financial impact, leaving buyers to justify value themselves\\nCompetitors leading with ROI calculators are capturing this segment despite higher pricing"
 
 ## Analysis by Question Type
