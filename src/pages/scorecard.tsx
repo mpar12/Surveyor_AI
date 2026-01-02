@@ -162,6 +162,7 @@ const shouldRefreshAnalysis = (
 };
 
 const renderParagraphs = (content: string | string[]) => {
+  // Handle array format (already renders as bullets correctly)
   if (Array.isArray(content)) {
     const normalizedItems = content
       .map((item) => (typeof item === "string" ? item.trim() : ""))
@@ -178,6 +179,30 @@ const renderParagraphs = (content: string | string[]) => {
     );
   }
 
+  // Check if content has single newlines (bullet format from Claude)
+  // If it has \n but not \n\n, treat as bullet points
+  const hasSingleNewlines = content.includes("\n");
+  const hasDoubleNewlines = content.includes("\n\n");
+
+  if (hasSingleNewlines && !hasDoubleNewlines) {
+    // Bullet point format: split on single newlines
+    const bullets = content
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (bullets.length > 1) {
+      return (
+        <ul className="list-disc pl-6 space-y-2 text-lg text-charcoal leading-relaxed">
+          {bullets.map((bullet, index) => (
+            <li key={`${bullet.slice(0, 25)}-${index}`}>{bullet}</li>
+          ))}
+        </ul>
+      );
+    }
+  }
+
+  // Paragraph format: split on double newlines (existing logic)
   return content
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
