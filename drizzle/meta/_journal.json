@@ -37,6 +37,13 @@
       "version": "0005_add_prompt_column",
       "when": 5,
       "tag": "0005_add_prompt_column"
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1767336219227,
+      "tag": "0006_odd_captain_flint",
+      "breakpoints": true
     }
   ]
 }
