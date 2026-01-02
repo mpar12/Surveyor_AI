@@ -24,7 +24,10 @@ export const convaiTranscripts = drizzleSchema.table("convai_transcripts", {
   transcript: jsonb("transcript").notNull(),
   analysis: jsonb("analysis"),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow()
+  receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow(),
+  prolificPid: text("prolific_pid"),
+  prolificStudyId: text("prolific_study_id"),
+  prolificSessionId: text("prolific_session_id")
 });
 
 export const emailSends = drizzleSchema.table("email_sends", {

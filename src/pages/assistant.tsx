@@ -217,6 +217,13 @@ export default function AssistantPage() {
     }
   }, [scriptFromSession]);
 
+  // Extract Prolific params from URL
+  const prolificPid = getQueryValue(router.query.PROLIFIC_PID);
+  const prolificStudyId = getQueryValue(router.query.STUDY_ID);
+  const prolificSessionId = getQueryValue(router.query.SESSION_ID);
+  const completionUrl = getQueryValue(router.query.completionUrl);
+  const decodedCompletionUrl = completionUrl ? decodeURIComponent(completionUrl) : "";
+
   // Clean URL after initial load if we have session data
   useEffect(() => {
     if (sessionData && router.isReady) {
@@ -224,7 +231,11 @@ export default function AssistantPage() {
       const pin = getQueryValue(router.query.pin);
 
       if (sid && pin) {
-        const allowed = new Set(["sid", "pin", "email", "email_address"]);
+        // Preserve Prolific params in URL
+        const allowed = new Set([
+          "sid", "pin", "email", "email_address",
+          "PROLIFIC_PID", "STUDY_ID", "SESSION_ID", "completionUrl"
+        ]);
         const hasExtraParams = Object.keys(router.query).some(
           (key) => !allowed.has(key) && router.query[key]
         );
@@ -241,11 +252,17 @@ export default function AssistantPage() {
             cleanQuery.email_address = emailAddressValue;
           }
 
+          // Preserve Prolific params
+          if (prolificPid) cleanQuery.PROLIFIC_PID = prolificPid;
+          if (prolificStudyId) cleanQuery.STUDY_ID = prolificStudyId;
+          if (prolificSessionId) cleanQuery.SESSION_ID = prolificSessionId;
+          if (completionUrl) cleanQuery.completionUrl = completionUrl;
+
           router.replace({ pathname: router.pathname, query: cleanQuery }, undefined, { shallow: true });
         }
       }
     }
-  }, [sessionData, router.isReady, router.query, router]);
+  }, [sessionData, router.isReady, router.query, router, prolificPid, prolificStudyId, prolificSessionId, completionUrl]);
 
   const dynamicVariables = useMemo(() => {
     // Use session data if available, fallback to URL params for initial load
@@ -315,6 +332,17 @@ export default function AssistantPage() {
       }
     }
 
+    // Add Prolific tracking variables (passed through ElevenLabs to webhook)
+    if (prolificPid) {
+      variables.prolific_pid = prolificPid;
+    }
+    if (prolificStudyId) {
+      variables.prolific_study_id = prolificStudyId;
+    }
+    if (prolificSessionId) {
+      variables.prolific_session_id = prolificSessionId;
+    }
+
     return variables;
   }, [
     sessionData,
@@ -326,7 +354,10 @@ export default function AssistantPage() {
     router.query.email_address,
     surveyQuestionParagraph,
     localScript,
-    scriptFromSession
+    scriptFromSession,
+    prolificPid,
+    prolificStudyId,
+    prolificSessionId
   ]);
 
   useEffect(() => {
@@ -342,6 +373,10 @@ export default function AssistantPage() {
 
     const handleCallEnd = () => {
       console.log("Call ended or mic denied, no active session");
+      // Redirect to Prolific completion URL if present
+      if (decodedCompletionUrl) {
+        window.location.href = decodedCompletionUrl;
+      }
     };
 
     widget.addEventListener("elevenlabs-convai:call", handleCallStart);
@@ -351,7 +386,7 @@ export default function AssistantPage() {
       widget.removeEventListener("elevenlabs-convai:call", handleCallStart);
       widget.removeEventListener("elevenlabs-convai:call-end", handleCallEnd);
     };
-  }, []);
+  }, [decodedCompletionUrl]);
 
   const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
 

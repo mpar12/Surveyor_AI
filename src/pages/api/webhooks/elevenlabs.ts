@@ -114,6 +114,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const eventTimestamp = typeof payload.event_timestamp === "number" ? payload.event_timestamp : null;
   const completedAt = eventTimestamp ? new Date(eventTimestamp * 1000) : null;
 
+  // Extract Prolific tracking IDs
+  const prolificPid = dynamicVariables.prolific_pid ?? null;
+  const prolificStudyId = dynamicVariables.prolific_study_id ?? null;
+  const prolificSessionId = dynamicVariables.prolific_session_id ?? null;
+
   try {
     const record = {
       conversationId,
@@ -123,7 +128,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       transcript,
       analysis,
       completedAt,
-      receivedAt: new Date()
+      receivedAt: new Date(),
+      prolificPid,
+      prolificStudyId,
+      prolificSessionId
     };
 
     await db
@@ -138,7 +146,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           transcript: record.transcript,
           analysis: record.analysis,
           completedAt: record.completedAt,
-          receivedAt: record.receivedAt
+          receivedAt: record.receivedAt,
+          prolificPid: record.prolificPid,
+          prolificStudyId: record.prolificStudyId,
+          prolificSessionId: record.prolificSessionId
         }
       });
 

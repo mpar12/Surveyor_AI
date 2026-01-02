@@ -301,6 +301,14 @@ export default function PopulationPage() {
             >
               {agentLink ? "Copy assistant link" : "Preparing link…"}
             </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => router.push(`/prolific-setup?sid=${contextSummary.sid}&pin=${contextSummary.pin}`)}
+              disabled={!contextSummary.sid || !contextSummary.pin}
+            >
+              Prolific Project
+            </button>
             <span
               className={`${styles.copyStatus} ${
                 copyStatus === "copied"
