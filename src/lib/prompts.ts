@@ -67,9 +67,9 @@ Voice AI can feel weird. Build trust explicitly into your questions since the AI
 **The Warm-up Strategy:**
 Warm-ups do two things:
 1. Create safety by starting where they're the expert (their own life)
-2. Test if they're opening up (detailed stories = good, one-word answers = problem)
+2. Train them to give detailed, narrative responses before hitting the research topic
 
-The path: Start with their world → then a recent experience → then bridge to your topic
+The path: Start genuinely personal → then narrative practice on related-but-neutral topics → then core questions
 
 If they're vague in warm-up questions, your core questions will bomb. Warm-ups train them to give specifics and stories, not abstractions.
 
@@ -79,41 +79,47 @@ Your script needs variety so the analysis can show patterns AND stories:
 
 ### 1. Warm-up (2-3 questions)
 
-Start with their world, NOT your research topic.
+**Q1: Genuinely personal (brief, humanizing, unrelated to research topic)**
+This breaks the ice and shows you care about them as a person, not just data.
+- "How's your day going so far?"
+- "What brought you out today?" / "Where are you joining from?"
+- "Thanks for making time—what's been keeping you busy lately?"
 
-**Q1: Their daily reality (they're the expert, easy territory)**
-- "Tell me about where you live and what your day-to-day looks like"
-- "Walk me through a typical [workday/Monday/morning]"
-- "What's on your mind these days?"
+Keep this SHORT—one question, quick answer. Then bridge immediately to related warm-ups.
 
-**Q2: Recent concrete thing related to your topic (still low-stakes)**
-- "Think about the last time you [relevant action]. What happened?"
-- "When did you last [behavior]? Walk me through it."
+**Q2: Narrative practice on related-but-neutral topic (trains them to tell stories)**
+This teaches them what kind of answers you want (detailed, narrative) on safe ground before the real questions.
+- "Tell me about the first time you [relevant but neutral experience]"
+- "Walk me through [a routine related to your topic]—like what you do to [daily activity]"
+- "Think back to when you first [started doing something related]. What was that like?"
 
-**Q3 (optional bridge): Acknowledge, then transition**
-- "That's helpful. I want to understand [core topic] better..."
-
-**What NOT to ask:**
-- Don't start with the research topic directly
-- No demographic questions (age, income, education)
-- No opinions or hypotheticals yet
-- No "why" questions—too demanding this early
+**Q3: Bridge to research topic (optional, use if needed)**
+- "That's helpful context. I want to understand [core topic] better..."
+- "Now thinking about [research focus]..."
 
 **Examples by context:**
 
-Political research: Start with daily life, not voting
-- Bad: "Who did you vote for?"
-- Good: "What's on your mind these days—work, family, finances, whatever feels most pressing?"
+Political research: Personal → voting history → current topic
+- Q1: "How's your day been?"
+- Q2: "Tell me about the first election you remember voting in. What was that experience like?"
+- Q3: [Bridge to specific political topic]
 
-UX research: Start with their routine, not your product  
-- Bad: "What do you think of our app?"
-- Good: "Walk me through how you usually handle [task]"
+UX research: Personal → general behavior → product usage
+- Q1: "Thanks for joining—where are you calling from today?"
+- Q2: "Walk me through how you usually handle [general version of task]—like what's your routine?"
+- Q3: [Bridge to specific product]
 
-Brand research: Start with their life, not brand opinions
-- Bad: "What comes to mind when you think of [Brand]?"
-- Good: "Tell me about the last time you went shopping for [category]. What were you looking for?"
+Brand research: Personal → category behavior → brand opinions
+- Q1: "How's your week going?"
+- Q2: "Think about the last time you went shopping for [category]. What happened?"
+- Q3: [Bridge to specific brand]
 
-If they're giving one-word answers in warm-up, they won't open up later.
+**What this accomplishes:**
+- Q1 humanizes the interaction and creates genuine ease
+- Q2 trains them to give detailed, narrative responses
+- Q3 (if needed) transitions smoothly to your actual research focus
+
+If they're giving one-word answers in Q2, they won't open up later. The narrative practice question is where you assess if they're ready.
 
 ### 2. Structured Questions (2-3 questions)
 
