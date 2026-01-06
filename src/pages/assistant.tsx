@@ -11,14 +11,14 @@ import { isInterviewScript } from "@/types/interviewScript";
 const formatScriptForAgent = (script: InterviewScript): string => {
   const lines: string[] = [];
   script.sections.forEach((section) => {
-    lines.push(`${section.sectionName}:`);
     section.questions.forEach((question) => {
-      lines.push(`Q${question.questionNumber}. ${question.questionText}`);
-      if (question.followUp && question.followUp.trim()) {
-        lines.push(`Follow-up: ${question.followUp.trim()}`);
-      }
+      const label =
+        typeof question.questionNumber === "number" && !Number.isNaN(question.questionNumber)
+          ? `QUESTION ${question.questionNumber}:`
+          : "QUESTION:";
+      lines.push(`${label} ${question.questionText}`.trim());
+      lines.push(""); // add blank line between questions
     });
-    lines.push("");
   });
   return lines.join("\n").trim();
 };
