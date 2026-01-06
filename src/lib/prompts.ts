@@ -77,7 +77,9 @@ If they're vague in warm-up questions, your core questions will bomb. Warm-ups t
 
 Your script needs variety so the analysis can show patterns AND stories:
 
-### 1. Warm-up (2-3 questions)
+### 1. Warm-up (3 questions)
+
+Build rapport in three steps: humanize → describe → narrate. Each step increases cognitive load slightly.
 
 **Q1: Genuinely personal (brief, humanizing, unrelated to research topic)**
 This breaks the ice and shows you care about them as a person, not just data.
@@ -85,41 +87,45 @@ This breaks the ice and shows you care about them as a person, not just data.
 - "What brought you out today?" / "Where are you joining from?"
 - "Thanks for making time—what's been keeping you busy lately?"
 
-Keep this SHORT—one question, quick answer. Then bridge immediately to related warm-ups.
+Keep this SHORT—one question, quick answer, 30 seconds max.
 
-**Q2: Narrative practice on related-but-neutral topic (trains them to tell stories)**
-This teaches them what kind of answers you want (detailed, narrative) on safe ground before the real questions.
+**Q2: Easy factual/descriptive question (related to topic but low-effort)**
+This gets them talking about the research domain without demanding deep thought or storytelling yet. Should be factual or behavioral, not opinion-based.
+- "How do you usually [relevant habit or routine]?"
+- "When you need to [relevant action], what's typically your first step?"
+- "Where do you usually [relevant behavior]?"
+
+This is descriptive ("what do you do?") not narrative ("tell me about a time"). Minimal memory recall required. Gets them speaking in full sentences about the topic area.
+
+**Q3: Narrative practice on related-but-neutral topic (trains them to tell stories)**
+Now they're ready for something that requires memory recall and storytelling. This teaches them what kind of answers you want (detailed, narrative) on safe ground before the real questions.
 - "Tell me about the first time you [relevant but neutral experience]"
-- "Walk me through [a routine related to your topic]—like what you do to [daily activity]"
+- "Walk me through the last time you [relevant behavior]. What happened?"
 - "Think back to when you first [started doing something related]. What was that like?"
-
-**Q3: Bridge to research topic (optional, use if needed)**
-- "That's helpful context. I want to understand [core topic] better..."
-- "Now thinking about [research focus]..."
 
 **Examples by context:**
 
-Political research: Personal → voting history → current topic
-- Q1: "How's your day been?"
-- Q2: "Tell me about the first election you remember voting in. What was that experience like?"
-- Q3: [Bridge to specific political topic]
+Political research: Personal → news habits → voting history
+- Q1: "How's your week been?"
+- Q2: "How do you usually keep up with news and current events?"
+- Q3: "Tell me about the first election you remember voting in. What was that experience like?"
 
-UX research: Personal → general behavior → product usage
+UX research: Personal → general behavior → specific incident
 - Q1: "Thanks for joining—where are you calling from today?"
-- Q2: "Walk me through how you usually handle [general version of task]—like what's your routine?"
-- Q3: [Bridge to specific product]
+- Q2: "When you need to [do task], what's usually your first step?"
+- Q3: "Walk me through the last time you tried to [relevant behavior]. What happened?"
 
-Brand research: Personal → category behavior → brand opinions
+Brand research: Personal → shopping habits → specific experience
 - Q1: "How's your week going?"
-- Q2: "Think about the last time you went shopping for [category]. What happened?"
-- Q3: [Bridge to specific brand]
+- Q2: "When you're shopping for [category], where do you usually go?"
+- Q3: "Think about the last time you went shopping for [category]. What happened?"
 
 **What this accomplishes:**
-- Q1 humanizes the interaction and creates genuine ease
-- Q2 trains them to give detailed, narrative responses
-- Q3 (if needed) transitions smoothly to your actual research focus
+- Q1 humanizes the interaction (30 sec)
+- Q2 gets them describing their world, low stakes (1 min)
+- Q3 trains detailed narrative responses before core questions (2-3 min)
 
-If they're giving one-word answers in Q2, they won't open up later. The narrative practice question is where you assess if they're ready.
+If they're giving one-word answers by Q3, they won't open up later. The narrative practice question is where you assess if they're ready for deeper questions.
 
 ### 2. Structured Questions (2-3 questions)
 
