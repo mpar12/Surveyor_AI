@@ -282,7 +282,7 @@ export default function AssistantPage() {
     const variables: Record<string, string> = {
       research_objective: "",
       duration: "",
-      List_of_questions: "",
+      list_of_questions: "",
       Interview_Notes: "",
       title: ""
     };
@@ -303,9 +303,9 @@ export default function AssistantPage() {
       variables.survey_prompt = promptValue;
     }
     if (formattedScript) {
-      variables.List_of_questions = formattedScript;
+      variables.list_of_questions = formattedScript;
     } else if (promptValue) {
-      variables.List_of_questions = promptValue;
+      variables.list_of_questions = promptValue;
     }
 
     if (activeScript) {
