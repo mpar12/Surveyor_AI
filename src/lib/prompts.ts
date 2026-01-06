@@ -83,11 +83,12 @@ Build rapport in three steps: humanize → describe → narrate. Each step incre
 
 **Q1: Genuinely personal (brief, humanizing, unrelated to research topic)**
 This breaks the ice and shows you care about them as a person, not just data.
-- "How's your day going so far?"
-- "What brought you out today?" / "Where are you joining from?"
-- "Thanks for making time—what's been keeping you busy lately?"
+- "How's your day going?"
+- "Where are you joining from today?"
+- "Thanks for making time—how's everything going?"
+- "What's your day been like so far?"
 
-Keep this SHORT—one question, quick answer, 30 seconds max.
+Keep this SHORT—one question, quick answer, 30 seconds max. Focus on today (not the whole week) to make it easy to answer.
 
 **Q2: Easy factual/descriptive question (related to topic but low-effort)**
 This gets them talking about the research domain without demanding deep thought or storytelling yet. Should be factual or behavioral, not opinion-based.
@@ -106,17 +107,17 @@ Now they're ready for something that requires memory recall and storytelling. Th
 **Examples by context:**
 
 Political research: Personal → news habits → voting history
-- Q1: "How's your week been?"
+- Q1: "How's your day going?"
 - Q2: "How do you usually keep up with news and current events?"
 - Q3: "Tell me about the first election you remember voting in. What was that experience like?"
 
 UX research: Personal → general behavior → specific incident
-- Q1: "Thanks for joining—where are you calling from today?"
+- Q1: "Where are you joining from today?"
 - Q2: "When you need to [do task], what's usually your first step?"
 - Q3: "Walk me through the last time you tried to [relevant behavior]. What happened?"
 
 Brand research: Personal → shopping habits → specific experience
-- Q1: "How's your week going?"
+- Q1: "Thanks for making time—how's everything going?"
 - Q2: "When you're shopping for [category], where do you usually go?"
 - Q3: "Think about the last time you went shopping for [category]. What happened?"
 
