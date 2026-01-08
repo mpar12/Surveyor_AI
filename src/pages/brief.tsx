@@ -2,10 +2,18 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
 import type { InterviewScript } from "@/types/interviewScript";
 import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
+import Header from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { GradientSpinner } from "@/components/ui/spinner";
 
 interface ScriptState {
   data: InterviewScript | null;
@@ -50,6 +58,20 @@ const DEFAULT_SCRIPT: InterviewScript = {
   analysisConsiderations: ["Loading considerations…"]
 };
 
+// Animation variants
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 }
+};
+
+const stagger = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
 
 export default function BriefPage() {
   const router = useRouter();
@@ -61,7 +83,7 @@ export default function BriefPage() {
     loading: false
   });
   const [editingPath, setEditingPath] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState("" );
+  const [editingValue, setEditingValue] = useState("");
 
   const prompt = useMemo(() => {
     if (sessionData?.prompt) return sessionData.prompt;
@@ -109,7 +131,7 @@ export default function BriefPage() {
             setScriptState((previous) => ({ ...previous, data: parsed as InterviewScript }));
             return;
           }
-        } catch (error) {
+        } catch {
           // ignore
         }
       }
@@ -125,7 +147,7 @@ export default function BriefPage() {
         if (isInterviewScript(parsed)) {
           setScriptState((previous) => ({ ...previous, data: parsed as InterviewScript }));
         }
-      } catch (error) {
+      } catch {
         // ignore
       }
     }
@@ -259,49 +281,16 @@ export default function BriefPage() {
     setEditingValue("");
   }, []);
 
-  const renderEditableField = useCallback(
-    (
-      path: string,
-      value: string | null | undefined,
-      placeholder?: string,
-      className?: string,
-      allowEdit = true,
-      prefix = ""
-    ) => {
-      if (!allowEdit) {
-        return (
-          <p className={`text-charcoal leading-relaxed ${className ?? ""}`}>
-            {prefix}
-            {value && value.trim().length ? value : placeholder ?? ""}
-          </p>
-        );
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        cancelEditing();
+      } else if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        commitEditing();
       }
-
-      if (editingPath === path) {
-        return (
-          <div className={`flex flex-col gap-1 ${className ?? ""}`}>
-            {prefix ? <span className="text-sm font-semibold text-soft-gray">{prefix}</span> : null}
-            <textarea
-              className="w-full rounded-xl border border-light-gray/60 bg-white/90 px-4 py-3 text-base text-charcoal focus:outline-none focus:ring-2 focus:ring-orange-accent"
-              value={editingValue}
-              onChange={(event) => setEditingValue(event.target.value)}
-              onBlur={commitEditing}
-              autoFocus
-            />
-          </div>
-        );
-      }
-      return (
-        <p
-          className={`text-charcoal leading-relaxed ${className ?? ""}`}
-          onDoubleClick={() => startEditing(path, value)}
-        >
-          {prefix}
-          {value && value.trim().length ? value : placeholder ?? "Double-click to edit."}
-        </p>
-      );
     },
-    [editingPath, editingValue, commitEditing, startEditing]
+    [cancelEditing, commitEditing]
   );
 
   const script = scriptState.data ?? DEFAULT_SCRIPT;
@@ -310,211 +299,453 @@ export default function BriefPage() {
   const isEditable = Boolean(scriptState.data);
 
   return (
-    <div className="min-h-screen w-full bg-warm-cream">
+    <div className="min-h-screen w-full bg-gradient-hero">
       <Head>
-        <title>Research Brief | SurvAgent</title>
-        <meta name="description" content="Review AI-generated context for your survey outreach." />
+        <title>Research Brief | Surveyor</title>
+        <meta name="description" content="Review AI-generated interview script for your research." />
       </Head>
 
-      <header className="sticky top-0 z-10 flex items-center justify-end bg-warm-cream/95 backdrop-blur-sm px-6 md:px-12 py-5 border-b border-light-gray/30 animate-fade-in">
-        <Link
-          href="/return"
-          className="rounded-full px-6 py-2.5 text-sm font-medium bg-white/80 border border-light-gray/50 text-charcoal hover:bg-white hover:border-light-gray transition-all duration-300 shadow-sm"
-        >
-          Returning? Click here to input PIN
-        </Link>
-      </header>
+      <Header />
 
-      <main className="flex flex-col items-center w-full px-6 md:px-12 lg:px-20 py-12 md:py-20">
-        <div className="flex flex-col gap-16 w-full max-w-6xl">
-          <section className="flex flex-col gap-8 animate-fade-in">
-            <p className="text-xs tracking-[0.45em] uppercase text-soft-gray">Research Brief</p>
-            {renderEditableField(
-              "title",
-              script?.title ?? "",
-              "",
-              "text-5xl md:text-6xl font-bold text-charcoal leading-[1.1] tracking-tight",
-              isEditable,
-              "Interview Script: "
-            )}
-            <div className="grid gap-6 md:grid-cols-2">
-              <div>
-                <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Research objective</h3>
-                {renderEditableField("researchObjective", script?.researchObjective ?? "", "", "text-lg text-charcoal font-medium", isEditable)}
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-charcoal/60 uppercase tracking-widest mb-2">Target audience</h3>
-                {renderEditableField("targetAudience", script?.targetAudience ?? "", "", "text-lg text-charcoal font-medium", isEditable)}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
-                Duration: {renderEditableField("estimatedDuration", script?.estimatedDuration ?? "", "", "inline-block font-semibold", isEditable)}
-              </div>
-              <div className="rounded-full border border-light-gray/60 bg-white/70 px-4 py-2 text-sm font-semibold text-charcoal">
-                Questions: {isPlaceholder ? "—" : flattenedQuestions.length}
-              </div>
-            </div>
-            {!isEditable ? (
-              <div className="rounded-2xl border border-light-gray/60 bg-white/70 px-6 py-4 text-soft-gray text-sm">
-                {scriptState.loading ? "Generating interview script…" : "Provide a prompt to generate interview questions."}
-              </div>
-            ) : null}
-          </section>
+      <main className="flex flex-col items-center w-full px-6 md:px-12 lg:px-20 py-12 md:py-16">
+        <div className="flex flex-col gap-12 w-full max-w-5xl">
+          {/* Hero Section */}
+          <motion.section
+            className="flex flex-col gap-6"
+            initial="initial"
+            animate="animate"
+            variants={stagger}
+          >
+            <motion.div variants={fadeInUp}>
+              <Badge variant="default" className="mb-4">
+                Research Brief
+              </Badge>
+            </motion.div>
 
-          {scriptState.error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-700 font-medium">
-              {scriptState.error}
-            </div>
-          ) : null}
-          {scriptState.debug ? (
-            <pre className="rounded-2xl border border-orange-accent/30 bg-white/80 px-6 py-4 text-soft-gray text-sm whitespace-pre-wrap">
-              {scriptState.debug}
-            </pre>
-          ) : null}
-
-          {script ? (
-            <section className="flex flex-col gap-16">
-              {script.sections.map((section, sectionIndex) => (
-                <div
-                  key={`${section.sectionName}-${sectionIndex}`}
-                  className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40 animate-fade-in"
-                >
-                  <header className="mb-6">
-                    <h2 className="text-3xl font-bold text-charcoal tracking-tight">{section.sectionName}</h2>
-                    <p className="text-sm text-soft-gray mt-2">Double-click any question to edit the wording.</p>
-                  </header>
-                  <div className="flex flex-col gap-5">
-                    {section.questions.map((question, questionIndex) => (
-                      <article
-                        key={`${question.questionNumber}-${questionIndex}`}
-                        className="p-6 bg-white/80 backdrop-blur-sm rounded-xl border border-light-gray/40 hover:border-orange-accent/30 hover:shadow-lg transition-all duration-300"
-                      >
-                        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                          <span className="text-sm font-bold text-charcoal">
-                            Q{question.questionNumber}
-                          </span>
-                          {question.questionType ? (
-                            <span className="text-xs uppercase tracking-widest text-soft-gray font-semibold">
-                              {question.questionType}
-                            </span>
-                          ) : null}
-                        </div>
-                        {renderEditableField(
-                          `sections.${sectionIndex}.questions.${questionIndex}.questionText`,
-                          question.questionText,
-                          "Question text",
-                          "text-lg font-semibold text-charcoal",
-                          isEditable
-                        )}
-                        {question.options && question.options.length ? (
-                          <div className="mt-4">
-                            <h4 className="text-sm font-bold text-orange-accent mb-2">Options</h4>
-                            <ul className="list-disc pl-5 space-y-1 text-charcoal">
-                              {question.options.map((option, optionIndex) => (
-                                <li key={`${option}-${optionIndex}`} onDoubleClick={() => startEditing(`sections.${sectionIndex}.questions.${questionIndex}.options.${optionIndex}`, option)}>
-                                  {editingPath === `sections.${sectionIndex}.questions.${questionIndex}.options.${optionIndex}` ? (
-                                    <input
-                                      className="rounded-lg border border-light-gray/60 px-3 py-1 text-sm"
-                                      value={editingPath === `sections.${sectionIndex}.questions.${questionIndex}.options.${optionIndex}` ? editingValue : option}
-                                      autoFocus
-                                      onBlur={commitEditing}
-                                      onChange={(event) => setEditingValue(event.target.value)}
-                                    />
-                                  ) : (
-                                    option
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-                        {question.scale ? (
-                          <p className="mt-3 text-sm text-soft-gray">
-                            Scale: {renderEditableField(
-                              `sections.${sectionIndex}.questions.${questionIndex}.scale`,
-                              question.scale,
-                              undefined,
-                              "inline text-soft-gray",
-                              isEditable
-                            )}
-                          </p>
-                        ) : null}
-                        {question.followUp ? (
-                          <div className="mt-3">
-                            <h4 className="text-sm font-bold text-charcoal">Follow-up</h4>
-                            {renderEditableField(
-                              `sections.${sectionIndex}.questions.${questionIndex}.followUp`,
-                              question.followUp,
-                              "Follow-up prompt",
-                              "text-sm text-soft-gray",
-                              isEditable
-                            )}
-                          </div>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
+            <motion.div variants={fadeInUp} className="space-y-2">
+              {scriptState.loading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-3/4" />
+                  <Skeleton className="h-8 w-1/2" />
                 </div>
+              ) : (
+                <>
+                  <h1 className="text-4xl md:text-5xl font-bold text-foreground leading-tight tracking-tight">
+                    {script.title ? (
+                      <>
+                        <span className="text-foreground-muted font-medium">Interview Script:</span>{" "}
+                        <span className="text-gradient">{script.title}</span>
+                      </>
+                    ) : (
+                      <span className="text-foreground-muted">Generating interview script...</span>
+                    )}
+                  </h1>
+                </>
+              )}
+            </motion.div>
+
+            {/* Meta info grid */}
+            <motion.div
+              variants={fadeInUp}
+              className="grid gap-4 md:grid-cols-2 mt-4"
+            >
+              <Card variant="default" padding="sm" className="group">
+                <CardContent className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
+                    Research Objective
+                  </span>
+                  {scriptState.loading ? (
+                    <SkeletonText lines={2} />
+                  ) : editingPath === "researchObjective" ? (
+                    <Textarea
+                      value={editingValue}
+                      onChange={(e) => setEditingValue(e.target.value)}
+                      onBlur={commitEditing}
+                      onKeyDown={handleKeyDown}
+                      autoFocus
+                      className="min-h-[80px]"
+                    />
+                  ) : (
+                    <p
+                      className="text-foreground font-medium cursor-pointer hover:text-primary transition-colors"
+                      onDoubleClick={() => isEditable && startEditing("researchObjective", script.researchObjective)}
+                      title={isEditable ? "Double-click to edit" : undefined}
+                    >
+                      {script.researchObjective}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card variant="default" padding="sm" className="group">
+                <CardContent className="space-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted">
+                    Target Audience
+                  </span>
+                  {scriptState.loading ? (
+                    <SkeletonText lines={2} />
+                  ) : editingPath === "targetAudience" ? (
+                    <Textarea
+                      value={editingValue}
+                      onChange={(e) => setEditingValue(e.target.value)}
+                      onBlur={commitEditing}
+                      onKeyDown={handleKeyDown}
+                      autoFocus
+                      className="min-h-[80px]"
+                    />
+                  ) : (
+                    <p
+                      className="text-foreground font-medium cursor-pointer hover:text-primary transition-colors"
+                      onDoubleClick={() => isEditable && startEditing("targetAudience", script.targetAudience)}
+                      title={isEditable ? "Double-click to edit" : undefined}
+                    >
+                      {script.targetAudience}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Stats badges */}
+            <motion.div variants={fadeInUp} className="flex flex-wrap gap-3">
+              <Badge variant="secondary" size="lg">
+                <ClockIcon className="w-4 h-4 mr-1.5" />
+                {scriptState.loading ? "..." : script.estimatedDuration}
+              </Badge>
+              <Badge variant="secondary" size="lg">
+                <QuestionIcon className="w-4 h-4 mr-1.5" />
+                {isPlaceholder ? "..." : `${flattenedQuestions.length} Questions`}
+              </Badge>
+              <Badge variant="secondary" size="lg">
+                <SectionIcon className="w-4 h-4 mr-1.5" />
+                {isPlaceholder ? "..." : `${script.sections.length} Sections`}
+              </Badge>
+            </motion.div>
+          </motion.section>
+
+          {/* Loading State */}
+          <AnimatePresence>
+            {scriptState.loading && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex flex-col items-center justify-center py-16 gap-4"
+              >
+                <GradientSpinner size="xl" />
+                <div className="text-center">
+                  <p className="text-lg font-medium text-foreground">Claude is generating your interview script</p>
+                  <p className="text-sm text-foreground-muted mt-1">This usually takes 10-20 seconds...</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Error State */}
+          <AnimatePresence>
+            {scriptState.error && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <Card variant="outline" className="border-error bg-error-subtle">
+                  <CardContent className="flex items-start gap-3 p-4">
+                    <ErrorIcon className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-error">Oops! Something went wrong</p>
+                      <p className="text-sm text-error/80 mt-1">{scriptState.error}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Questions Sections */}
+          {!scriptState.loading && scriptState.data && (
+            <motion.div
+              className="flex flex-col gap-8"
+              initial="initial"
+              animate="animate"
+              variants={stagger}
+            >
+              {script.sections.map((section, sectionIndex) => (
+                <motion.div key={`${section.sectionName}-${sectionIndex}`} variants={fadeInUp}>
+                  <Card variant="elevated" padding="none" className="overflow-hidden">
+                    <div className="bg-gradient-to-r from-primary/5 to-accent/5 px-6 py-4 border-b border-border">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold text-foreground">{section.sectionName}</h2>
+                        <Badge variant="outline" size="sm">
+                          {section.questions.length} questions
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-foreground-muted mt-1">
+                        Double-click any question to edit the wording
+                      </p>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      {section.questions.map((question, questionIndex) => (
+                        <motion.article
+                          key={`${question.questionNumber}-${questionIndex}`}
+                          className="p-5 bg-background-subtle rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200 group"
+                          whileHover={{ scale: 1.005 }}
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                            <Badge variant="gradient" size="sm">
+                              Q{question.questionNumber}
+                            </Badge>
+                            {question.questionType && (
+                              <Badge variant="secondary" size="sm">
+                                {question.questionType}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {editingPath === `sections.${sectionIndex}.questions.${questionIndex}.questionText` ? (
+                            <Textarea
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={commitEditing}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="min-h-[100px]"
+                              helperText="Press Enter to save, Escape to cancel"
+                            />
+                          ) : (
+                            <p
+                              className="text-lg font-medium text-foreground cursor-pointer group-hover:text-primary transition-colors"
+                              onDoubleClick={() =>
+                                isEditable &&
+                                startEditing(
+                                  `sections.${sectionIndex}.questions.${questionIndex}.questionText`,
+                                  question.questionText
+                                )
+                              }
+                            >
+                              {question.questionText}
+                            </p>
+                          )}
+
+                          {question.options && question.options.length > 0 && (
+                            <div className="mt-4 pl-4 border-l-2 border-primary/20">
+                              <span className="text-xs font-semibold uppercase tracking-wider text-primary mb-2 block">
+                                Options
+                              </span>
+                              <ul className="space-y-1">
+                                {question.options.map((option, optionIndex) => (
+                                  <li
+                                    key={`${option}-${optionIndex}`}
+                                    className="text-foreground-secondary text-sm flex items-center gap-2"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                                    {option}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {question.scale && (
+                            <p className="mt-3 text-sm text-foreground-muted">
+                              <span className="font-medium">Scale:</span> {question.scale}
+                            </p>
+                          )}
+
+                          {question.followUp && (
+                            <div className="mt-3 p-3 bg-accent-subtle rounded-lg">
+                              <span className="text-xs font-semibold uppercase tracking-wider text-accent block mb-1">
+                                Follow-up
+                              </span>
+                              <p className="text-sm text-foreground-secondary">{question.followUp}</p>
+                            </div>
+                          )}
+                        </motion.article>
+                      ))}
+                    </div>
+                  </Card>
+                </motion.div>
               ))}
 
-              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
-                <h3 className="text-3xl font-bold text-charcoal mb-6">Interviewer notes</h3>
-                <ul className="list-disc pl-6 space-y-3 text-charcoal">
-                  {script.interviewerNotes.map((note, noteIndex) => (
-                    <li key={`note-${noteIndex}`}>
-                      {renderEditableField(
-                        `interviewerNotes.${noteIndex}`,
-                        note,
-                        "Double-click to edit note",
-                        "text-base",
-                        isEditable
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              {/* Interviewer Notes */}
+              <motion.div variants={fadeInUp}>
+                <Card variant="default">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <NoteIcon className="w-5 h-5 text-primary" />
+                      Interviewer Notes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {script.interviewerNotes.map((note, noteIndex) => (
+                        <li key={`note-${noteIndex}`} className="flex items-start gap-3">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                          {editingPath === `interviewerNotes.${noteIndex}` ? (
+                            <Textarea
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={commitEditing}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="flex-1"
+                            />
+                          ) : (
+                            <p
+                              className="text-foreground-secondary cursor-pointer hover:text-foreground transition-colors"
+                              onDoubleClick={() => isEditable && startEditing(`interviewerNotes.${noteIndex}`, note)}
+                            >
+                              {note}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
-              <section className="bg-white/70 backdrop-blur-sm rounded-2xl p-10 shadow-lg border border-light-gray/40">
-                <h3 className="text-3xl font-bold text-charcoal mb-6">Analysis considerations</h3>
-                <ul className="list-disc pl-6 space-y-3 text-charcoal">
-                  {script.analysisConsiderations.map((item, itemIndex) => (
-                    <li key={`analysis-${itemIndex}`}>
-                      {renderEditableField(
-                        `analysisConsiderations.${itemIndex}`,
-                        item,
-                        "Double-click to edit consideration",
-                        "text-base",
-                        isEditable
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            </section>
-          ) : null}
-        </div>
+              {/* Analysis Considerations */}
+              <motion.div variants={fadeInUp}>
+                <Card variant="default">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AnalysisIcon className="w-5 h-5 text-primary" />
+                      Analysis Considerations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {script.analysisConsiderations.map((item, itemIndex) => (
+                        <li key={`analysis-${itemIndex}`} className="flex items-start gap-3">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
+                          {editingPath === `analysisConsiderations.${itemIndex}` ? (
+                            <Textarea
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onBlur={commitEditing}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="flex-1"
+                            />
+                          ) : (
+                            <p
+                              className="text-foreground-secondary cursor-pointer hover:text-foreground transition-colors"
+                              onDoubleClick={() =>
+                                isEditable && startEditing(`analysisConsiderations.${itemIndex}`, item)
+                              }
+                            >
+                              {item}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </motion.div>
+          )}
 
-        <div className="flex flex-wrap items-center justify-center gap-5 mt-20 w-full max-w-5xl animate-fade-in delay-200">
-          <button
-            type="button"
-            onClick={handleLaunchAgent}
-            disabled={!canLaunchAgent}
-            className="rounded-full bg-orange-accent hover:bg-orange-hover px-10 py-4 text-lg font-semibold text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 disabled:opacity-60 disabled:hover:scale-100"
+          {/* Action Buttons */}
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-4 pt-8 pb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
           >
-            Preview AI Agent
-          </button>
+            <Button
+              variant="default"
+              size="lg"
+              onClick={handleLaunchAgent}
+              disabled={!canLaunchAgent || scriptState.loading}
+              className="min-w-[180px]"
+            >
+              <PlayIcon className="w-5 h-5" />
+              Preview AI Agent
+            </Button>
 
-          <Link
-            className={`rounded-full border-2 border-orange-accent/40 bg-white/80 px-10 py-4 text-lg font-semibold text-charcoal transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 active:scale-100 ${
-              !sid || !pin ? "pointer-events-none opacity-60" : "hover:bg-white hover:border-orange-accent"
-            }`}
-            href={{ pathname: "/population", query: { sid, pin } }}
-          >
-            Choose Interview Participants →
-          </Link>
+            <Button
+              variant="outline"
+              size="lg"
+              asChild
+              disabled={!sid || !pin || scriptState.loading}
+              className="min-w-[220px]"
+            >
+              <Link href={{ pathname: "/population", query: { sid, pin } }}>
+                Choose Participants
+                <ArrowRightIcon className="w-5 h-5" />
+              </Link>
+            </Button>
+          </motion.div>
         </div>
       </main>
     </div>
+  );
+}
+
+// Icon components
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+    </svg>
+  );
+}
+
+function QuestionIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function SectionIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+  );
+}
+
+function ErrorIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+  );
+}
+
+function NoteIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+}
+
+function AnalysisIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  );
+}
+
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+    </svg>
   );
 }

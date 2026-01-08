@@ -3,9 +3,23 @@ import { Button } from "@/components/ui/button";
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-end bg-warm-cream/95 backdrop-blur-sm px-6 md:px-12 py-4 border-b border-light-gray/40">
-      <Button variant="outline" asChild className="rounded-full px-6 py-2.5 text-sm font-medium bg-white/80 border border-light-gray/50 text-charcoal hover:bg-white hover:border-light-gray transition-all duration-300 shadow-sm">
-        <Link href="/return">Returning? Click here to input PIN</Link>
+    <header className="sticky top-0 z-30 flex items-center justify-between glass border-b border-border-subtle px-6 md:px-12 py-4">
+      {/* Logo/Wordmark */}
+      <Link
+        href="/"
+        className="text-lg font-semibold text-foreground hover:text-primary transition-colors"
+      >
+        <span className="text-gradient">Surveyor</span>
+      </Link>
+
+      {/* Return button */}
+      <Button
+        variant="secondary"
+        size="sm"
+        asChild
+        className="rounded-full"
+      >
+        <Link href="/return">Returning? Enter PIN</Link>
       </Button>
     </header>
   );
