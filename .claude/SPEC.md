@@ -24,11 +24,56 @@ Startup founders who are technically literate but time-poor. They expect:
 ## Design System
 
 ### Color Palette
-**Fresh palette** inspired by current theme but refined for premium feel. Derive from Linear/Cursor aesthetic:
-- Rich, saturated primary colors
-- Complementary gradients for depth
-- Neutral grays with subtle warmth or coolness
-- High-contrast text for readability
+**Warm, inviting palette** inspired by Factory.ai's orange accents and the original SurvAgent cream/orange theme.
+
+#### Philosophy
+- **Warm over cold**: Cream backgrounds instead of cool grays
+- **Amber/orange primary**: Rich, confident accent color
+- **Deep teal secondary**: Provides contrast without coldness
+- **Human-centered**: Feels approachable, trustworthy, premium
+
+#### Specific Colors
+
+**Backgrounds (Warm Cream Family)**
+- `--color-bg`: Warm off-white cream `40 40% 98%` → #FDFCFA
+- `--color-bg-subtle`: Slightly deeper cream `38 35% 96%` → #FAF8F5
+- `--color-bg-muted`: Card/section background `36 30% 94%` → #F5F2ED
+
+**Surfaces**
+- `--color-surface`: Pure white for cards `0 0% 100%`
+- `--color-surface-raised`: Elevated elements with subtle warmth
+
+**Text (Warm Darks)**
+- `--color-text`: Deep warm charcoal `30 10% 12%` → #1F1D1B
+- `--color-text-secondary`: Warm gray `30 5% 40%` → #6B6560
+- `--color-text-muted`: Soft warm gray `30 4% 55%` → #908A84
+
+**Primary Accent (Orange/Amber)**
+- `--color-primary`: Rich amber-orange `28 90% 52%` → #F07316 (Factory.ai inspired)
+- `--color-primary-hover`: Deeper amber `26 92% 46%` → #E35C06
+- `--color-primary-subtle`: Warm peach tint `30 100% 96%` → #FFF5EB
+
+**Secondary Accent (Deep Teal)**
+- `--color-accent`: Forest teal `172 50% 28%` → #234E4A
+- `--color-accent-hover`: Deeper teal `172 55% 22%` → #1A3D3A
+- Used for: secondary buttons, links, supporting elements
+
+**Gradients**
+- Hero gradient: Subtle warm glow radiating from orange
+- Button gradient: Orange to amber (not across the color wheel)
+- Avoid: Purple, pink, or cold blues in gradients
+
+**Semantic Colors**
+- Success: Warm green (keep)
+- Warning: Amber (naturally fits palette)
+- Error: Warm red `8 85% 55%` → #E94235
+
+#### Mood
+The palette should evoke:
+- Warmth and approachability
+- Confidence and trust
+- Premium without being cold or corporate
+- Natural, organic feel (like coffee shop, not sterile lab)
 
 ### Typography
 - **Scale**: Moderate hierarchy—clear differentiation without extreme size jumps
@@ -222,9 +267,11 @@ Implementer's choice based on requirements:
 ## Design References
 
 Study these products for inspiration:
-1. **Linear.app** - Clean layouts, smooth animations, professional feel
-2. **Cursor.com** - AI-forward design, premium dark aesthetic elements (adapt for light theme)
-3. **Factory.ai** - Modern AI product design patterns
+1. **Linear.app** - Clean layouts, smooth animations, professional feel, information hierarchy
+2. **Factory.ai** - Orange accent colors on neutral backgrounds, modern AI product patterns
+3. **Original SurvAgent** - Warm cream/orange palette that felt inviting and trustworthy
+
+**Key takeaway**: Borrow layout/animation patterns from Linear, but color warmth from Factory.ai's orange accents and our original cream/orange theme. Avoid cold purples, blues, and sterile whites.
 
 ---
 

@@ -16,12 +16,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Primary gradient button - main CTA
+        // Primary gradient button - main CTA (warm orange)
         default: [
-          "bg-gradient-to-r from-primary to-accent",
-          "text-primary-foreground",
-          "shadow-md hover:shadow-lg hover:shadow-primary/20",
-          "hover:brightness-110"
+          "bg-gradient-to-r from-orange-500 to-amber-500",
+          "text-white",
+          "shadow-md hover:shadow-lg hover:shadow-orange-500/25",
+          "hover:brightness-105"
         ],
         // Solid primary without gradient
         solid: [
@@ -59,13 +59,13 @@ const buttonVariants = cva(
           "text-primary underline-offset-4",
           "hover:underline"
         ],
-        // Premium gradient with glow effect
+        // Premium gradient with glow effect (warm orange)
         premium: [
-          "bg-gradient-to-r from-primary via-accent to-primary",
+          "bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500",
           "bg-[length:200%_100%]",
-          "text-primary-foreground",
-          "shadow-lg shadow-primary/25",
-          "hover:shadow-xl hover:shadow-primary/30",
+          "text-white",
+          "shadow-lg shadow-orange-500/25",
+          "hover:shadow-xl hover:shadow-orange-500/30",
           "hover:bg-[position:100%_0]",
           "transition-all duration-500"
         ]

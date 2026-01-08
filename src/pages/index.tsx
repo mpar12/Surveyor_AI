@@ -246,7 +246,7 @@ export default function HomePage() {
                   className="h-full text-center p-6"
                 >
                   <CardContent className="flex flex-col items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-orange-400/10 flex items-center justify-center">
                       <feature.icon className="w-7 h-7 text-primary" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">
@@ -307,7 +307,7 @@ export default function HomePage() {
                 variants={fadeInUp}
                 className="flex gap-4"
               >
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-lg">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
                   {item.step}
                 </div>
                 <div>
@@ -346,7 +346,7 @@ export default function HomePage() {
                     e.preventDefault();
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-accent text-white font-semibold hover:shadow-lg hover:shadow-primary/30 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold hover:shadow-lg hover:shadow-orange-500/30 transition-all hover:brightness-105"
                 >
                   <ArrowUpIcon className="w-5 h-5" />
                   Start Now

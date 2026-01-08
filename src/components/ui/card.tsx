@@ -47,13 +47,13 @@ const cardVariants = cva(
           "hover:-translate-y-0.5",
           "cursor-pointer"
         ],
-        // Gradient border card
+        // Gradient border card (warm orange)
         gradient: [
           "relative",
           "bg-surface",
           "shadow-lg",
           "before:absolute before:inset-0 before:-z-10 before:rounded-xl",
-          "before:bg-gradient-to-r before:from-primary before:to-accent",
+          "before:bg-gradient-to-r before:from-orange-500 before:to-amber-500",
           "before:p-[1px]",
           "overflow-hidden"
         ]

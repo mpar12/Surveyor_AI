@@ -86,14 +86,14 @@ export function ChatInput({
           "absolute right-3 bottom-3",
           "w-12 h-12",
           "rounded-xl",
-          "bg-gradient-to-r from-primary to-accent",
+          "bg-gradient-to-r from-orange-500 to-amber-500",
           "text-white",
           "flex items-center justify-center",
           "transition-all duration-200",
-          "hover:shadow-lg hover:shadow-primary/30",
+          "hover:shadow-lg hover:shadow-orange-500/30",
           "hover:scale-105 active:scale-95",
           "disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none",
-          "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
+          "focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2"
         )}
         aria-label="Submit research prompt"
       >
