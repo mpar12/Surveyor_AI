@@ -1,57 +1,38 @@
-import { ArrowRight } from "lucide-react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import { ArrowUp } from "lucide-react";
+import type { ChangeEvent } from "react";
 
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
   isSubmitting: boolean;
-  placeholder?: string;
 }
 
-export function ChatInput({
-  value,
-  onChange,
-  isSubmitting,
-  placeholder = "What would you like to research today?"
-}: ChatInputProps) {
+export function ChatInput({ value, onChange, isSubmitting }: ChatInputProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(event.currentTarget.value);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      if (value.trim() && !isSubmitting) {
-        const form = event.currentTarget.closest("form");
-        if (form) {
-          form.requestSubmit();
-        }
-      }
-    }
-  };
-
   return (
-    <div className="w-full relative">
+    <div className="w-full relative group">
       <input
         type="text"
         value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className="w-full h-[52px] px-4 pr-14 bg-[#FAFAF9] border border-[#E0E0DE] rounded-xl text-[15px] text-[#1a1a1a] placeholder-[#9a9a9a] transition-all duration-200 focus:outline-none focus:border-[#D4613A] focus:ring-2 focus:ring-[#D4613A]/10 hover:border-[#CCCCC9]"
-        aria-label={placeholder}
+        onInput={handleChange}
+        placeholder="What would you like to research today?"
+        className="w-full px-8 py-6 pr-20 bg-white border border-black/5 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/20 focus:border-[#FF6B35]/50 text-[#1a1a1a] placeholder-[#888888] text-lg transition-all duration-300"
+        aria-label="What would you like to research today?"
         disabled={isSubmitting}
       />
       <button
         type="submit"
         disabled={!value.trim() || isSubmitting}
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-[#1a1a1a] text-white flex items-center justify-center transition-all duration-200 hover:bg-[#333] disabled:opacity-40 disabled:hover:bg-[#1a1a1a]"
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-[#FF6B35] text-white hover:bg-[#E55A2B] transition-all duration-200 flex items-center justify-center hover:scale-105 active:scale-95 shadow-lg shadow-[#FF6B35]/20 disabled:opacity-60 disabled:hover:scale-100"
         aria-label="Submit research prompt"
       >
         {isSubmitting ? (
-          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <span className="w-5 h-5 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
         ) : (
-          <ArrowRight className="w-4 h-4" />
+          <ArrowUp className="w-6 h-6 stroke-[2.5]" />
         )}
       </button>
     </div>
