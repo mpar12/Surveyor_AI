@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /* =============================================================================
-   Design System: Warm cream/orange palette (Factory.ai + Original SurvAgent inspired)
+   Design System: Warm cream/orange palette (Original SurvAgent)
    ============================================================================= */
 
 @layer base {
@@ -14,9 +14,18 @@
        Color Palette - Warm, inviting, premium
        ------------------------------------------------------------------------- */
 
+    /* Original warm palette */
+    --warm-cream: #f7f5f2;
+    --warm-beige: #ebe9e4;
+    --charcoal: #1a1a1a;
+    --soft-gray: #6b6b6b;
+    --light-gray: #d4d2cd;
+    --orange-accent: #FF6B35;
+    --orange-hover: #E55A2B;
+
     /* Background layers (Warm Cream Family) */
-    --color-bg: 40 40% 98%;             /* #FDFCFA - Warm off-white cream */
-    --color-bg-subtle: 38 35% 96%;      /* #FAF8F5 - Slightly deeper cream */
+    --color-bg: 37 23% 96%;             /* #f7f5f2 - Warm cream */
+    --color-bg-subtle: 40 18% 92%;      /* #ebe9e4 - Warm beige */
     --color-bg-muted: 36 30% 94%;       /* #F5F2ED - Card/section backgrounds */
 
     /* Surface colors */
@@ -35,10 +44,10 @@
     --color-text-muted: 30 4% 55%;      /* #908A84 - Soft warm gray */
     --color-text-inverse: 0 0% 100%;    /* #FFFFFF - On dark backgrounds */
 
-    /* Primary accent - Orange/Amber (Factory.ai inspired) */
-    --color-primary: 24 95% 53%;        /* #F97316 - Rich orange */
-    --color-primary-hover: 21 95% 48%;  /* #EA580C - Deeper on hover */
-    --color-primary-subtle: 30 100% 96%; /* #FFF5EB - Warm peach tint */
+    /* Primary accent - Coral Orange (Original SurvAgent) */
+    --color-primary: 16 100% 60%;       /* #FF6B35 - Coral orange */
+    --color-primary-hover: 14 80% 53%;  /* #E55A2B - Deeper on hover */
+    --color-primary-subtle: 20 100% 96%; /* Warm peach tint */
     --color-primary-foreground: 0 0% 100%;
 
     /* Secondary - Warm neutral for supporting elements */
@@ -117,6 +126,25 @@
     --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
+  /* Body styling - matches main branch */
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--warm-cream);
+    color: var(--charcoal);
+    line-height: 1.55;
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headings - matches main branch */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    color: var(--charcoal);
+    letter-spacing: -0.02em;
+  }
+
   /* Base styles */
   * {
     box-sizing: border-box;
@@ -126,90 +154,33 @@
 
   html {
     font-size: 16px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
   }
 
   html, body, #__next {
     height: 100%;
   }
 
-  body {
-    font-family: var(--font-sans);
-    font-size: 1rem;
-    line-height: 1.6;
-    font-weight: 400;
-    letter-spacing: -0.011em;
-    color: hsl(var(--color-text));
-    background-color: hsl(var(--color-bg));
-  }
-
-  /* Typography defaults */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    color: hsl(var(--color-text));
-    line-height: 1.25;
-  }
-
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    letter-spacing: -0.035em;
-  }
-
-  h2 {
-    font-size: 2rem;
-    letter-spacing: -0.03em;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
-
-  h4 {
-    font-size: 1.25rem;
-  }
-
-  h5 {
-    font-size: 1.125rem;
-  }
-
-  h6 {
-    font-size: 1rem;
-  }
-
-  p {
-    color: hsl(var(--color-text-secondary));
-  }
-
+  /* Links */
   a {
-    color: hsl(var(--color-primary));
+    color: var(--orange-accent);
     text-decoration: none;
-    transition: color var(--transition-fast);
+    transition: color 0.2s ease, opacity 0.2s ease;
   }
 
   a:hover {
-    color: hsl(var(--color-primary-hover));
+    opacity: 0.85;
   }
 
   ::selection {
-    background: hsl(var(--color-primary) / 0.2);
-    color: hsl(var(--color-text));
+    background: rgba(255, 107, 53, 0.2);
+    color: var(--charcoal);
   }
 
   /* Form element resets */
   button, input, textarea, select {
     font: inherit;
     color: inherit;
-  }
-
-  /* Focus visible styles */
-  :focus-visible {
-    outline: 2px solid hsl(var(--color-primary) / 0.5);
-    outline-offset: 2px;
+    background: transparent;
   }
 }
 
@@ -543,4 +514,72 @@ elevenlabs-convai {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--color-text-muted));
+}
+
+/* =============================================================================
+   Original SurvAgent Styles
+   ============================================================================= */
+
+/* Warm cream background with grain texture */
+.bg-grain {
+  position: relative;
+  background-color: #f7f5f2;
+}
+
+.bg-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+/* Utility classes for warm palette */
+.bg-warm-cream {
+  background-color: var(--warm-cream);
+}
+
+.bg-warm-beige {
+  background-color: var(--warm-beige);
+}
+
+.text-charcoal {
+  color: var(--charcoal);
+}
+
+.text-soft-gray {
+  color: var(--soft-gray);
+}
+
+.border-light-gray {
+  border-color: var(--light-gray);
+}
+
+.bg-orange-accent {
+  background-color: var(--orange-accent);
+}
+
+.text-orange-accent {
+  color: var(--orange-accent);
+}
+
+.border-orange-accent {
+  border-color: var(--orange-accent);
+}
+
+/* Glow animation for accents */
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 107, 53, 0.5);
+  }
 }

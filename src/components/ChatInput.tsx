@@ -1,27 +1,24 @@
-import { ArrowUp } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { ChangeEvent, KeyboardEvent } from "react";
-import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
   isSubmitting: boolean;
   placeholder?: string;
-  className?: string;
 }
 
 export function ChatInput({
   value,
   onChange,
   isSubmitting,
-  placeholder = "What would you like to research today?",
-  className
+  placeholder = "What would you like to research today?"
 }: ChatInputProps) {
-  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(event.currentTarget.value);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       if (value.trim() && !isSubmitting) {
@@ -34,73 +31,27 @@ export function ChatInput({
   };
 
   return (
-    <div
-      className={cn(
-        "w-full relative group",
-        "rounded-2xl",
-        "bg-surface",
-        "border border-border",
-        "shadow-lg hover:shadow-xl",
-        "transition-all duration-300",
-        "focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20",
-        "hover:border-border-strong",
-        className
-      )}
-    >
-      {/* Gradient glow effect on focus */}
-      <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 opacity-0 group-focus-within:opacity-100 blur-sm transition-opacity duration-300 -z-10" />
-
-      <textarea
+    <div className="w-full relative">
+      <input
+        type="text"
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        rows={1}
-        className={cn(
-          "w-full min-h-[64px] max-h-[200px]",
-          "px-6 py-5 pr-16",
-          "bg-transparent",
-          "text-foreground text-lg",
-          "placeholder:text-foreground-muted",
-          "resize-none",
-          "focus:outline-none",
-          "disabled:opacity-50 disabled:cursor-not-allowed"
-        )}
-        style={{
-          height: "auto",
-          overflow: "hidden"
-        }}
-        onInput={(e) => {
-          const target = e.currentTarget;
-          target.style.height = "auto";
-          target.style.height = `${Math.min(target.scrollHeight, 200)}px`;
-        }}
+        className="w-full h-[52px] px-4 pr-14 bg-[#FAFAF9] border border-[#E0E0DE] rounded-xl text-[15px] text-[#1a1a1a] placeholder-[#9a9a9a] transition-all duration-200 focus:outline-none focus:border-[#D4613A] focus:ring-2 focus:ring-[#D4613A]/10 hover:border-[#CCCCC9]"
         aria-label={placeholder}
         disabled={isSubmitting}
       />
-
       <button
         type="submit"
         disabled={!value.trim() || isSubmitting}
-        className={cn(
-          "absolute right-3 bottom-3",
-          "w-12 h-12",
-          "rounded-xl",
-          "bg-gradient-to-r from-orange-500 to-amber-500",
-          "text-white",
-          "flex items-center justify-center",
-          "transition-all duration-200",
-          "hover:shadow-lg hover:shadow-orange-500/30",
-          "hover:scale-105 active:scale-95",
-          "disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none",
-          "focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2"
-        )}
+        className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-[#1a1a1a] text-white flex items-center justify-center transition-all duration-200 hover:bg-[#333] disabled:opacity-40 disabled:hover:bg-[#1a1a1a]"
         aria-label="Submit research prompt"
       >
         {isSubmitting ? (
-          <span className="w-5 h-5 border-2 border-white/70 border-t-transparent rounded-full animate-spin" />
+          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         ) : (
-          <ArrowUp className="w-5 h-5 stroke-[2.5]" />
+          <ArrowRight className="w-4 h-4" />
         )}
       </button>
     </div>

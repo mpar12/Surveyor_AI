@@ -73,8 +73,8 @@ const GradientSpinner = React.forwardRef<SVGSVGElement, SpinnerProps>(
     >
       <defs>
         <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f97316" />
-          <stop offset="100%" stopColor="#f59e0b" />
+          <stop offset="0%" stopColor="#FF6B35" />
+          <stop offset="100%" stopColor="#E55A2B" />
         </linearGradient>
       </defs>
       <circle

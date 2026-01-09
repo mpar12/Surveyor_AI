@@ -16,12 +16,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Primary gradient button - main CTA (warm orange)
+        // Primary button - Coral orange (Original SurvAgent)
         default: [
-          "bg-gradient-to-r from-orange-500 to-amber-500",
+          "bg-[#FF6B35]",
           "text-white",
-          "shadow-md hover:shadow-lg hover:shadow-orange-500/25",
-          "hover:brightness-105"
+          "shadow-lg shadow-[#FF6B35]/20",
+          "hover:bg-[#E55A2B] hover:shadow-xl hover:shadow-[#FF6B35]/25"
         ],
         // Solid primary without gradient
         solid: [
@@ -59,15 +59,13 @@ const buttonVariants = cva(
           "text-primary underline-offset-4",
           "hover:underline"
         ],
-        // Premium gradient with glow effect (warm orange)
+        // Premium button with glow effect (Coral orange)
         premium: [
-          "bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500",
-          "bg-[length:200%_100%]",
+          "bg-[#FF6B35]",
           "text-white",
-          "shadow-lg shadow-orange-500/25",
-          "hover:shadow-xl hover:shadow-orange-500/30",
-          "hover:bg-[position:100%_0]",
-          "transition-all duration-500"
+          "shadow-lg shadow-[#FF6B35]/30",
+          "hover:bg-[#E55A2B] hover:shadow-xl hover:shadow-[#FF6B35]/40",
+          "animate-glow"
         ]
       },
       size: {
