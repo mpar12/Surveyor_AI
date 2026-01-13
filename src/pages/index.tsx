@@ -95,52 +95,146 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-dark-hero relative overflow-hidden">
+    <div className="min-h-screen w-full bg-black relative overflow-hidden">
       <Head>
         <title>Surveyor - AI Customer Research</title>
         <meta name="description" content="AI-powered customer research at scale." />
       </Head>
 
-      {/* Subtle gradient orb in background */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,_rgba(255,107,53,0.12)_0%,_transparent_70%)] pointer-events-none" />
-
       <Header />
 
-      {/* Hero Section */}
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 md:px-16 lg:px-24">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Headline */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] tracking-tight text-white mb-6">
-            AI interviews to understand your customers at scale{" "}
-            <span className="text-[#FF6B35]">(fast)</span>
-          </h1>
+      {/* Main Content */}
+      <main className="relative z-10 min-h-screen pt-32 pb-20 px-8 md:px-12 lg:px-16">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-start">
+            {/* Left Column - Content */}
+            <div className="max-w-2xl">
+              {/* Label */}
+              <div className="flex items-center gap-2 mb-8">
+                <div className="w-2 h-2 rounded-full bg-[#FF6B35]" />
+                <span className="text-sm text-[#888] tracking-wide font-medium">RESEARCH</span>
+              </div>
 
-          {/* Tagline */}
-          <p className="text-lg md:text-xl text-[#a1a1a1] leading-relaxed max-w-2xl mx-auto mb-12">
-            Generate research briefs, scripted surveys, and voice agents in seconds. Launch interviews instantly and
-            revisit transcripts, insights, and key takeaways in one place.
-          </p>
+              {/* Headline */}
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-white mb-8">
+                AI-Powered
+                <br />
+                Customer Research
+              </h1>
 
-          {/* Prompt Bar Container */}
-          <div className="w-full max-w-2xl mx-auto">
-            {/* Animated activity indicator */}
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse-glow" />
-              <span className="text-sm text-[#6b6b6b]">AI ready to conduct research</span>
+              {/* Subtitle */}
+              <p className="text-lg md:text-xl text-[#888] leading-relaxed mb-4 font-light">
+                The only AI research platform that conducts
+                <br className="hidden md:block" />
+                interviews everywhere you need them.
+              </p>
+
+              {/* Body text */}
+              <p className="text-base md:text-lg text-[#666] leading-relaxed mb-10">
+                From briefs to insights — delegate complete research tasks like
+                customer discovery, market validation, and user interviews to AI
+                without changing your tools, models, or workflow.
+              </p>
+
+              {/* Terminal-style Input */}
+              <div className="w-full max-w-xl">
+                <form onSubmit={handleSubmit} noValidate>
+                  {submitError ? (
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm mb-4">
+                      {submitError}
+                    </div>
+                  ) : null}
+                  <ChatInput
+                    value={form.prompt}
+                    onChange={(value) => setForm((previous) => ({ ...previous, prompt: value }))}
+                    isSubmitting={isSubmitting}
+                  />
+                </form>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} noValidate>
-              {submitError ? (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm mb-4">
-                  {submitError}
+            {/* Right Column - Decorative Elements */}
+            <div className="hidden lg:block relative h-[500px]">
+              {/* Animated nodes/connections visualization */}
+              <div className="absolute inset-0">
+                {/* Top node */}
+                <div className="absolute top-8 left-1/2 -translate-x-1/2">
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-8 h-2 rounded-full bg-[#333]" />
+                  </div>
                 </div>
-              ) : null}
-              <ChatInput
-                value={form.prompt}
-                onChange={(value) => setForm((previous) => ({ ...previous, prompt: value }))}
-                isSubmitting={isSubmitting}
-              />
-            </form>
+
+                {/* Center icon */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="w-12 h-12 flex items-center justify-center">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-[#888] animate-pulse">
+                      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Connection lines */}
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 500">
+                  <defs>
+                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#333" />
+                      <stop offset="50%" stopColor="#444" />
+                      <stop offset="100%" stopColor="#333" />
+                    </linearGradient>
+                  </defs>
+                  {/* Horizontal dashed lines */}
+                  <line x1="50" y1="100" x2="350" y2="100" stroke="#222" strokeWidth="1" strokeDasharray="4 4" />
+                  <line x1="50" y1="200" x2="350" y2="200" stroke="#222" strokeWidth="1" strokeDasharray="4 4" />
+                  <line x1="50" y1="300" x2="350" y2="300" stroke="#222" strokeWidth="1" strokeDasharray="4 4" />
+                  <line x1="50" y1="400" x2="350" y2="400" stroke="#222" strokeWidth="1" strokeDasharray="4 4" />
+                </svg>
+
+                {/* Additional nodes */}
+                <div className="absolute top-[180px] left-8">
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-8 h-2 rounded-full bg-[#333]" />
+                  </div>
+                </div>
+
+                <div className="absolute top-[280px] right-8">
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-2 h-2 rounded-full bg-[#FF6B35]" />
+                    <div className="w-8 h-2 rounded-full bg-[#333]" />
+                  </div>
+                </div>
+
+                <div className="absolute bottom-[80px] left-1/3">
+                  <div className="flex items-center gap-1 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] rounded-full">
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-2 h-2 rounded-full bg-[#444]" />
+                    <div className="w-8 h-2 rounded-full bg-[#333]" />
+                  </div>
+                </div>
+
+                {/* Code snippet card */}
+                <div className="absolute bottom-12 right-0 w-56 bg-[#111] border border-[#222] rounded-lg p-3 font-mono text-xs">
+                  <div className="flex items-center gap-1 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-[#ff5f56]" />
+                    <div className="w-2 h-2 rounded-full bg-[#ffbd2e]" />
+                    <div className="w-2 h-2 rounded-full bg-[#27ca40]" />
+                  </div>
+                  <div className="text-[#666] text-[10px] leading-relaxed">
+                    <span className="text-[#888]">from</span> <span className="text-[#FF6B35]">surveyor</span><br />
+                    <span className="text-[#888]">import</span> research<br />
+                    <br />
+                    <span className="text-[#555]"># AI-powered</span><br />
+                    research.<span className="text-[#888]">conduct</span>()
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
