@@ -1,11 +1,16 @@
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
-import styles from "@/styles/Population.module.css";
+import { motion } from "framer-motion";
 import { EMAIL_PREVIEW_RECIPIENTS_KEY, SURVEY_QUESTIONS_STORAGE_KEY } from "@/lib/storageKeys";
 import { useSessionContext } from "@/contexts/SessionContext";
 import type { InterviewScript } from "@/types/interviewScript";
 import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
+import Header from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,6 +29,21 @@ const getQueryValue = (value: QueryValue) => {
     return value[0] ?? "";
   }
   return value ?? "";
+};
+
+// Animation variants
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 }
+};
+
+const stagger = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
 };
 
 export default function PopulationPage() {
@@ -263,101 +283,198 @@ export default function PopulationPage() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className="min-h-screen w-full bg-black">
       <Head>
-        <title>Choose Participants | SurvAgent</title>
+        <title>Choose Participants | Surveyor</title>
         <meta
           name="description"
-          content="Decide who should receive your SurvAgent invitation."
+          content="Decide who should receive your Surveyor invitation."
         />
       </Head>
 
-      <div className={styles.lead}>
-        <h1 className={styles.pageTitle}>Choose Interview Participants</h1>
-        <p className={styles.pageSubtitle}>
-          Share a list of recipients and we&apos;ll help you send the AI survey invitation.
-        </p>
-      </div>
+      <Header />
 
-      <div className={styles.card}>
-        <section className={`${styles.section} ${styles.contextPanel}`}>
-          <h2>Prompt recap</h2>
-          <dl>
-            <div>
-              <dt>Requester</dt>
-              <dd>{contextSummary.name || "—"}</dd>
-            </div>
-            <div>
-              <dt>Prompt</dt>
-              <dd>{contextSummary.prompt || "—"}</dd>
-            </div>
-          </dl>
-          <div className={styles.copyRow}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={handleCopyAgentLink}
-              disabled={!agentLink}
-            >
-              {agentLink ? "Copy assistant link" : "Preparing link…"}
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => router.push(`/prolific-setup?sid=${contextSummary.sid}&pin=${contextSummary.pin}`)}
-              disabled={!contextSummary.sid || !contextSummary.pin}
-            >
-              Prolific Project
-            </button>
-            <span
-              className={`${styles.copyStatus} ${
-                copyStatus === "copied"
-                  ? styles.copyStatusSuccess
-                  : copyStatus === "error"
-                    ? styles.copyStatusError
-                    : ""
-              }`}
-            >
-              {copyStatus === "copied"
-                ? "Copied!"
-                : copyStatus === "error"
-                  ? "Unable to copy."
-                  : "Share the ElevenLabs agent directly."}
-            </span>
-          </div>
-        </section>
-
-        <section className={`${styles.section} ${styles.optionsSection}`}>
-          <h2>Paste your participant list</h2>
-          <p className={styles.helperText}>
-            Separate addresses with commas. We&apos;ll BCC everyone on your invitation.
-          </p>
-          <div className={styles.manualInput}>
-            <textarea
-              value={emailCsv}
-              onChange={handleEmailsChange}
-              maxLength={1000}
-              placeholder="alice@example.com, bob@example.org, ..."
-              aria-label="Comma separated email addresses"
-            />
-            <div className={styles.helperRow}>
-              <span>{emailCsv.length}/1000</span>
-              {emailError ? <span className={styles.error}>{emailError}</span> : null}
-            </div>
-          </div>
-        </section>
-
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={handlePrepareEmail}
-            disabled={!hasValidEmails}
+      <main className="relative z-10 pt-24 pb-20 px-6 md:px-12 lg:px-16">
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            initial="initial"
+            animate="animate"
+            variants={stagger}
+            className="space-y-8"
           >
-            Draft Email
-          </button>
+            {/* Page Header */}
+            <motion.div variants={fadeInUp} className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#FF6B35]" />
+                <span className="text-sm text-[#888] tracking-wide font-medium">PARTICIPANTS</span>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+                Choose Interview Participants
+              </h1>
+              <p className="text-lg text-[#888]">
+                Share a list of recipients and we&apos;ll help you send the AI survey invitation.
+              </p>
+            </motion.div>
+
+            {/* Context Card */}
+            <motion.div variants={fadeInUp}>
+              <Card variant="default" className="bg-[#111] border-[#2a2a2a]">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <NoteIcon className="w-5 h-5 text-[#FF6B35]" />
+                    Prompt Recap
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#666]">
+                        Requester
+                      </span>
+                      <p className="text-white font-medium mt-1">{contextSummary.name || "—"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#666]">
+                        Session PIN
+                      </span>
+                      <p className="text-white font-medium mt-1 font-mono">{contextSummary.pin || "—"}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#666]">
+                      Research Prompt
+                    </span>
+                    <p className="text-[#a1a1a1] mt-1">{contextSummary.prompt || "—"}</p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-[#2a2a2a]">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyAgentLink}
+                      disabled={!agentLink}
+                      className="border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+                    >
+                      <CopyIcon className="w-4 h-4" />
+                      {agentLink ? "Copy Assistant Link" : "Preparing..."}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/prolific-setup?sid=${contextSummary.sid}&pin=${contextSummary.pin}`)}
+                      disabled={!contextSummary.sid || !contextSummary.pin}
+                      className="border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+                    >
+                      <ExternalIcon className="w-4 h-4" />
+                      Prolific Project
+                    </Button>
+                    <span className="text-xs text-[#666]">
+                      {copyStatus === "copied"
+                        ? "Copied!"
+                        : copyStatus === "error"
+                          ? "Unable to copy."
+                          : "Share the ElevenLabs agent directly."}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Email Input Card */}
+            <motion.div variants={fadeInUp}>
+              <Card variant="default" className="bg-[#111] border-[#2a2a2a]">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <MailIcon className="w-5 h-5 text-[#FF6B35]" />
+                    Paste Your Participant List
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-[#888]">
+                    Separate addresses with commas. We&apos;ll BCC everyone on your invitation.
+                  </p>
+                  <Textarea
+                    value={emailCsv}
+                    onChange={handleEmailsChange}
+                    maxLength={1000}
+                    placeholder="alice@example.com, bob@example.org, ..."
+                    className="bg-[#0a0a0a] border-[#2a2a2a] text-white placeholder-[#555] focus:border-[#FF6B35]"
+                    characterCount
+                  />
+                  {emailError && (
+                    <p className="text-sm text-red-400">{emailError}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Action Buttons */}
+            <motion.div variants={fadeInUp} className="flex flex-wrap gap-4 justify-center pt-4">
+              <Button
+                size="lg"
+                onClick={handlePrepareEmail}
+                disabled={!hasValidEmails}
+              >
+                <MailIcon className="w-5 h-5" />
+                Draft Email
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                asChild
+                className="border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+              >
+                <Link href={{ pathname: "/scorecard", query: { sid: contextSummary.sid, pin: contextSummary.pin } }}>
+                  <ChartIcon className="w-5 h-5" />
+                  View Results
+                </Link>
+              </Button>
+            </motion.div>
+          </motion.div>
         </div>
-      </div>
+      </main>
     </div>
+  );
+}
+
+// Icons
+function NoteIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+}
+
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function ExternalIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+  );
+}
+
+function ChartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
   );
 }

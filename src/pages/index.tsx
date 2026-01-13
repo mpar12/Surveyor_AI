@@ -77,7 +77,7 @@ export default function HomePage() {
         console.error("Failed to persist session context", contextError);
       });
 
-      const query: Record<string, string> = {
+      const query: Record<string, string> = {n
         name: sanitizedName,
         prompt: sanitizedPrompt,
         sid: payload.sessionId,

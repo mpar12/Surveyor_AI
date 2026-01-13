@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
-import styles from "@/styles/EmailPreview.module.css";
+import { motion } from "framer-motion";
 import {
   EMAIL_PREVIEW_LAST_SEND_KEY,
   EMAIL_PREVIEW_RECIPIENTS_KEY,
@@ -10,6 +10,11 @@ import {
 import { useSessionContext } from "@/contexts/SessionContext";
 import type { InterviewScript } from "@/types/interviewScript";
 import { extractQuestionsFromScript, isInterviewScript } from "@/types/interviewScript";
+import Header from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,12 +27,12 @@ const buildEmailHtml = (body: string, agentLink: string) => {
   }
 
   const safeLink = agentLink.replace(/"/g, "&quot;");
-  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;\">Get chatting!</a></div>`;
+  const buttonHtml = `<div style=\"margin-top:16px;\"><a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"display:inline-block;padding:12px 20px;border-radius:10px;background:#FF6B35;color:#ffffff;font-weight:600;text-decoration:none;\">Start Interview</a></div>`;
 
   if (safeBody.includes(agentLink)) {
     const replaced = safeBody
       .split(agentLink)
-      .join(`<a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#2563eb;font-weight:600;\">${agentLink}</a>`);
+      .join(`<a href=\"${safeLink}\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#FF6B35;font-weight:600;\">${agentLink}</a>`);
     return `<div>${replaced.replace(/\n/g, "<br />")}${buttonHtml}</div>`;
   }
 
@@ -52,12 +57,25 @@ const flattenScriptToParagraph = (script: InterviewScript | null): string | null
   return questions.length ? questions.join("\n") : null;
 };
 
+// Animation variants
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 }
+};
+
+const stagger = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
 export default function EmailPreviewPage() {
   const router = useRouter();
-  const { sessionData, isLoading: sessionLoading, error: sessionError } = useSessionContext();
+  const { sessionData } = useSessionContext();
 
   const context = useMemo(() => {
-    // Use session data if available, fallback to URL params for initial load
     return {
       name: sessionData?.requester || getQueryValue(router.query.name),
       prompt: sessionData?.prompt || getQueryValue(router.query.prompt),
@@ -84,13 +102,11 @@ export default function EmailPreviewPage() {
   // Clean URL after initial load if we have session data
   useEffect(() => {
     if (sessionData && router.isReady && context.sid && context.pin) {
-      // Check if URL has more than just sid and pin
-      const hasExtraParams = Object.keys(router.query).some(key => 
+      const hasExtraParams = Object.keys(router.query).some(key =>
         key !== 'sid' && key !== 'pin' && key !== 'emails' && router.query[key]
       );
-      
+
       if (hasExtraParams) {
-        // Replace URL with clean version
         router.replace({
           pathname: router.pathname,
           query: { sid: context.sid, pin: context.pin, emails: router.query.emails }
@@ -195,7 +211,7 @@ export default function EmailPreviewPage() {
     setSubject((prev) => {
       if (prev) return prev;
       const promptSnippet = context.prompt ? context.prompt.slice(0, 60) : null;
-      return promptSnippet ? `Can we chat about “${promptSnippet}”?` : "Survey Invitation";
+      return promptSnippet ? `Can we chat about "${promptSnippet}"?` : "Survey Invitation";
     });
 
     setBody((prev) => {
@@ -212,22 +228,6 @@ export default function EmailPreviewPage() {
 
   const handleBodyChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setBody(event.target.value);
-  };
-
-  const handleRecipientChange = (index: number, value: string) => {
-    setRecipients((previous) => {
-      const next = [...previous];
-      next[index] = value;
-      return next;
-    });
-  };
-
-  const handleRecipientBlur = (index: number) => {
-    setRecipients((previous) => {
-      const next = [...previous];
-      next[index] = next[index].trim();
-      return next;
-    });
   };
 
   const handleRecipientRemove = (index: number) => {
@@ -351,116 +351,207 @@ export default function EmailPreviewPage() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className="min-h-screen w-full bg-black">
       <Head>
-        <title>Email Preview | SurvAgent</title>
+        <title>Email Preview | Surveyor</title>
         <meta name="description" content="Review and send the survey invitation email." />
       </Head>
 
-      <div className={styles.lead}>
-        <h1 className={styles.pageTitle}>Send Interview Invitation via email</h1>
-        <p className={styles.pageSubtitle}>
-          Review the message below and confirm to send your AI agent to the selected recipients.
-        </p>
-      </div>
+      <Header />
 
-      <div className={styles.card}>
-
-        <section className={styles.section}>
-          <div>
-            <div className={styles.label}>From</div>
-            <div className={styles.readonlyInput}>{`${SENDER_NAME} <${SENDER_EMAIL}>`}</div>
-          </div>
-
-          <div>
-            <div className={styles.label}>Bcc</div>
-            <div className={styles.recipientsEditable}>
-              {recipients.length ? (
-                recipients.map((recipient, index) => (
-                  <div key={index} className={styles.recipientRow}>
-                    <input
-                      value={recipient}
-                      onChange={(event) => handleRecipientChange(index, event.target.value)}
-                      onBlur={() => handleRecipientBlur(index)}
-                      className={styles.recipientInput}
-                      aria-label={`Recipient ${index + 1}`}
-                    />
-                    <button
-                      type="button"
-                      className={styles.removeRecipientButton}
-                      onClick={() => handleRecipientRemove(index)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <span className={styles.helperText}>No recipients selected yet.</span>
-              )}
-              <div className={styles.addRecipientRow}>
-                <input
-                  value={newRecipient}
-                  onChange={(event) => setNewRecipient(event.target.value)}
-                  onKeyDown={handleNewRecipientKeyDown}
-                  className={styles.recipientInput}
-                  placeholder="Add another email"
-                />
-                <button type="button" className={styles.addRecipientButton} onClick={handleAddRecipient}>
-                  Add
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <label className={styles.label} htmlFor="email-subject">
-            Subject
-          </label>
-          <input
-            id="email-subject"
-            className={styles.input}
-            value={subject}
-            onChange={handleSubjectChange}
-            placeholder="Product Survey"
-          />
-        </section>
-
-        <section className={styles.section}>
-          <label className={styles.label} htmlFor="email-body">
-            Message
-          </label>
-          <textarea
-            id="email-body"
-            className={styles.textarea}
-            value={body}
-            onChange={handleBodyChange}
-          />
-          <p className={styles.helperText}>The survey button below is automatically included in the final email.</p>
-        </section>
-
-        <section className={styles.section}>
-          <div className={styles.label}>Preview</div>
-          <div
-            className={styles.previewBox}
-            dangerouslySetInnerHTML={{ __html: buildEmailHtml(body, agentLink) }}
-          />
-        </section>
-
-        {error ? <div className={styles.statusError}>{error}</div> : null}
-        {success ? <div className={styles.statusSuccess}>{success}</div> : null}
-
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={handleSend}
-            disabled={isSending || !recipients.length}
+      <main className="relative z-10 pt-24 pb-20 px-6 md:px-12 lg:px-16">
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            initial="initial"
+            animate="animate"
+            variants={stagger}
+            className="space-y-8"
           >
-            {isSending ? "Sending…" : "Send email"}
-          </button>
+            {/* Page Header */}
+            <motion.div variants={fadeInUp} className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#FF6B35]" />
+                <span className="text-sm text-[#888] tracking-wide font-medium">EMAIL</span>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+                Send Interview Invitation
+              </h1>
+              <p className="text-lg text-[#888]">
+                Review the message below and confirm to send your AI agent to the selected recipients.
+              </p>
+            </motion.div>
+
+            {/* Email Form Card */}
+            <motion.div variants={fadeInUp}>
+              <Card variant="default" className="bg-[#111] border-[#2a2a2a]">
+                <CardContent className="space-y-6 pt-6">
+                  {/* From Field */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#666] mb-2">
+                      From
+                    </label>
+                    <div className="px-4 py-3 bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg text-[#888]">
+                      {`${SENDER_NAME} <${SENDER_EMAIL}>`}
+                    </div>
+                  </div>
+
+                  {/* Recipients Field */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#666] mb-2">
+                      Bcc Recipients
+                    </label>
+                    <div className="space-y-3">
+                      {recipients.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {recipients.map((recipient, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#333] rounded-full"
+                            >
+                              <span className="text-sm text-white">{recipient}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRecipientRemove(index)}
+                                className="text-[#666] hover:text-red-400 transition-colors"
+                              >
+                                <XIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          value={newRecipient}
+                          onChange={(event) => setNewRecipient(event.target.value)}
+                          onKeyDown={handleNewRecipientKeyDown}
+                          placeholder="Add email address"
+                          className="bg-[#0a0a0a] border-[#2a2a2a] text-white placeholder-[#555]"
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={handleAddRecipient}
+                          className="border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      {recipients.length === 0 && (
+                        <p className="text-sm text-[#666]">No recipients selected yet.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Subject Field */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#666] mb-2">
+                      Subject
+                    </label>
+                    <Input
+                      value={subject}
+                      onChange={handleSubjectChange}
+                      placeholder="Product Survey"
+                      className="bg-[#0a0a0a] border-[#2a2a2a] text-white placeholder-[#555]"
+                    />
+                  </div>
+
+                  {/* Message Body */}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[#666] mb-2">
+                      Message
+                    </label>
+                    <Textarea
+                      value={body}
+                      onChange={handleBodyChange}
+                      className="bg-[#0a0a0a] border-[#2a2a2a] text-white placeholder-[#555] min-h-[150px]"
+                    />
+                    <p className="text-xs text-[#666] mt-2">
+                      The interview button is automatically included in the final email.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Email Preview Card */}
+            <motion.div variants={fadeInUp}>
+              <Card variant="default" className="bg-[#111] border-[#2a2a2a]">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <EyeIcon className="w-5 h-5 text-[#FF6B35]" />
+                    Email Preview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    className="p-6 bg-white rounded-lg text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: buildEmailHtml(body, agentLink) }}
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Error/Success Messages */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg"
+              >
+                <p className="text-red-400">{error}</p>
+              </motion.div>
+            )}
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg"
+              >
+                <p className="text-green-400">{success}</p>
+              </motion.div>
+            )}
+
+            {/* Action Buttons */}
+            <motion.div variants={fadeInUp} className="flex justify-center pt-4">
+              <Button
+                size="lg"
+                onClick={handleSend}
+                disabled={isSending || !recipients.length}
+                loading={isSending}
+              >
+                <SendIcon className="w-5 h-5" />
+                {isSending ? "Sending…" : "Send Email"}
+              </Button>
+            </motion.div>
+          </motion.div>
         </div>
-      </div>
+      </main>
     </div>
+  );
+}
+
+// Icons
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  );
+}
+
+function SendIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
   );
 }
