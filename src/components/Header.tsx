@@ -1,26 +1,22 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between glass border-b border-border-subtle px-6 md:px-12 py-4">
+    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 lg:px-16 py-4">
       {/* Logo/Wordmark */}
       <Link
         href="/"
-        className="text-lg font-semibold text-foreground hover:text-primary transition-colors"
+        className="text-xl font-semibold text-white hover:text-[#FF6B35] transition-colors duration-200"
       >
-        <span className="text-gradient">Surveyor</span>
+        Surveyor
       </Link>
 
-      {/* Return button */}
-      <Button
-        variant="secondary"
-        size="sm"
-        asChild
-        className="rounded-full"
-      >
-        <Link href="/return">Returning? Enter PIN</Link>
-      </Button>
+      {/* Navigation */}
+      <nav className="flex items-center gap-8">
+        <span className="text-sm font-medium text-[#a1a1a1] hover:text-white transition-colors duration-200 cursor-default">
+          Research
+        </span>
+      </nav>
     </header>
   );
 }

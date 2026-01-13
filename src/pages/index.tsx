@@ -2,6 +2,7 @@ import Head from "next/head";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { ChatInput } from "@/components/ChatInput";
+import Header from "@/components/Header";
 
 interface FormData {
   name: string;
@@ -94,36 +95,55 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-grain px-6 md:px-16 lg:px-24 font-sans text-[#1a1a1a] selection:bg-black/10 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-dark-hero relative overflow-hidden">
       <Head>
-        <title>SurvAgent Intake</title>
-        <meta name="description" content="Kick off your AI-powered survey with SurvAgent." />
+        <title>Surveyor - AI Customer Research</title>
+        <meta name="description" content="AI-powered customer research at scale." />
       </Head>
 
-      <div className="max-w-7xl mx-auto pt-28 pb-20 relative z-10">
-        <section className="flex flex-col gap-6 mb-14 max-w-4xl">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight text-[#1a1a1a]">
-            AI interviews to understand your customers at scale (fast)
+      {/* Subtle gradient orb in background */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse_at_center,_rgba(255,107,53,0.12)_0%,_transparent_70%)] pointer-events-none" />
+
+      <Header />
+
+      {/* Hero Section */}
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 md:px-16 lg:px-24">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Headline */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-[1.1] tracking-tight text-white mb-6">
+            AI interviews to understand your customers at scale{" "}
+            <span className="text-[#FF6B35]">(fast)</span>
           </h1>
-          <p className="text-xl md:text-2xl text-[#6b6b6b] leading-relaxed max-w-2xl">
+
+          {/* Tagline */}
+          <p className="text-lg md:text-xl text-[#a1a1a1] leading-relaxed max-w-2xl mx-auto mb-12">
             Generate research briefs, scripted surveys, and voice agents in seconds. Launch interviews instantly and
             revisit transcripts, insights, and key takeaways in one place.
           </p>
-        </section>
 
-        <form className="max-w-3xl space-y-4" onSubmit={handleSubmit} noValidate>
-          {submitError ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50/70 px-4 py-3 text-red-700 text-sm">
-              {submitError}
+          {/* Prompt Bar Container */}
+          <div className="w-full max-w-2xl mx-auto">
+            {/* Animated activity indicator */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="w-2 h-2 rounded-full bg-[#FF6B35] animate-pulse-glow" />
+              <span className="text-sm text-[#6b6b6b]">AI ready to conduct research</span>
             </div>
-          ) : null}
-          <ChatInput
-            value={form.prompt}
-            onChange={(value) => setForm((previous) => ({ ...previous, prompt: value }))}
-            isSubmitting={isSubmitting}
-          />
-        </form>
-      </div>
+
+            <form onSubmit={handleSubmit} noValidate>
+              {submitError ? (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm mb-4">
+                  {submitError}
+                </div>
+              ) : null}
+              <ChatInput
+                value={form.prompt}
+                onChange={(value) => setForm((previous) => ({ ...previous, prompt: value }))}
+                isSubmitting={isSubmitting}
+              />
+            </form>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

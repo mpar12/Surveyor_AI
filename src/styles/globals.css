@@ -1,97 +1,105 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* =============================================================================
-   Design System: Warm cream/orange palette (Original SurvAgent)
+   Design System: Dark theme with orange accents (Factory.ai inspired)
    ============================================================================= */
 
 @layer base {
   :root {
     /* -------------------------------------------------------------------------
-       Color Palette - Warm, inviting, premium
+       Color Palette - Dark, modern, premium
        ------------------------------------------------------------------------- */
 
-    /* Original warm palette */
-    --warm-cream: #f7f5f2;
-    --warm-beige: #ebe9e4;
-    --charcoal: #1a1a1a;
-    --soft-gray: #6b6b6b;
-    --light-gray: #d4d2cd;
-    --orange-accent: #FF6B35;
-    --orange-hover: #E55A2B;
+    /* Dark theme base colors */
+    --dark-bg: #0a0a0a;
+    --dark-bg-subtle: #111111;
+    --dark-bg-elevated: #1a1a1a;
+    --dark-surface: #141414;
+    --dark-border: #2a2a2a;
+    --dark-border-subtle: #1f1f1f;
+    --dark-text: #fafafa;
+    --dark-text-secondary: #a1a1a1;
+    --dark-text-muted: #6b6b6b;
 
-    /* Background layers (Warm Cream Family) */
-    --color-bg: 37 23% 96%;             /* #f7f5f2 - Warm cream */
-    --color-bg-subtle: 40 18% 92%;      /* #ebe9e4 - Warm beige */
-    --color-bg-muted: 36 30% 94%;       /* #F5F2ED - Card/section backgrounds */
+    /* Orange accent (preserved from original) */
+    --orange-accent: #FF6B35;
+    --orange-hover: #FF8555;
+    --orange-subtle: rgba(255, 107, 53, 0.1);
+    --orange-glow: rgba(255, 107, 53, 0.4);
+
+    /* Background layers */
+    --color-bg: 0 0% 4%;                /* #0a0a0a - Deep black */
+    --color-bg-subtle: 0 0% 7%;         /* #111111 - Slightly elevated */
+    --color-bg-muted: 0 0% 10%;         /* #1a1a1a - Card backgrounds */
 
     /* Surface colors */
-    --color-surface: 0 0% 100%;         /* #FFFFFF - Pure white */
-    --color-surface-raised: 40 30% 99%; /* Cards, modals - hint of warmth */
-    --color-surface-overlay: 0 0% 100%; /* Dropdowns, popovers */
+    --color-surface: 0 0% 8%;           /* #141414 - Cards, modals */
+    --color-surface-raised: 0 0% 12%;   /* Elevated cards */
+    --color-surface-overlay: 0 0% 14%;  /* Dropdowns, popovers */
 
-    /* Border colors (Warm tints) */
-    --color-border: 35 15% 88%;         /* #E6E2DC - Warm default borders */
-    --color-border-subtle: 35 12% 91%;  /* #EDEBE7 - Subtle dividers */
-    --color-border-strong: 35 15% 78%; /* #CFC8BE - Emphasized borders */
+    /* Border colors */
+    --color-border: 0 0% 17%;           /* #2a2a2a - Default borders */
+    --color-border-subtle: 0 0% 12%;    /* #1f1f1f - Subtle dividers */
+    --color-border-strong: 0 0% 25%;    /* Emphasized borders */
 
-    /* Text colors (Warm Darks) */
-    --color-text: 30 10% 12%;           /* #1F1D1B - Deep warm charcoal */
-    --color-text-secondary: 30 5% 40%;  /* #6B6560 - Warm gray */
-    --color-text-muted: 30 4% 55%;      /* #908A84 - Soft warm gray */
-    --color-text-inverse: 0 0% 100%;    /* #FFFFFF - On dark backgrounds */
+    /* Text colors */
+    --color-text: 0 0% 98%;             /* #fafafa - Primary text */
+    --color-text-secondary: 0 0% 63%;   /* #a1a1a1 - Secondary text */
+    --color-text-muted: 0 0% 42%;       /* #6b6b6b - Muted text */
+    --color-text-inverse: 0 0% 4%;      /* #0a0a0a - On light backgrounds */
 
-    /* Primary accent - Coral Orange (Original SurvAgent) */
+    /* Primary accent - Coral Orange */
     --color-primary: 16 100% 60%;       /* #FF6B35 - Coral orange */
-    --color-primary-hover: 14 80% 53%;  /* #E55A2B - Deeper on hover */
-    --color-primary-subtle: 20 100% 96%; /* Warm peach tint */
+    --color-primary-hover: 20 100% 65%; /* #FF8555 - Lighter on hover */
+    --color-primary-subtle: 16 100% 60% / 0.1;
     --color-primary-foreground: 0 0% 100%;
 
-    /* Secondary - Warm neutral for supporting elements */
-    --color-secondary: 36 20% 96%;      /* #F7F5F2 - Warm off-white */
-    --color-secondary-hover: 36 20% 92%;
-    --color-secondary-foreground: 30 10% 12%;
+    /* Secondary - Dark neutral */
+    --color-secondary: 0 0% 12%;
+    --color-secondary-hover: 0 0% 16%;
+    --color-secondary-foreground: 0 0% 98%;
 
-    /* Accent - Deep teal for contrast */
-    --color-accent: 172 50% 28%;        /* #234E4A - Forest teal */
-    --color-accent-hover: 172 55% 22%;  /* #1A3D3A - Deeper teal */
-    --color-accent-subtle: 172 40% 95%;
+    /* Accent - Orange for emphasis */
+    --color-accent: 16 100% 60%;
+    --color-accent-hover: 20 100% 65%;
+    --color-accent-subtle: 16 100% 60% / 0.1;
 
-    /* Semantic colors */
-    --color-success: 152 70% 36%;       /* #22A35E - Warm green */
-    --color-success-subtle: 152 60% 96%;
-    --color-warning: 38 92% 50%;        /* #F59E0B - Amber (fits palette) */
-    --color-warning-subtle: 38 92% 96%;
-    --color-error: 8 85% 55%;           /* #E94235 - Warm red */
-    --color-error-subtle: 8 85% 97%;
-    --color-info: 200 75% 45%;          /* #1E8FC7 - Warm blue */
-    --color-info-subtle: 200 75% 96%;
+    /* Semantic colors (dark theme) */
+    --color-success: 142 70% 45%;
+    --color-success-subtle: 142 70% 45% / 0.1;
+    --color-warning: 38 92% 50%;
+    --color-warning-subtle: 38 92% 50% / 0.1;
+    --color-error: 0 85% 60%;
+    --color-error-subtle: 0 85% 60% / 0.1;
+    --color-info: 200 75% 50%;
+    --color-info-subtle: 200 75% 50% / 0.1;
 
-    /* Gradient stops (Orange to Amber) */
-    --gradient-start: 28 95% 53%;       /* Orange */
-    --gradient-mid: 32 92% 50%;         /* Amber-orange */
-    --gradient-end: 38 90% 50%;         /* Golden amber */
+    /* Gradient stops (Orange) */
+    --gradient-start: 16 100% 60%;
+    --gradient-mid: 20 100% 55%;
+    --gradient-end: 24 100% 50%;
 
-    /* Glass effect (Warm tint) */
-    --glass-bg: 40 20% 100% / 0.75;
-    --glass-border: 35 20% 90% / 0.3;
-    --glass-blur: 12px;
+    /* Glass effect (Dark) */
+    --glass-bg: 0 0% 8% / 0.8;
+    --glass-border: 0 0% 20% / 0.5;
+    --glass-blur: 16px;
 
-    /* Shadows (Warm-tinted) */
-    --shadow-xs: 0 1px 2px hsl(30 20% 20% / 0.04);
-    --shadow-sm: 0 2px 4px hsl(30 20% 20% / 0.05);
-    --shadow-md: 0 4px 8px hsl(30 20% 20% / 0.06);
-    --shadow-lg: 0 8px 24px hsl(30 20% 20% / 0.08);
-    --shadow-xl: 0 16px 48px hsl(30 20% 20% / 0.1);
-    --shadow-glow: 0 0 40px hsl(24 95% 53% / 0.15);
-    --shadow-glow-strong: 0 0 60px hsl(24 95% 53% / 0.25);
+    /* Shadows (Dark theme) */
+    --shadow-xs: 0 1px 2px hsl(0 0% 0% / 0.3);
+    --shadow-sm: 0 2px 4px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 8px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.5);
+    --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.6);
+    --shadow-glow: 0 0 40px hsl(16 100% 60% / 0.2);
+    --shadow-glow-strong: 0 0 60px hsl(16 100% 60% / 0.35);
 
     /* Focus ring */
-    --ring-color: 24 95% 53% / 0.4;
-    --ring-offset: 0 0% 100%;
+    --ring-color: 16 100% 60% / 0.5;
+    --ring-offset: 0 0% 4%;
 
     /* Border radius */
     --radius-sm: 6px;
@@ -116,7 +124,7 @@
     --space-24: 96px;
 
     /* Typography */
-    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-mono: "SF Mono", "Fira Code", "Fira Mono", monospace;
 
     /* Transitions */
@@ -126,23 +134,22 @@
     --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  /* Body styling - matches main branch */
+  /* Body styling - Dark theme */
   body {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background-color: var(--warm-cream);
-    color: var(--charcoal);
-    line-height: 1.55;
-    letter-spacing: 0.01em;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Headings - matches main branch */
+  /* Headings - Dark theme */
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Inter", sans-serif;
-    font-weight: 700;
-    color: var(--charcoal);
-    letter-spacing: -0.02em;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    font-weight: 600;
+    color: var(--dark-text);
+    letter-spacing: -0.025em;
   }
 
   /* Base styles */
@@ -168,12 +175,12 @@
   }
 
   a:hover {
-    opacity: 0.85;
+    color: var(--orange-hover);
   }
 
   ::selection {
-    background: rgba(255, 107, 53, 0.2);
-    color: var(--charcoal);
+    background: rgba(255, 107, 53, 0.3);
+    color: var(--dark-text);
   }
 
   /* Form element resets */
@@ -520,41 +527,57 @@ elevenlabs-convai {
    Original SurvAgent Styles
    ============================================================================= */
 
-/* Warm cream background with grain texture */
-.bg-grain {
+/* Dark background with subtle noise texture */
+.bg-dark {
   position: relative;
-  background-color: #f7f5f2;
+  background-color: var(--dark-bg);
 }
 
-.bg-grain::before {
+.bg-dark::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.5;
 }
 
-/* Utility classes for warm palette */
-.bg-warm-cream {
-  background-color: var(--warm-cream);
+/* Dark theme utility classes */
+.bg-dark-bg {
+  background-color: var(--dark-bg);
 }
 
-.bg-warm-beige {
-  background-color: var(--warm-beige);
+.bg-dark-subtle {
+  background-color: var(--dark-bg-subtle);
 }
 
-.text-charcoal {
-  color: var(--charcoal);
+.bg-dark-elevated {
+  background-color: var(--dark-bg-elevated);
 }
 
-.text-soft-gray {
-  color: var(--soft-gray);
+.bg-dark-surface {
+  background-color: var(--dark-surface);
 }
 
-.border-light-gray {
-  border-color: var(--light-gray);
+.text-dark-primary {
+  color: var(--dark-text);
+}
+
+.text-dark-secondary {
+  color: var(--dark-text-secondary);
+}
+
+.text-dark-muted {
+  color: var(--dark-text-muted);
+}
+
+.border-dark {
+  border-color: var(--dark-border);
+}
+
+.border-dark-subtle {
+  border-color: var(--dark-border-subtle);
 }
 
 .bg-orange-accent {
@@ -582,4 +605,49 @@ elevenlabs-convai {
   50% {
     box-shadow: 0 0 30px rgba(255, 107, 53, 0.5);
   }
+}
+
+/* Progress slide animation (Factory.ai inspired) */
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-progress-slide {
+  animation: progress-slide 2s linear infinite;
+}
+
+/* Subtle pulse for AI activity indicator */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 40px rgba(255, 107, 53, 0.4);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Dark gradient hero background */
+.bg-dark-hero {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 107, 53, 0.08), transparent),
+    var(--dark-bg);
+}
+
+/* Glass effect for dark theme */
+.glass-dark {
+  background: rgba(20, 20, 20, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
