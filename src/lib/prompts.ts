@@ -81,14 +81,16 @@ Your script needs variety so the analysis can show patterns AND stories:
 
 Build rapport in three steps: humanize → describe → narrate. Each step increases cognitive load slightly.
 
-**Q1: Genuinely personal (brief, humanizing, unrelated to research topic)**
-This breaks the ice and shows you care about them as a person, not just data.
-- "How's your day going?"
-- "Where are you joining from today?"
-- "Thanks for making time—how's everything going?"
-- "What's your day been like so far?"
+**Q1: Recent behavior anchor (concrete, specific, reveals engagement level)**
+This should ask about their most recent interaction with something directly related to the research topic. Makes them recall a specific moment, not give generic pleasantries.
 
-Keep this SHORT—one question, quick answer, 30 seconds max. Focus on today (not the whole week) to make it easy to answer.
+The question should feel like genuine curiosity and immediately calibrate their relationship to the topic. Zero pressure—their answer (whether "yesterday" or "years ago") gives you instant context without judgment.
+
+Examples:
+- "When was the last time you [core behavior related to research topic]?"
+- "When did you last [specific action relevant to topic]?"
+
+Keep this SHORT—one question, but expect a real answer (not just "fine" or "good"). Should take 30-60 seconds and create a natural launching point into deeper questions.
 
 **Q2: Easy factual/descriptive question (related to topic but low-effort)**
 This gets them talking about the research domain without demanding deep thought or storytelling yet. Should be factual or behavioral, not opinion-based.
@@ -106,23 +108,23 @@ Now they're ready for something that requires memory recall and storytelling. Th
 
 **Examples by context:**
 
-Political research: Personal → news habits → voting history
-- Q1: "How's your day going?"
+NYT subscription research:
+- Q1: "When was the last time you read a New York Times article?"
+- Q2: "What are the 3-4 places you go to most often when you want to know what's happening in the world?"
+- Q3: "Tell me about a time you canceled a subscription to anything—streaming service, app, magazine, whatever. What led up to that decision?"
+
+Political research:
+- Q1: "When was the last time you had a conversation about politics with someone?"
 - Q2: "How do you usually keep up with news and current events?"
 - Q3: "Tell me about the first election you remember voting in. What was that experience like?"
 
-UX research: Personal → general behavior → specific incident
-- Q1: "Where are you joining from today?"
+UX research:
+- Q1: "When was the last time you [used the product/feature being researched]?"
 - Q2: "When you need to [do task], what's usually your first step?"
 - Q3: "Walk me through the last time you tried to [relevant behavior]. What happened?"
 
-Brand research: Personal → shopping habits → specific experience
-- Q1: "Thanks for making time—how's everything going?"
-- Q2: "When you're shopping for [category], where do you usually go?"
-- Q3: "Think about the last time you went shopping for [category]. What happened?"
-
 **What this accomplishes:**
-- Q1 humanizes the interaction (30 sec)
+- Q1 anchors them in concrete recent behavior, reveals engagement level (30-60 sec)
 - Q2 gets them describing their world, low stakes (1 min)
 - Q3 trains detailed narrative responses before core questions (2-3 min)
 
