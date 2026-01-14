@@ -14,15 +14,26 @@ interface ChatMessage {
 
 export default function NewSurveyPage() {
   const router = useRouter();
+  const { prompt: initialPrompt } = router.query;
   const [surveyId, setSurveyId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [surveyGenerated, setSurveyGenerated] = useState(false);
+  const [hasAutoSent, setHasAutoSent] = useState(false);
 
   // Create survey on mount
   useEffect(() => {
     createSurvey();
   }, []);
+
+  // Auto-send initial prompt from query params (only once when survey is created)
+  useEffect(() => {
+    if (surveyId && initialPrompt && typeof initialPrompt === "string" && !hasAutoSent) {
+      setHasAutoSent(true);
+      handleSendMessage(initialPrompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surveyId, initialPrompt, hasAutoSent]);
 
   const createSurvey = async () => {
     try {

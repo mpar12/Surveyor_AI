@@ -18,9 +18,12 @@ export default function Header() {
 
       {/* Navigation */}
       <nav className="hidden md:flex items-center gap-8">
-        <span className="text-sm text-[#888] hover:text-white transition-colors duration-200 cursor-pointer tracking-wide">
-          RESEARCH
-        </span>
+        <Link
+          href="/surveys"
+          className="text-sm text-[#888] hover:text-white transition-colors duration-200 tracking-wide"
+        >
+          SURVEYS
+        </Link>
       </nav>
 
       {/* Empty right side for balance - can add buttons later */}
