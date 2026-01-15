@@ -318,22 +318,21 @@ const buildStreamingSurveyView = (
     draftSections.map((section, sectionIndex) => {
       const sectionId = `${baseId}-section-${sectionIndex}`;
       const questionList = Array.isArray(section.questions) ? section.questions : [];
-      const questions = questionList
-        .map((question, questionIndex) => {
-          if (!question?.text) return null;
-          const type = question.type ?? "open_ended";
-          const settings = question.settings ?? getDefaultSettingsForType(type);
-          return {
-            id: `${baseId}-question-${sectionIndex}-${questionIndex}`,
-            sectionId,
-            type,
-            text: question.text,
-            order: questionIndex,
-            createdAt: now,
-            settings,
-          };
-        })
-        .filter(Boolean) ?? [];
+      const questions = questionList.reduce<SurveyQuestion[]>((acc, question, questionIndex) => {
+        if (!question?.text) return acc;
+        const type = question.type ?? "open_ended";
+        const settings = question.settings ?? getDefaultSettingsForType(type);
+        acc.push({
+          id: `${baseId}-question-${sectionIndex}-${questionIndex}`,
+          sectionId,
+          type,
+          text: question.text,
+          order: questionIndex,
+          createdAt: now,
+          settings,
+        });
+        return acc;
+      }, []);
 
       return {
         id: sectionId,
