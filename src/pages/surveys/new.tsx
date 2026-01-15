@@ -480,11 +480,13 @@ function CreateTabContent({
                   <div className="space-y-4">
                     {section.questions.map((question) => {
                       questionCounter += 1;
-                      const isMultipleChoice =
-                        question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings);
-                      const isOpenEnded =
-                        question.type === "open_ended" && isOpenEndedSettings(question.settings);
-                      const followUpMode = isOpenEnded ? question.settings.followUpMode : "none";
+                      const multipleChoiceSettings = isMultipleChoiceSettings(question.settings)
+                        ? question.settings
+                        : null;
+                      const openEndedSettings = isOpenEndedSettings(question.settings)
+                        ? question.settings
+                        : null;
+                      const followUpMode = openEndedSettings?.followUpMode ?? "none";
                       const followUpLabel =
                         followUpMode === "if_short"
                           ? "Follow-up on short answers"
@@ -515,9 +517,9 @@ function CreateTabContent({
                           </div>
                           <p className="text-sm text-[#ddd] mb-3">{question.text}</p>
 
-                          {isMultipleChoice && (
+                          {multipleChoiceSettings && (
                             <ul className="space-y-2 text-sm text-[#bbb]">
-                              {question.settings.options.map((option) => (
+                              {multipleChoiceSettings.options.map((option) => (
                                 <li key={option.id} className="flex items-center gap-2">
                                   <span className="w-2 h-2 rounded-full border border-[#555]" />
                                   {option.text}
