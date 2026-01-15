@@ -14,40 +14,56 @@ interface ChatMessage {
 
 export default function NewSurveyPage() {
   const router = useRouter();
-  const { prompt: initialPrompt } = router.query;
   const [surveyId, setSurveyId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [surveyGenerated, setSurveyGenerated] = useState(false);
   const [hasAutoSent, setHasAutoSent] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(true);
 
   // Create survey on mount
   useEffect(() => {
     createSurvey();
   }, []);
 
-  // Auto-send initial prompt from query params (only once when survey is created)
+  // Auto-send initial prompt from query params (only once when survey is created and router is ready)
   useEffect(() => {
+    if (!router.isReady) return;
+
+    const initialPrompt = router.query.prompt;
     if (surveyId && initialPrompt && typeof initialPrompt === "string" && !hasAutoSent) {
       setHasAutoSent(true);
       handleSendMessage(initialPrompt);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surveyId, initialPrompt, hasAutoSent]);
+  }, [router.isReady, router.query.prompt, surveyId, hasAutoSent]);
 
   const createSurvey = async () => {
+    setIsCreating(true);
+    setCreateError(null);
     try {
       const res = await fetch("/api/surveys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "Untitled Survey" }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to create survey");
+      }
+
       const data = await res.json();
       if (data.survey?.id) {
         setSurveyId(data.survey.id);
+      } else {
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("Failed to create survey", error);
+      setCreateError("Failed to create survey. Please refresh the page to try again.");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -146,12 +162,30 @@ export default function NewSurveyPage() {
         {/* Left: Chat */}
         <div className="w-1/2 flex flex-col border-r border-[#2a2a2a]">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-[#2a2a2a]">
-            <div className="w-2 h-2 rounded-full bg-[#FF6B35]" />
-            <span className="text-sm text-[#888]">AI Research Assistant</span>
+            <div className={`w-2 h-2 rounded-full ${isCreating ? "bg-yellow-500 animate-pulse" : createError ? "bg-red-500" : "bg-[#FF6B35]"}`} />
+            <span className="text-sm text-[#888]">
+              {isCreating ? "Initializing..." : createError ? "Connection Error" : "AI Research Assistant"}
+            </span>
           </div>
 
-          <ChatWindow messages={messages} isLoading={isLoading} />
-          <ChatInput onSend={handleSendMessage} disabled={isLoading || !surveyId} />
+          {createError ? (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-red-500 text-2xl">!</span>
+                </div>
+                <p className="text-red-400 mb-4">{createError}</p>
+                <Button onClick={createSurvey} variant="outline" size="sm">
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <ChatWindow messages={messages} isLoading={isLoading} />
+              <ChatInput onSend={handleSendMessage} disabled={isLoading || !surveyId || isCreating} />
+            </>
+          )}
         </div>
 
         {/* Right: Suggestions */}
@@ -166,8 +200,8 @@ export default function NewSurveyPage() {
                   <button
                     key={index}
                     onClick={() => handleSendMessage(prompt.text)}
-                    disabled={isLoading || !surveyId}
-                    className="w-full text-left p-4 bg-[#111] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors disabled:opacity-50"
+                    disabled={isLoading || !surveyId || isCreating}
+                    className="w-full text-left p-4 bg-[#111] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="text-white text-sm">{prompt.label}</span>
                     <p className="text-[#888] text-xs mt-1">{prompt.description}</p>
