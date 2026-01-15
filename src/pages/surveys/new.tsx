@@ -31,10 +31,6 @@ export default function NewSurveyPage() {
 
   // Editable study metadata
   const [studyTitle, setStudyTitle] = useState("Untitled Study");
-  const [externalTitle, setExternalTitle] = useState("");
-  const [background, setBackground] = useState("");
-  const [studyGoals, setStudyGoals] = useState<string[]>([]);
-  const [bringOwnParticipants, setBringOwnParticipants] = useState(false);
 
   // Edit tab state
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
@@ -94,28 +90,11 @@ export default function NewSurveyPage() {
         const data = await res.json();
         setSurvey(data.survey);
         if (data.survey.title) setStudyTitle(data.survey.title);
-        if (data.survey.description) setBackground(data.survey.description);
       }
     } catch (error) {
       console.error("Failed to fetch survey", error);
     }
   }, [surveyId]);
-
-  const extractStudyGoals = (content: string): string[] => {
-    const goals: string[] = [];
-    const lines = content.split('\n');
-    let inGoalsSection = false;
-
-    for (const line of lines) {
-      if (line.toLowerCase().includes('goal') || line.toLowerCase().includes('objective')) {
-        inGoalsSection = true;
-      }
-      if (inGoalsSection && (line.startsWith('•') || line.startsWith('-') || line.match(/^\d+\./))) {
-        goals.push(line.replace(/^[•\-\d.]\s*/, '').trim());
-      }
-    }
-    return goals.length > 0 ? goals : [];
-  };
 
   const handleSendMessage = async (message: string) => {
     if (!surveyId || isLoading) return;
@@ -141,10 +120,6 @@ export default function NewSurveyPage() {
 
       if (data.message) {
         setMessages((prev) => [...prev, data.message]);
-        const goals = extractStudyGoals(data.message.content);
-        if (goals.length > 0) {
-          setStudyGoals(goals);
-        }
       }
 
       if (data.surveyGenerated) {
@@ -321,13 +296,6 @@ export default function NewSurveyPage() {
             <div className="flex-1 flex flex-col bg-black overflow-hidden">
               <CreateTabContent
                 studyTitle={studyTitle}
-                externalTitle={externalTitle}
-                setExternalTitle={setExternalTitle}
-                background={background}
-                setBackground={setBackground}
-                studyGoals={studyGoals}
-                bringOwnParticipants={bringOwnParticipants}
-                setBringOwnParticipants={setBringOwnParticipants}
                 survey={survey}
               />
             </div>
@@ -388,25 +356,36 @@ export default function NewSurveyPage() {
 // Create Tab Content
 function CreateTabContent({
   studyTitle,
-  externalTitle,
-  setExternalTitle,
-  background,
-  setBackground,
-  studyGoals,
-  bringOwnParticipants,
-  setBringOwnParticipants,
   survey,
 }: {
   studyTitle: string;
-  externalTitle: string;
-  setExternalTitle: (v: string) => void;
-  background: string;
-  setBackground: (v: string) => void;
-  studyGoals: string[];
-  bringOwnParticipants: boolean;
-  setBringOwnParticipants: (v: boolean) => void;
   survey: SurveyWithSections | null;
 }) {
+  const settings = survey?.settings;
+  const externalTitle =
+    typeof settings?.externalTitle === "string" && settings.externalTitle.trim()
+      ? settings.externalTitle.trim()
+      : studyTitle;
+  const background = typeof survey?.description === "string" ? survey.description : "";
+  const studyGoals = Array.isArray(settings?.studyGoals)
+    ? settings.studyGoals.filter((goal) => typeof goal === "string" && goal.trim())
+    : [];
+  const bringOwnParticipants = settings?.audience?.bringOwnParticipants === true;
+  const durationMinutes =
+    typeof settings?.estimatedDurationMinutes === "number"
+      ? settings.estimatedDurationMinutes
+      : null;
+  const durationLabel = durationMinutes
+    ? `${Math.max(1, durationMinutes - 1)}-${durationMinutes + 2} min`
+    : null;
+  const welcomeTitle =
+    typeof settings?.welcome?.title === "string" ? settings.welcome.title : "Welcome message";
+  const welcomeMessage =
+    typeof settings?.welcome?.message === "string" ? settings.welcome.message : "";
+  const sections =
+    survey?.sections?.filter((section) => section.title !== "Welcome") ?? [];
+  let questionCounter = 0;
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="flex items-center justify-end px-6 py-4 border-b border-[#2a2a2a]">
@@ -417,28 +396,27 @@ function CreateTabContent({
       </div>
 
       <div className="px-8 py-6 max-w-3xl">
-        <h1 className="text-2xl font-semibold text-white mb-6">{studyTitle}</h1>
+        <div className="flex items-center gap-3 mb-6">
+          <h1 className="text-2xl font-semibold text-white">{studyTitle}</h1>
+          {durationLabel && (
+            <span className="text-xs px-2 py-1 rounded-full bg-[#1a1a1a] text-[#888]">
+              {durationLabel}
+            </span>
+          )}
+        </div>
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#888] mb-2">External Title</label>
-          <input
-            type="text"
-            value={externalTitle}
-            onChange={(e) => setExternalTitle(e.target.value)}
-            placeholder="Title shown to participants"
-            className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666] focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent"
-          />
+          <p className={`text-sm ${externalTitle ? "text-[#ccc]" : "text-[#666] italic"}`}>
+            {externalTitle || "Title shown to participants"}
+          </p>
         </div>
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#888] mb-2">Background</label>
-          <textarea
-            value={background || survey?.description || ""}
-            onChange={(e) => setBackground(e.target.value)}
-            placeholder="Describe the context and purpose of this research..."
-            rows={4}
-            className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666] focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent resize-none"
-          />
+          <p className={`text-sm ${background ? "text-[#ccc]" : "text-[#666] italic"}`}>
+            {background || "Background will appear once the study guide is generated."}
+          </p>
         </div>
 
         <div className="mb-6">
@@ -446,28 +424,119 @@ function CreateTabContent({
           <div className="space-y-2 text-[#ccc]">
             {studyGoals.length > 0 ? (
               studyGoals.map((goal, i) => (
-                <p key={i} className="flex items-start gap-2">
+                <p key={i} className="flex items-start gap-2 text-sm">
                   <span className="text-[#FF6B35]">•</span>
                   {goal}
                 </p>
               ))
             ) : (
-              <p className="text-[#666] italic">Goals will be generated based on your research brief</p>
+              <p className="text-sm text-[#666] italic">
+                Goals will be generated based on your research brief.
+              </p>
             )}
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-10">
           <label className="block text-sm font-medium text-[#888] mb-2">Audience</label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={bringOwnParticipants}
-              onChange={(e) => setBringOwnParticipants(e.target.checked)}
-              className="w-4 h-4 rounded border-[#333] bg-[#111] text-[#FF6B35] focus:ring-[#FF6B35]"
-            />
-            <span className="text-[#ccc]">I&apos;ll bring my own participants</span>
-          </label>
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a1a1a] text-sm text-[#ccc]">
+            {bringOwnParticipants ? "I'll bring my own participants" : "Surveyor participants"}
+          </span>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-white">Interview Questions</h2>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#1a1a1a] text-xs text-[#888]">
+              <MicIcon className="w-3 h-3" />
+              Audio
+            </span>
+          </div>
+
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-wider text-[#666]">Start</p>
+            <div className="mt-2 p-4 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f]">
+              <p className="text-sm text-[#ccc] font-medium mb-2">{welcomeTitle}</p>
+              <p className={`text-sm ${welcomeMessage ? "text-[#aaa]" : "text-[#555] italic"}`}>
+                {welcomeMessage || "Welcome message will appear here."}
+              </p>
+            </div>
+          </div>
+
+          {sections.length === 0 ? (
+            <p className="text-sm text-[#666] italic">
+              Questions will appear here once the study guide is generated.
+            </p>
+          ) : (
+            <div className="space-y-8">
+              {sections.map((section, sectionIndex) => (
+                <div key={section.id} className="space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-[#666]">
+                      Section {sectionIndex + 1}
+                    </p>
+                    <h3 className="text-base font-semibold text-white">{section.title}</h3>
+                  </div>
+                  <div className="space-y-4">
+                    {section.questions.map((question) => {
+                      questionCounter += 1;
+                      const isMultipleChoice =
+                        question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings);
+                      const isOpenEnded =
+                        question.type === "open_ended" && isOpenEndedSettings(question.settings);
+                      const followUpMode = isOpenEnded ? question.settings.followUpMode : "none";
+                      const followUpLabel =
+                        followUpMode === "if_short"
+                          ? "Follow-up on short answers"
+                          : followUpMode === "always"
+                            ? "Always follow up"
+                            : null;
+                      const questionTypeLabel =
+                        question.type === "multiple_choice"
+                          ? "Multiple choice"
+                          : question.type === "statement"
+                            ? "Statement"
+                            : "Open-ended";
+
+                      return (
+                        <div key={question.id} className="p-4 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f]">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#1a1a1a] text-[#888]">
+                              Q{questionCounter}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#1a1a1a] text-[#888]">
+                              {questionTypeLabel}
+                            </span>
+                            {followUpLabel && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#0f2b3a] text-[#8fd7ff]">
+                                {followUpLabel}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-[#ddd] mb-3">{question.text}</p>
+
+                          {isMultipleChoice && (
+                            <ul className="space-y-2 text-sm text-[#bbb]">
+                              {question.settings.options.map((option) => (
+                                <li key={option.id} className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full border border-[#555]" />
+                                  {option.text}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          {question.type === "statement" && (
+                            <p className="text-xs text-[#666]">Statement screen</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

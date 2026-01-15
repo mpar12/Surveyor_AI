@@ -34,7 +34,12 @@ interface GeneratedSection {
 
 interface GeneratedSurvey {
   title: string;
+  externalTitle?: string;
   description?: string;
+  studyGoals?: string[];
+  audience?: {
+    bringOwnParticipants?: boolean;
+  };
   settings?: Record<string, unknown>;
   sections: GeneratedSection[];
 }
@@ -152,13 +157,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 async function applySurveyStructure(surveyId: string, generated: GeneratedSurvey) {
+  const normalizeString = (value: unknown): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  };
+
+  const normalizeStringArray = (value: unknown): string[] | null => {
+    if (!Array.isArray(value)) return null;
+    const filtered = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    return filtered.length ? filtered : null;
+  };
+
+  const normalizeAudience = (value: unknown): { bringOwnParticipants?: boolean } | null => {
+    if (!value || typeof value !== "object") return null;
+    const raw = value as Record<string, unknown>;
+    if (typeof raw.bringOwnParticipants === "boolean") {
+      return { bringOwnParticipants: raw.bringOwnParticipants };
+    }
+    return null;
+  };
+
+  const rawSettings =
+    generated.settings && typeof generated.settings === "object"
+      ? (generated.settings as Record<string, unknown>)
+      : {};
+  const fallbackExternalTitle = normalizeString(generated.title);
+  const externalTitle =
+    normalizeString(generated.externalTitle ?? rawSettings.externalTitle) ?? fallbackExternalTitle;
+  const studyGoals = normalizeStringArray(generated.studyGoals ?? rawSettings.studyGoals);
+  const audience =
+    normalizeAudience(generated.audience ?? rawSettings.audience) ?? { bringOwnParticipants: false };
+  const mergedSettings: Record<string, unknown> = { ...rawSettings };
+
+  if (externalTitle) mergedSettings.externalTitle = externalTitle;
+  if (studyGoals) mergedSettings.studyGoals = studyGoals;
+  if (audience) mergedSettings.audience = audience;
+
+  const settingsValue = Object.keys(mergedSettings).length ? mergedSettings : null;
+
   // Update survey title and settings
   await db
     .update(surveys)
     .set({
       title: generated.title,
       description: generated.description || null,
-      settings: generated.settings || null,
+      settings: settingsValue,
       updatedAt: new Date(),
     })
     .where(eq(surveys.id, surveyId));

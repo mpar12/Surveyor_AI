@@ -28,7 +28,15 @@ When ready to generate, output a JSON survey structure wrapped in <survey> tags:
 <survey>
 {
   "title": "Survey Title",
+  "externalTitle": "Title shown to participants",
   "description": "Brief description of research goals",
+  "studyGoals": [
+    "Goal 1",
+    "Goal 2"
+  ],
+  "audience": {
+    "bringOwnParticipants": false
+  },
   "settings": {
     "welcome": {
       "title": "Welcome message title",
@@ -78,6 +86,7 @@ When ready to generate, output a JSON survey structure wrapped in <survey> tags:
 - Keep questions conversational: "Tell me about..." not "Please describe..."
 - For voice questions, write as if speaking to someone
 - Follow-up guidelines should be specific to the question context
+- Provide 3-5 concise study goals and a participant-facing external title
 - Aim for 10-15 questions total, 15-20 minutes duration
 - Start broad, then go deeper into specific topics`;
 
