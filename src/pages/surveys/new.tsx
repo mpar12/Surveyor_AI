@@ -58,7 +58,7 @@ export default function NewSurveyPage() {
     }
 
     createSurvey();
-  }, [router.isReady]);
+  }, [router.isReady, router.query.id]);
 
   // Auto-send initial prompt from query params
   useEffect(() => {
@@ -944,7 +944,7 @@ function QuestionEditor({
                     onToggle={(next) => {
                       const nextSettings = {
                         ...multipleChoiceSettings,
-                        selectionMode: next ? "multiple" : "single",
+                        selectionMode: (next ? "multiple" : "single") as "multiple" | "single",
                       };
                       setDraftSettings(nextSettings);
                       onUpdateQuestion(question.id, { settings: nextSettings });
