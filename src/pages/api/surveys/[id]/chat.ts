@@ -66,7 +66,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "message_required" });
   }
 
+  const sendEvent = (event: string, data: Record<string, unknown>) => {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
   try {
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    if (typeof (res as { flushHeaders?: () => void }).flushHeaders === "function") {
+      (res as { flushHeaders: () => void }).flushHeaders();
+    }
+
     // Verify survey exists
     const [survey] = await db
       .select()
@@ -108,11 +120,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: SURVEY_GENERATION_SYSTEM_PROMPT,
+      stream: true,
       messages: claudeMessages,
     });
 
-    const assistantContent =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    let assistantContent = "";
+
+    try {
+      for await (const event of response) {
+        if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+          const text = event.delta.text || "";
+          if (!text) continue;
+          assistantContent += text;
+          sendEvent("delta", { text });
+        } else if (event.type === "message_stop") {
+          break;
+        } else if ("error" in event) {
+          const errorEvent = event as { error?: { message?: string } };
+          const message = errorEvent.error?.message || "Anthropic streaming error.";
+          sendEvent("error", { message });
+          res.end();
+          return;
+        }
+      }
+    } catch (streamError) {
+      console.error("Anthropic streaming failed", streamError);
+      sendEvent("error", {
+        message:
+          streamError instanceof Error ? streamError.message : "Unable to stream survey response."
+      });
+      res.end();
+      return;
+    }
 
     // Check if response contains a survey structure
     const { survey: generatedSurvey, cleanContent } = extractSurveyFromResponse(assistantContent);
@@ -152,14 +191,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       surveyUpdated = true;
     }
 
-    return res.status(200).json({
+    sendEvent("done", {
       message: assistantMessage,
       surveyGenerated: surveyUpdated,
       suggestions,
     });
+    res.end();
+    return;
   } catch (error) {
     console.error("Failed to process chat message", error);
-    return res.status(500).json({ error: "internal_error" });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: "internal_error" });
+    }
+    sendEvent("error", { message: "internal_error" });
+    res.end();
+    return;
   }
 }
 

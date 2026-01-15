@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
-import type { SurveyWithSections, SurveyQuestion, QuestionType, QuestionSettings } from "@/types/surveyBuilder";
+import type {
+  SurveyWithSections,
+  SurveyQuestion,
+  QuestionType,
+  QuestionSettings,
+  SurveySettings,
+} from "@/types/surveyBuilder";
 import {
   isMultipleChoiceSettings,
   isOpenEndedSettings,
@@ -22,6 +28,337 @@ interface ChatMessage {
 
 type TabType = "create" | "edit" | "launch";
 
+type StreamingSurveyDraft = {
+  title?: string;
+  externalTitle?: string;
+  description?: string;
+  studyGoals?: string[];
+  audience?: { bringOwnParticipants?: boolean };
+  settings?: Record<string, unknown>;
+  sections?: Array<{
+    title?: string;
+    questions?: Array<{
+      type?: QuestionType;
+      text?: string;
+      settings?: QuestionSettings;
+    }>;
+  }>;
+};
+
+const SURVEY_TAG_OPEN = "<survey>";
+const SURVEY_TAG_CLOSE = "</survey>";
+
+const safeJsonParse = (value: string) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const extractSurveyJson = (content: string) => {
+  const startIndex = content.indexOf(SURVEY_TAG_OPEN);
+  if (startIndex === -1) return null;
+  const endIndex = content.indexOf(SURVEY_TAG_CLOSE, startIndex);
+  const rawJson =
+    endIndex === -1
+      ? content.slice(startIndex + SURVEY_TAG_OPEN.length)
+      : content.slice(startIndex + SURVEY_TAG_OPEN.length, endIndex);
+  const trimmed = rawJson.trim();
+  return trimmed ? trimmed : null;
+};
+
+const stripSurveyPayload = (content: string) => {
+  const startIndex = content.indexOf(SURVEY_TAG_OPEN);
+  if (startIndex === -1) return content;
+  const endIndex = content.indexOf(SURVEY_TAG_CLOSE, startIndex);
+  if (endIndex === -1) {
+    return content.slice(0, startIndex).trim();
+  }
+  const before = content.slice(0, startIndex);
+  const after = content.slice(endIndex + SURVEY_TAG_CLOSE.length);
+  return `${before}${after}`.trim();
+};
+
+const extractStringField = (source: string, key: string) => {
+  const regex = new RegExp(`"${key}"\\s*:\\s*"([^"]*)`);
+  const match = source.match(regex);
+  return match ? match[1] : null;
+};
+
+const extractBooleanField = (source: string, key: string) => {
+  const regex = new RegExp(`"${key}"\\s*:\\s*(true|false)`);
+  const match = source.match(regex);
+  if (!match) return null;
+  return match[1] === "true";
+};
+
+const extractNumberField = (source: string, key: string) => {
+  const regex = new RegExp(`"${key}"\\s*:\\s*(\\d+)`);
+  const match = source.match(regex);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isNaN(value) ? null : value;
+};
+
+const extractBalancedBlock = (
+  source: string,
+  startIndex: number,
+  openChar: string,
+  closeChar: string
+) => {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < source.length; i += 1) {
+    const char = source[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === openChar) {
+      depth += 1;
+    } else if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(startIndex, i + 1);
+      }
+    }
+  }
+
+  return null;
+};
+
+const extractObjectFromKey = (source: string, key: string) => {
+  const keyIndex = source.indexOf(`"${key}"`);
+  if (keyIndex === -1) return null;
+  const braceIndex = source.indexOf("{", keyIndex);
+  if (braceIndex === -1) return null;
+  return extractBalancedBlock(source, braceIndex, "{", "}");
+};
+
+const extractArrayFromKey = (source: string, key: string) => {
+  const keyIndex = source.indexOf(`"${key}"`);
+  if (keyIndex === -1) return null;
+  const bracketIndex = source.indexOf("[", keyIndex);
+  if (bracketIndex === -1) return null;
+  return extractBalancedBlock(source, bracketIndex, "[", "]");
+};
+
+const extractObjectsFromArray = (source: string, arrayStartIndex: number) => {
+  const objects: string[] = [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objectStart = -1;
+
+  for (let i = arrayStartIndex + 1; i < source.length; i += 1) {
+    const char = source[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      if (depth === 0) objectStart = i;
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && objectStart !== -1) {
+        objects.push(source.slice(objectStart, i + 1));
+        objectStart = -1;
+      }
+    } else if (char === "]" && depth === 0) {
+      break;
+    }
+  }
+
+  return objects;
+};
+
+const parseStreamingSurveyDraft = (jsonText: string): StreamingSurveyDraft | null => {
+  const draft: StreamingSurveyDraft = {};
+
+  const title = extractStringField(jsonText, "title");
+  if (title) draft.title = title;
+
+  const externalTitle = extractStringField(jsonText, "externalTitle");
+  if (externalTitle) draft.externalTitle = externalTitle;
+
+  const description = extractStringField(jsonText, "description");
+  if (description) draft.description = description;
+
+  const studyGoalsArray = extractArrayFromKey(jsonText, "studyGoals");
+  if (studyGoalsArray) {
+    const parsedGoals = safeJsonParse(studyGoalsArray);
+    if (Array.isArray(parsedGoals)) {
+      draft.studyGoals = parsedGoals
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean);
+    }
+  }
+
+  const audienceBlock = extractObjectFromKey(jsonText, "audience");
+  if (audienceBlock) {
+    const parsedAudience = safeJsonParse(audienceBlock);
+    if (parsedAudience && typeof parsedAudience === "object") {
+      const bringOwnParticipants = (parsedAudience as { bringOwnParticipants?: boolean })
+        .bringOwnParticipants;
+      if (typeof bringOwnParticipants === "boolean") {
+        draft.audience = { bringOwnParticipants };
+      }
+    }
+  }
+
+  const settingsBlock = extractObjectFromKey(jsonText, "settings");
+  const settingsParsed = settingsBlock ? safeJsonParse(settingsBlock) : null;
+  if (settingsParsed && typeof settingsParsed === "object") {
+    draft.settings = settingsParsed as Record<string, unknown>;
+  }
+
+  const welcomeBlock = extractObjectFromKey(jsonText, "welcome");
+  if (welcomeBlock) {
+    const welcomeParsed = safeJsonParse(welcomeBlock);
+    if (welcomeParsed && typeof welcomeParsed === "object") {
+      draft.settings = { ...(draft.settings || {}), welcome: welcomeParsed };
+    }
+  }
+
+  const estimatedDurationMinutes = extractNumberField(jsonText, "estimatedDurationMinutes");
+  if (estimatedDurationMinutes !== null) {
+    draft.settings = { ...(draft.settings || {}), estimatedDurationMinutes };
+  }
+
+  const showProgressBar = extractBooleanField(jsonText, "showProgressBar");
+  if (showProgressBar !== null) {
+    draft.settings = { ...(draft.settings || {}), showProgressBar };
+  }
+
+  const allowSkipQuestions = extractBooleanField(jsonText, "allowSkipQuestions");
+  if (allowSkipQuestions !== null) {
+    draft.settings = { ...(draft.settings || {}), allowSkipQuestions };
+  }
+
+  const sectionsIndex = jsonText.indexOf("\"sections\"");
+  if (sectionsIndex !== -1) {
+    const arrayStart = jsonText.indexOf("[", sectionsIndex);
+    if (arrayStart !== -1) {
+      const sectionObjects = extractObjectsFromArray(jsonText, arrayStart);
+      const parsedSections = sectionObjects
+        .map((sectionText) => safeJsonParse(sectionText))
+        .filter((section) => section && typeof section === "object") as Array<{
+          title?: string;
+          questions?: Array<{ type?: QuestionType; text?: string; settings?: QuestionSettings }>;
+        }>;
+
+      if (parsedSections.length) {
+        draft.sections = parsedSections;
+      }
+    }
+  }
+
+  return Object.keys(draft).length ? draft : null;
+};
+
+const buildStreamingSurveyView = (
+  content: string,
+  fallbackTitle: string
+): SurveyWithSections | null => {
+  const jsonText = extractSurveyJson(content);
+  if (!jsonText) return null;
+
+  const parsedFull = safeJsonParse(jsonText);
+  const draft = parsedFull && typeof parsedFull === "object"
+    ? (parsedFull as StreamingSurveyDraft)
+    : parseStreamingSurveyDraft(jsonText);
+
+  if (!draft) return null;
+
+  const now = new Date();
+  const baseId = "streaming-preview";
+  const mergedSettings = {
+    ...(draft.settings || {}),
+    ...(draft.externalTitle ? { externalTitle: draft.externalTitle } : {}),
+    ...(draft.studyGoals ? { studyGoals: draft.studyGoals } : {}),
+    ...(draft.audience ? { audience: draft.audience } : {}),
+  } as SurveySettings;
+
+  const draftSections = Array.isArray(draft.sections) ? draft.sections : [];
+  const sections =
+    draftSections.map((section, sectionIndex) => {
+      const sectionId = `${baseId}-section-${sectionIndex}`;
+      const questionList = Array.isArray(section.questions) ? section.questions : [];
+      const questions = questionList
+        .map((question, questionIndex) => {
+          if (!question?.text) return null;
+          const type = question.type ?? "open_ended";
+          const settings = question.settings ?? getDefaultSettingsForType(type);
+          return {
+            id: `${baseId}-question-${sectionIndex}-${questionIndex}`,
+            sectionId,
+            type,
+            text: question.text,
+            order: questionIndex,
+            createdAt: now,
+            settings,
+          };
+        })
+        .filter(Boolean) ?? [];
+
+      return {
+        id: sectionId,
+        surveyId: baseId,
+        title: section.title || `Section ${sectionIndex + 1}`,
+        order: sectionIndex,
+        createdAt: now,
+        questions,
+      };
+    }) ?? [];
+
+  return {
+    id: baseId,
+    title: draft.title || fallbackTitle,
+    description: draft.description,
+    status: "draft",
+    version: 0,
+    accessType: "anonymous",
+    settings: mergedSettings,
+    createdAt: now,
+    updatedAt: now,
+    sections,
+  };
+};
+
 export default function NewSurveyPage() {
   const router = useRouter();
   const [surveyId, setSurveyId] = useState<string | null>(null);
@@ -36,6 +373,7 @@ export default function NewSurveyPage() {
   const [isSaved, setIsSaved] = useState(true);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [streamingSurveyPreview, setStreamingSurveyPreview] = useState<SurveyWithSections | null>(null);
   const titleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Editable study metadata
@@ -235,52 +573,158 @@ export default function NewSurveyPage() {
       content: message,
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantMessageId = crypto.randomUUID();
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
     setIsSaved(false);
-    if (surveyGenerated) {
-      setSuggestionsLoading(true);
-    }
+    setStreamingSurveyPreview(null);
+    setSuggestionsLoading(true);
+
+    const updateAssistantMessage = (content: string) => {
+      const displayContent = stripSurveyPayload(content);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId ? { ...msg, content: displayContent } : msg
+        )
+      );
+    };
+
+    const processRawEvent = (
+      rawEvent: string,
+      onEvent: (eventType: string, dataPayload: string) => void
+    ) => {
+      if (!rawEvent.trim()) return;
+
+      const lines = rawEvent.split("\n");
+      let eventType = "message";
+      let dataPayload = "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        if (line.startsWith("event:")) {
+          eventType = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          const value = line.slice(5).trim();
+          dataPayload = dataPayload ? `${dataPayload}\n${value}` : value;
+        }
+      }
+
+      if (!dataPayload) return;
+      onEvent(eventType, dataPayload);
+    };
 
     try {
       const res = await fetch(`/api/surveys/${surveyId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
         body: JSON.stringify({ message }),
       });
 
-      const data = await res.json();
-
-      if (data.message) {
-        setMessages((prev) => [...prev, data.message]);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        const messageText =
+          typeof payload?.error === "string" && payload.error.trim()
+            ? payload.error
+            : "Unable to reach the assistant.";
+        throw new Error(messageText);
       }
 
-      if (data.surveyGenerated) {
-        setSurveyGenerated(true);
-        await fetchSurvey();
-        setIsSaved(true);
+      if (!res.body) {
+        throw new Error("Assistant response was empty.");
       }
 
-      if (Array.isArray(data.suggestions)) {
-        const nextSuggestions = data.suggestions
-          .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
-          .filter(Boolean);
-        setSuggestions(nextSuggestions);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let assistantContent = "";
+      let donePayload: Record<string, unknown> | null = null;
+      let streamError: string | null = null;
+
+      const handleSseEvent = (eventType: string, dataPayload: string) => {
+        if (eventType === "delta") {
+          const payload = safeJsonParse(dataPayload) as { text?: string } | null;
+          const text = typeof payload?.text === "string" ? payload.text : "";
+          if (!text) return;
+          assistantContent += text;
+          updateAssistantMessage(assistantContent);
+          const preview = buildStreamingSurveyView(assistantContent, studyTitle);
+          if (preview) setStreamingSurveyPreview(preview);
+          return;
+        }
+
+        if (eventType === "done") {
+          const payload = safeJsonParse(dataPayload);
+          if (payload && typeof payload === "object") {
+            donePayload = payload as Record<string, unknown>;
+          }
+          return;
+        }
+
+        if (eventType === "error") {
+          const payload = safeJsonParse(dataPayload) as { message?: string } | null;
+          streamError = payload?.message || "Assistant streaming failed.";
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let separatorIndex = buffer.indexOf("\n\n");
+        while (separatorIndex !== -1) {
+          const rawEvent = buffer.slice(0, separatorIndex);
+          buffer = buffer.slice(separatorIndex + 2);
+          processRawEvent(rawEvent, handleSseEvent);
+          separatorIndex = buffer.indexOf("\n\n");
+        }
+      }
+
+      if (buffer.trim()) {
+        processRawEvent(buffer, handleSseEvent);
+      }
+
+      if (streamError) {
+        throw new Error(streamError);
+      }
+
+      if (donePayload) {
+        const messagePayload = donePayload.message as { content?: string } | undefined;
+        if (typeof messagePayload?.content === "string") {
+          updateAssistantMessage(messagePayload.content);
+        }
+
+        const suggestionsPayload = donePayload.suggestions;
+        if (Array.isArray(suggestionsPayload)) {
+          const nextSuggestions = suggestionsPayload
+            .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+            .filter(Boolean);
+          setSuggestions(nextSuggestions);
+        }
+
+        if (donePayload.surveyGenerated === true) {
+          setSurveyGenerated(true);
+          await fetchSurvey();
+          setIsSaved(true);
+        } else {
+          setIsSaved(true);
+        }
       }
     } catch (error) {
       console.error("Failed to send message", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, I encountered an error. Please try again.",
-          timestamp: new Date(),
-        },
-      ]);
+      updateAssistantMessage("Sorry, I encountered an error. Please try again.");
     } finally {
       setIsLoading(false);
       setSuggestionsLoading(false);
+      setStreamingSurveyPreview(null);
     }
   };
 
@@ -319,7 +763,7 @@ export default function NewSurveyPage() {
   const currentPreviewQuestion = allQuestions[previewQuestionIndex];
 
   return (
-    <div className="min-h-screen w-full bg-black flex flex-col">
+    <div className="h-screen w-full bg-black flex flex-col overflow-hidden">
       <Head>
         <title>{studyTitle} | Surveyor</title>
         <meta name="description" content="Create a new survey with AI assistance" />
@@ -420,30 +864,34 @@ export default function NewSurveyPage() {
                 </div>
               ) : (
                 <>
-                  <ChatWindow messages={messages} isLoading={isLoading} />
-                  {surveyGenerated && (
-                    <div className="border-t border-[#2a2a2a] p-4 space-y-2">
-                      <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
-                      {suggestionsLoading ? (
-                        <p className="text-xs text-[#666]">Generating suggestions...</p>
-                      ) : suggestions.length > 0 ? (
-                        suggestions.map((suggestion) => (
-                          <SuggestionItem
-                            key={suggestion}
-                            text={suggestion}
-                            onClick={() => handleSendMessage(suggestion)}
-                          />
-                        ))
-                      ) : (
-                        <p className="text-xs text-[#666]">No suggestions yet.</p>
-                      )}
-                    </div>
-                  )}
-                  <ChatInput
-                    onSend={handleSendMessage}
-                    disabled={isLoading || !surveyId || isCreating}
-                    placeholder="Suggest changes to the study..."
-                  />
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <ChatWindow messages={messages} isLoading={isLoading} />
+                    {surveyGenerated && (
+                      <div className="border-t border-[#2a2a2a] p-4 space-y-2 shrink-0">
+                        <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
+                        {suggestionsLoading ? (
+                          <p className="text-xs text-[#666]">Generating suggestions...</p>
+                        ) : suggestions.length > 0 ? (
+                          suggestions.map((suggestion) => (
+                            <SuggestionItem
+                              key={suggestion}
+                              text={suggestion}
+                              onClick={() => handleSendMessage(suggestion)}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-xs text-[#666]">No suggestions yet.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    <ChatInput
+                      onSend={handleSendMessage}
+                      disabled={isLoading || !surveyId || isCreating}
+                      placeholder="Suggest changes to the study..."
+                    />
+                  </div>
                 </>
               )}
             </div>
@@ -453,6 +901,7 @@ export default function NewSurveyPage() {
               <CreateTabContent
                 studyTitle={studyTitle}
                 survey={survey}
+                draftSurvey={streamingSurveyPreview}
               />
             </div>
           </>
@@ -517,16 +966,20 @@ export default function NewSurveyPage() {
 function CreateTabContent({
   studyTitle,
   survey,
+  draftSurvey,
 }: {
   studyTitle: string;
   survey: SurveyWithSections | null;
+  draftSurvey: SurveyWithSections | null;
 }) {
-  const settings = survey?.settings;
+  const resolvedSurvey = draftSurvey ?? survey;
+  const settings = resolvedSurvey?.settings;
+  const resolvedTitle = draftSurvey?.title?.trim() || studyTitle;
   const externalTitle =
     typeof settings?.externalTitle === "string" && settings.externalTitle.trim()
       ? settings.externalTitle.trim()
-      : studyTitle;
-  const background = typeof survey?.description === "string" ? survey.description : "";
+      : resolvedTitle;
+  const background = typeof resolvedSurvey?.description === "string" ? resolvedSurvey.description : "";
   const studyGoals = Array.isArray(settings?.studyGoals)
     ? settings.studyGoals.filter((goal) => typeof goal === "string" && goal.trim())
     : [];
@@ -543,14 +996,14 @@ function CreateTabContent({
   const welcomeMessage =
     typeof settings?.welcome?.message === "string" ? settings.welcome.message : "";
   const sections =
-    survey?.sections?.filter((section) => section.title !== "Welcome") ?? [];
+    resolvedSurvey?.sections?.filter((section) => section.title !== "Welcome") ?? [];
   let questionCounter = 0;
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="px-8 py-6 max-w-3xl">
         <div className="flex items-center gap-3 mb-6">
-          <h1 className="text-2xl font-semibold text-white">{studyTitle}</h1>
+          <h1 className="text-2xl font-semibold text-white">{resolvedTitle}</h1>
           {durationLabel && (
             <span className="text-xs px-2 py-1 rounded-full bg-[#1a1a1a] text-[#888]">
               {durationLabel}
