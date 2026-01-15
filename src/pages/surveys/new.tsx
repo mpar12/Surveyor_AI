@@ -4,8 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
-import type { SurveyWithSections, SurveyQuestion } from "@/types/surveyBuilder";
-import { isMultipleChoiceSettings, isOpenEndedSettings } from "@/types/surveyBuilder";
+import type { SurveyWithSections, SurveyQuestion, QuestionType, QuestionSettings } from "@/types/surveyBuilder";
+import {
+  isMultipleChoiceSettings,
+  isOpenEndedSettings,
+  getDefaultSettingsForType,
+  defaultMultipleChoiceSettings,
+  defaultOpenEndedSettings,
+} from "@/types/surveyBuilder";
 
 interface ChatMessage {
   id: string;
@@ -28,6 +34,9 @@ export default function NewSurveyPage() {
   const [isCreating, setIsCreating] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("create");
   const [isSaved, setIsSaved] = useState(true);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const titleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Editable study metadata
   const [studyTitle, setStudyTitle] = useState("Untitled Study");
@@ -37,10 +46,19 @@ export default function NewSurveyPage() {
   const [previewQuestionIndex, setPreviewQuestionIndex] = useState(0);
   const editQuestionListRef = useRef<HTMLDivElement | null>(null);
 
-  // Create survey on mount
+  // Create survey on mount (or load existing survey from query)
   useEffect(() => {
+    if (!router.isReady) return;
+
+    const existingId = typeof router.query.id === "string" ? router.query.id : null;
+    if (existingId) {
+      setSurveyId(existingId);
+      setIsCreating(false);
+      return;
+    }
+
     createSurvey();
-  }, []);
+  }, [router.isReady]);
 
   // Auto-send initial prompt from query params
   useEffect(() => {
@@ -91,11 +109,122 @@ export default function NewSurveyPage() {
         const data = await res.json();
         setSurvey(data.survey);
         if (data.survey.title) setStudyTitle(data.survey.title);
+        const settings = data.survey.settings || {};
+        const nextSuggestions = Array.isArray(settings.suggestions)
+          ? settings.suggestions.filter((item: unknown) => typeof item === "string" && item.trim())
+          : [];
+        setSuggestions(nextSuggestions);
+        const hasQuestions = Array.isArray(data.survey.sections)
+          ? data.survey.sections.some(
+              (section: SurveyWithSections["sections"][0]) =>
+                section.title !== "Welcome" && section.questions?.length > 0
+            )
+          : false;
+        setSurveyGenerated(hasQuestions);
       }
     } catch (error) {
       console.error("Failed to fetch survey", error);
     }
   }, [surveyId]);
+
+  const saveSurveyTitle = useCallback(
+    async (nextTitle: string) => {
+      if (!surveyId) return;
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: nextTitle }),
+        });
+        if (!res.ok) throw new Error("Failed to update survey title");
+        const data = await res.json();
+        setSurvey((prev) => (prev ? { ...prev, title: data.survey?.title ?? nextTitle } : prev));
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to save survey title", error);
+      }
+    },
+    [surveyId]
+  );
+
+  useEffect(() => {
+    if (!surveyId) return;
+    const trimmedTitle = studyTitle.trim();
+    const existingTitle = survey?.title ?? "";
+
+    if (!trimmedTitle || trimmedTitle === existingTitle) {
+      setIsSaved(true);
+      return;
+    }
+
+    setIsSaved(false);
+    if (titleSaveTimeoutRef.current) {
+      clearTimeout(titleSaveTimeoutRef.current);
+    }
+
+    titleSaveTimeoutRef.current = setTimeout(() => {
+      saveSurveyTitle(trimmedTitle);
+    }, 700);
+
+    return () => {
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current);
+      }
+    };
+  }, [studyTitle, survey?.title, surveyId, saveSurveyTitle]);
+
+  const applyQuestionUpdate = useCallback(
+    (questionId: string, updates: Partial<SurveyQuestion>) => {
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((section) => ({
+          ...section,
+          questions: section.questions.map((question) =>
+            question.id === questionId
+              ? {
+                  ...question,
+                  ...updates,
+                  settings: updates.settings ?? question.settings,
+                }
+              : question
+          ),
+        }));
+        return { ...prev, sections: updatedSections };
+      });
+    },
+    []
+  );
+
+  const updateQuestion = useCallback(
+    async (questionId: string, updates: Partial<SurveyQuestion>) => {
+      if (!surveyId) return;
+      setIsSaved(false);
+      applyQuestionUpdate(questionId, updates);
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/questions?questionId=${questionId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        if (!res.ok) throw new Error("Failed to update question");
+        const data = await res.json();
+        if (data.question) {
+          applyQuestionUpdate(questionId, data.question);
+        }
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to update question", error);
+      }
+    },
+    [applyQuestionUpdate, surveyId]
+  );
+
+  useEffect(() => {
+    if (surveyId) {
+      fetchSurvey();
+    }
+  }, [surveyId, fetchSurvey]);
 
   const handleSendMessage = async (message: string) => {
     if (!surveyId || isLoading) return;
@@ -109,6 +238,9 @@ export default function NewSurveyPage() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
     setIsSaved(false);
+    if (surveyGenerated) {
+      setSuggestionsLoading(true);
+    }
 
     try {
       const res = await fetch(`/api/surveys/${surveyId}/chat`, {
@@ -128,6 +260,13 @@ export default function NewSurveyPage() {
         await fetchSurvey();
         setIsSaved(true);
       }
+
+      if (Array.isArray(data.suggestions)) {
+        const nextSuggestions = data.suggestions
+          .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean);
+        setSuggestions(nextSuggestions);
+      }
     } catch (error) {
       console.error("Failed to send message", error);
       setMessages((prev) => [
@@ -141,6 +280,7 @@ export default function NewSurveyPage() {
       ]);
     } finally {
       setIsLoading(false);
+      setSuggestionsLoading(false);
     }
   };
 
@@ -238,10 +378,6 @@ export default function NewSurveyPage() {
               "Saving..."
             )}
           </span>
-          <Button variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
-            <UserPlusIcon className="w-4 h-4" />
-            Invite
-          </Button>
           <Button size="sm" onClick={handleGoToEditor}>
             Proceed to Editor
           </Button>
@@ -288,9 +424,19 @@ export default function NewSurveyPage() {
                   {surveyGenerated && (
                     <div className="border-t border-[#2a2a2a] p-4 space-y-2">
                       <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
-                      <SuggestionItem text="Add pricing tier question before the value perception question" />
-                      <SuggestionItem text="Add question about which sections they used most" />
-                      <SuggestionItem text="Add a screener to verify cancelled subscribers" />
+                      {suggestionsLoading ? (
+                        <p className="text-xs text-[#666]">Generating suggestions...</p>
+                      ) : suggestions.length > 0 ? (
+                        suggestions.map((suggestion) => (
+                          <SuggestionItem
+                            key={suggestion}
+                            text={suggestion}
+                            onClick={() => handleSendMessage(suggestion)}
+                          />
+                        ))
+                      ) : (
+                        <p className="text-xs text-[#666]">No suggestions yet.</p>
+                      )}
                     </div>
                   )}
                   <ChatInput
@@ -329,6 +475,7 @@ export default function NewSurveyPage() {
                   const idx = allQuestions.findIndex(q => q.id === id);
                   if (idx >= 0) setPreviewQuestionIndex(idx);
                 }}
+                onUpdateQuestion={updateQuestion}
               />
             </div>
 
@@ -401,13 +548,6 @@ function CreateTabContent({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="flex items-center justify-end px-6 py-4 border-b border-[#2a2a2a]">
-        <Button variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
-          <ExportIcon className="w-4 h-4" />
-          Export
-        </Button>
-      </div>
-
       <div className="px-8 py-6 max-w-3xl">
         <div className="flex items-center gap-3 mb-6">
           <h1 className="text-2xl font-semibold text-white">{studyTitle}</h1>
@@ -563,10 +703,12 @@ function QuestionEditorPanel({
   survey,
   selectedQuestionId,
   onSelectQuestion,
+  onUpdateQuestion,
 }: {
   survey: SurveyWithSections | null;
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
 }) {
   if (!survey || survey.sections.length === 0) {
     return (
@@ -586,6 +728,7 @@ function QuestionEditorPanel({
             section={section}
             selectedQuestionId={selectedQuestionId}
             onSelectQuestion={onSelectQuestion}
+            onUpdateQuestion={onUpdateQuestion}
           />
         ))}
       <button className="w-full mt-4 py-3 border border-dashed border-[#333] rounded-lg text-[#888] hover:border-[#444] hover:text-white transition-colors">
@@ -600,10 +743,12 @@ function SectionEditor({
   section,
   selectedQuestionId,
   onSelectQuestion,
+  onUpdateQuestion,
 }: {
   section: SurveyWithSections["sections"][0];
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -631,6 +776,7 @@ function SectionEditor({
               index={idx + 1}
               isSelected={selectedQuestionId === question.id}
               onSelect={() => onSelectQuestion(question.id)}
+              onUpdateQuestion={onUpdateQuestion}
             />
           ))}
         </div>
@@ -645,18 +791,51 @@ function QuestionEditor({
   index,
   isSelected,
   onSelect,
+  onUpdateQuestion,
 }: {
   question: SurveyQuestion;
   index: number;
   isSelected: boolean;
   onSelect: () => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [draftText, setDraftText] = useState(question.text);
+  const [draftType, setDraftType] = useState<QuestionType>(question.type as QuestionType);
+  const [draftSettings, setDraftSettings] = useState<QuestionSettings | undefined>(question.settings);
+
+  useEffect(() => {
+    setDraftText(question.text);
+    setDraftType(question.type as QuestionType);
+    setDraftSettings(question.settings);
+  }, [question.id, question.text, question.type, question.settings]);
 
   const handleClick = () => {
     onSelect();
     setIsExpanded(!isExpanded);
   };
+
+  const handleTextBlur = () => {
+    const trimmed = draftText.trim();
+    if (trimmed && trimmed !== question.text) {
+      onUpdateQuestion(question.id, { text: trimmed });
+    }
+  };
+
+  const handleTypeChange = (value: string) => {
+    const nextType = value as QuestionType;
+    const nextSettings = getDefaultSettingsForType(nextType);
+    setDraftType(nextType);
+    setDraftSettings(nextSettings);
+    onUpdateQuestion(question.id, { type: nextType, settings: nextSettings });
+  };
+
+  const multipleChoiceSettings = isMultipleChoiceSettings(draftSettings)
+    ? draftSettings
+    : defaultMultipleChoiceSettings;
+  const openEndedSettings = isOpenEndedSettings(draftSettings)
+    ? draftSettings
+    : defaultOpenEndedSettings;
 
   return (
     <div className={`bg-[#0a0a0a] ${isSelected ? "ring-1 ring-[#FF6B35]" : ""}`}>
@@ -678,69 +857,167 @@ function QuestionEditor({
         <div className="px-4 pb-4 space-y-4">
           <div>
             <label className="block text-sm text-[#888] mb-1">Question type</label>
-            <select className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white">
+            <select
+              value={draftType}
+              onChange={(e) => handleTypeChange(e.target.value)}
+              className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+            >
               <option value="multiple_choice">Multiple choice</option>
               <option value="open_ended">Open-ended</option>
+              <option value="statement">Statement</option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm text-[#888] mb-1">Question</label>
             <textarea
-              defaultValue={question.text}
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onBlur={handleTextBlur}
               className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white resize-none"
               rows={2}
             />
           </div>
 
-          {question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings) && (
+          {draftType === "multiple_choice" && (
             <div>
               <label className="block text-sm text-[#888] mb-1">Options</label>
               <div className="space-y-2">
-                {question.settings.options.map((option) => (
+                {multipleChoiceSettings.options.map((option, optionIndex) => (
                   <div key={option.id} className="flex items-center gap-2">
                     <GripIcon className="w-4 h-4 text-[#666]" />
                     <input
                       type="text"
-                      defaultValue={option.text}
+                      value={option.text}
+                      onChange={(e) => {
+                        const updatedOptions = multipleChoiceSettings.options.map((entry, idx) =>
+                          idx === optionIndex ? { ...entry, text: e.target.value } : entry
+                        );
+                        const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                        setDraftSettings(nextSettings);
+                      }}
+                      onBlur={() => {
+                        if (isMultipleChoiceSettings(draftSettings)) {
+                          onUpdateQuestion(question.id, { settings: draftSettings });
+                        } else {
+                          onUpdateQuestion(question.id, { settings: multipleChoiceSettings });
+                        }
+                      }}
                       className="flex-1 px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
                     />
-                    <TrashIcon className="w-4 h-4 text-[#666] hover:text-red-400 cursor-pointer" />
+                    <button
+                      onClick={() => {
+                        const updatedOptions = multipleChoiceSettings.options.filter(
+                          (_, idx) => idx !== optionIndex
+                        );
+                        const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                        setDraftSettings(nextSettings);
+                        onUpdateQuestion(question.id, { settings: nextSettings });
+                      }}
+                      className="p-1 text-[#666] hover:text-red-400 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
                   </div>
                 ))}
-                <button className="text-[#FF6B35] text-sm hover:underline">+ Add another option</button>
+                <button
+                  onClick={() => {
+                    const updatedOptions = [
+                      ...multipleChoiceSettings.options,
+                      { id: crypto.randomUUID(), text: `Option ${multipleChoiceSettings.options.length + 1}`, isOther: false },
+                    ];
+                    const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                    setDraftSettings(nextSettings);
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  className="text-[#FF6B35] text-sm hover:underline"
+                >
+                  + Add another option
+                </button>
               </div>
 
               <div className="mt-4 space-y-3">
                 <label className="flex items-center justify-between">
                   <span className="text-[#888]">Multi-select</span>
-                  <ToggleSwitch />
+                  <ToggleSwitch
+                    isOn={multipleChoiceSettings.selectionMode === "multiple"}
+                    onToggle={(next) => {
+                      const nextSettings = {
+                        ...multipleChoiceSettings,
+                        selectionMode: next ? "multiple" : "single",
+                      };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                    }}
+                  />
                 </label>
                 <label className="flex items-center justify-between">
                   <span className="text-[#888]">Show &quot;Other&quot; option</span>
-                  <ToggleSwitch />
+                  <ToggleSwitch
+                    isOn={multipleChoiceSettings.allowOther}
+                    onToggle={(next) => {
+                      const nextSettings = { ...multipleChoiceSettings, allowOther: next };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                    }}
+                  />
                 </label>
                 <label className="flex items-center justify-between">
                   <span className="text-[#888]">Randomize order</span>
-                  <ToggleSwitch />
+                  <ToggleSwitch
+                    isOn={multipleChoiceSettings.randomizeOrder}
+                    onToggle={(next) => {
+                      const nextSettings = { ...multipleChoiceSettings, randomizeOrder: next };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                    }}
+                  />
                 </label>
               </div>
             </div>
           )}
 
-          {question.type === "open_ended" && (
+          {draftType === "open_ended" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-[#888] mb-1">Follow-up questions</label>
-                <select className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white">
+                <select
+                  value={openEndedSettings.followUpMode}
+                  onChange={(e) => {
+                    const baseSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    const nextSettings = {
+                      ...baseSettings,
+                      followUpMode: e.target.value as "none" | "if_short" | "always",
+                    };
+                    setDraftSettings(nextSettings);
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+                >
                   <option value="none">None</option>
-                  <option value="short">If short answer</option>
+                  <option value="if_short">If short answer</option>
                   <option value="always">Always</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm text-[#888] mb-1">Preferred input type</label>
-                <select className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white">
+                <select
+                  value={openEndedSettings.preferredInput}
+                  onChange={(e) => {
+                    const baseSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    const nextSettings = {
+                      ...baseSettings,
+                      preferredInput: e.target.value as "voice" | "text",
+                    };
+                    setDraftSettings(nextSettings);
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+                >
                   <option value="voice">Default (voice)</option>
                   <option value="text">Text</option>
                 </select>
@@ -749,6 +1026,23 @@ function QuestionEditor({
                 <label className="block text-sm text-[#888] mb-1">Guidelines for follow-up questions</label>
                 <input
                   type="text"
+                  value={openEndedSettings.followUpGuidelines ?? ""}
+                  onChange={(e) => {
+                    const baseSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    const nextSettings = {
+                      ...baseSettings,
+                      followUpGuidelines: e.target.value,
+                    };
+                    setDraftSettings(nextSettings);
+                  }}
+                  onBlur={() => {
+                    const nextSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
                   placeholder="If they mention A, understand why."
                   className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666]"
                 />
@@ -883,11 +1177,10 @@ function LivePreviewPanel({
 }
 
 // Toggle Switch Component
-function ToggleSwitch() {
-  const [isOn, setIsOn] = useState(false);
+function ToggleSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: (next: boolean) => void }) {
   return (
     <button
-      onClick={() => setIsOn(!isOn)}
+      onClick={() => onToggle(!isOn)}
       className={`w-10 h-6 rounded-full transition-colors ${isOn ? "bg-[#FF6B35]" : "bg-[#333]"}`}
     >
       <div className={`w-4 h-4 rounded-full bg-white transform transition-transform mx-1 ${isOn ? "translate-x-4" : ""}`} />
@@ -896,16 +1189,14 @@ function ToggleSwitch() {
 }
 
 // Suggestion Item Component
-function SuggestionItem({ text }: { text: string }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
+function SuggestionItem({ text, onClick }: { text: string; onClick: () => void }) {
   return (
     <button
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={onClick}
       className="w-full flex items-center justify-between p-3 bg-[#111] border border-[#2a2a2a] rounded-lg hover:border-[#333] transition-colors text-left"
     >
       <span className="text-sm text-[#ccc]">{text}</span>
-      <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+      <ChevronIcon className="w-4 h-4 text-[#666]" />
     </button>
   );
 }
@@ -923,22 +1214,6 @@ function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
-function UserPlusIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-    </svg>
-  );
-}
-
-function ExportIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
     </svg>
   );
 }

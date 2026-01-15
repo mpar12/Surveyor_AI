@@ -95,6 +95,18 @@ export const SURVEY_CHAT_USER_CONTEXT = (messages: Array<{ role: string; content
   return `Previous conversation:\n${history}\n\nContinue the conversation. If you have enough information to generate a complete survey, do so. Otherwise, ask clarifying questions.`;
 };
 
+export const SURVEY_SUGGESTIONS_SYSTEM_PROMPT = `You are an expert research methodologist. Review the survey JSON and suggest improvements.
+
+Requirements:
+- Provide 3-5 concise, actionable suggestions.
+- Focus on gaps, missing screeners, unclear wording, or better ordering.
+- Keep each suggestion under 140 characters.
+
+Return ONLY a JSON array of strings wrapped in <suggestions> tags:
+<suggestions>
+["Suggestion 1", "Suggestion 2", "Suggestion 3"]
+</suggestions>`;
+
 export function extractSurveyFromResponse(content: string): {
   survey: unknown | null;
   cleanContent: string;
@@ -113,4 +125,26 @@ export function extractSurveyFromResponse(content: string): {
   }
 
   return { survey: null, cleanContent: content };
+}
+
+export function extractSuggestionsFromResponse(content: string): string[] {
+  const match = content.match(/<suggestions>([\s\S]*?)<\/suggestions>/i);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean);
+      }
+    } catch (error) {
+      console.error("Failed to parse suggestions JSON:", error);
+    }
+  }
+
+  const fallback = content
+    .split("\n")
+    .map((line) => line.trim().replace(/^[-•*]\s+/, ""))
+    .filter(Boolean);
+  return fallback.slice(0, 5);
 }

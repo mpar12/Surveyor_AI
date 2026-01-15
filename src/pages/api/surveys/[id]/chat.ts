@@ -6,6 +6,8 @@ import { eq } from "drizzle-orm";
 import {
   SURVEY_GENERATION_SYSTEM_PROMPT,
   extractSurveyFromResponse,
+  SURVEY_SUGGESTIONS_SYSTEM_PROMPT,
+  extractSuggestionsFromResponse,
 } from "@/lib/prompts/surveyGeneration";
 import { getDefaultSettingsForType } from "@/types/surveyBuilder";
 import type { QuestionType } from "@/types/surveyBuilder";
@@ -43,6 +45,8 @@ interface GeneratedSurvey {
   settings?: Record<string, unknown>;
   sections: GeneratedSection[];
 }
+
+const SUGGESTION_LIMIT = 5;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -141,14 +145,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // If survey was generated, apply it
     let surveyUpdated = false;
+    let suggestions: string[] = [];
     if (generatedSurvey) {
-      await applySurveyStructure(surveyId, generatedSurvey as GeneratedSurvey);
+      suggestions = await generateSurveySuggestions(generatedSurvey as GeneratedSurvey);
+      await applySurveyStructure(surveyId, generatedSurvey as GeneratedSurvey, suggestions);
       surveyUpdated = true;
     }
 
     return res.status(200).json({
       message: assistantMessage,
       surveyGenerated: surveyUpdated,
+      suggestions,
     });
   } catch (error) {
     console.error("Failed to process chat message", error);
@@ -156,7 +163,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function applySurveyStructure(surveyId: string, generated: GeneratedSurvey) {
+async function applySurveyStructure(
+  surveyId: string,
+  generated: GeneratedSurvey,
+  suggestions?: string[]
+) {
   const normalizeString = (value: unknown): string | null => {
     if (typeof value !== "string") return null;
     const trimmed = value.trim();
@@ -195,6 +206,9 @@ async function applySurveyStructure(surveyId: string, generated: GeneratedSurvey
   if (externalTitle) mergedSettings.externalTitle = externalTitle;
   if (studyGoals) mergedSettings.studyGoals = studyGoals;
   if (audience) mergedSettings.audience = audience;
+  if (suggestions && suggestions.length > 0) {
+    mergedSettings.suggestions = suggestions.slice(0, SUGGESTION_LIMIT);
+  }
 
   const settingsValue = Object.keys(mergedSettings).length ? mergedSettings : null;
 
@@ -265,5 +279,29 @@ async function applySurveyStructure(surveyId: string, generated: GeneratedSurvey
         settings: mergedSettings,
       });
     }
+  }
+}
+
+async function generateSurveySuggestions(generated: GeneratedSurvey): Promise<string[]> {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 512,
+      system: SURVEY_SUGGESTIONS_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: JSON.stringify(generated),
+        },
+      ],
+    });
+
+    const assistantContent =
+      response.content[0].type === "text" ? response.content[0].text : "";
+    const suggestions = extractSuggestionsFromResponse(assistantContent);
+    return suggestions.slice(0, SUGGESTION_LIMIT);
+  } catch (error) {
+    console.error("Failed to generate survey suggestions", error);
+    return [];
   }
 }

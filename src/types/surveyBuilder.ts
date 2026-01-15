@@ -98,6 +98,7 @@ export interface SurveySettings {
   externalTitle?: string;
   studyGoals?: string[];
   audience?: SurveyAudienceSettings;
+  suggestions?: string[];
 }
 
 // ============================================
@@ -340,6 +341,7 @@ export const defaultSurveySettings: SurveySettings = {
   audience: {
     bringOwnParticipants: false,
   },
+  suggestions: [],
 };
 
 export function getDefaultSettingsForType(type: QuestionType): QuestionSettings {
