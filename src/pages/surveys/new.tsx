@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
-import type { SurveyWithSections } from "@/types/surveyBuilder";
+import type { SurveyWithSections, SurveyQuestion } from "@/types/surveyBuilder";
 import { isMultipleChoiceSettings, isOpenEndedSettings } from "@/types/surveyBuilder";
 
 interface ChatMessage {
@@ -27,7 +27,6 @@ export default function NewSurveyPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("create");
-  const [audioEnabled, setAudioEnabled] = useState(true);
   const [isSaved, setIsSaved] = useState(true);
 
   // Editable study metadata
@@ -36,6 +35,10 @@ export default function NewSurveyPage() {
   const [background, setBackground] = useState("");
   const [studyGoals, setStudyGoals] = useState<string[]>([]);
   const [bringOwnParticipants, setBringOwnParticipants] = useState(false);
+
+  // Edit tab state
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [previewQuestionIndex, setPreviewQuestionIndex] = useState(0);
 
   // Create survey on mount
   useEffect(() => {
@@ -90,7 +93,6 @@ export default function NewSurveyPage() {
       if (res.ok) {
         const data = await res.json();
         setSurvey(data.survey);
-        // Update metadata from survey
         if (data.survey.title) setStudyTitle(data.survey.title);
         if (data.survey.description) setBackground(data.survey.description);
       }
@@ -99,7 +101,6 @@ export default function NewSurveyPage() {
     }
   }, [surveyId]);
 
-  // Extract study goals from AI messages
   const extractStudyGoals = (content: string): string[] => {
     const goals: string[] = [];
     const lines = content.split('\n');
@@ -140,7 +141,6 @@ export default function NewSurveyPage() {
 
       if (data.message) {
         setMessages((prev) => [...prev, data.message]);
-        // Try to extract study goals from AI response
         const goals = extractStudyGoals(data.message.content);
         if (goals.length > 0) {
           setStudyGoals(goals);
@@ -174,6 +174,25 @@ export default function NewSurveyPage() {
     }
   };
 
+  const handleOpenPreview = () => {
+    if (surveyId) {
+      window.open(`/surveys/${surveyId}/take?preview=true`, '_blank');
+    }
+  };
+
+  const handleRunFromStart = () => {
+    setPreviewQuestionIndex(0);
+  };
+
+  // Get all questions flattened
+  const getAllQuestions = (): SurveyQuestion[] => {
+    if (!survey) return [];
+    return survey.sections.flatMap(s => s.questions || []);
+  };
+
+  const allQuestions = getAllQuestions();
+  const currentPreviewQuestion = allQuestions[previewQuestionIndex];
+
   return (
     <div className="min-h-screen w-full bg-black flex flex-col">
       <Head>
@@ -182,7 +201,7 @@ export default function NewSurveyPage() {
       </Head>
 
       {/* Top Header */}
-      <header className="flex items-center justify-between px-4 h-14 border-b border-[#2a2a2a] bg-black">
+      <header className="flex items-center justify-between px-4 h-14 border-b border-[#2a2a2a] bg-black z-10">
         {/* Left: Logo and Title */}
         <div className="flex items-center gap-4">
           <button
@@ -245,95 +264,128 @@ export default function NewSurveyPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Left: AI Chat */}
-        <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a]">
-          {/* Study Guide Status */}
-          <div className="px-4 py-3 border-b border-[#2a2a2a]">
-            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-              surveyGenerated
-                ? "bg-green-500/10 text-green-400"
-                : isCreating
-                  ? "bg-yellow-500/10 text-yellow-400"
-                  : "bg-[#1a1a1a] text-[#888]"
-            }`}>
-              <span className={`w-2 h-2 rounded-full ${
-                surveyGenerated ? "bg-green-500" : isCreating ? "bg-yellow-500 animate-pulse" : "bg-[#666]"
-              }`} />
-              {surveyGenerated ? "Loaded study guide" : isCreating ? "Initializing..." : "No study guide yet"}
-            </span>
-          </div>
-
-          {createError ? (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-red-400 text-2xl">!</span>
-                </div>
-                <p className="text-red-400 mb-4">{createError}</p>
-                <Button onClick={createSurvey} variant="outline" size="sm">
-                  Try Again
-                </Button>
+      <div className="flex-1 flex overflow-hidden">
+        {/* CREATE TAB */}
+        {activeTab === "create" && (
+          <>
+            {/* Left: AI Chat */}
+            <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a]">
+              <div className="px-4 py-3 border-b border-[#2a2a2a]">
+                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                  surveyGenerated
+                    ? "bg-green-500/10 text-green-400"
+                    : isCreating
+                      ? "bg-yellow-500/10 text-yellow-400"
+                      : "bg-[#1a1a1a] text-[#888]"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    surveyGenerated ? "bg-green-500" : isCreating ? "bg-yellow-500 animate-pulse" : "bg-[#666]"
+                  }`} />
+                  {surveyGenerated ? "Loaded study guide" : isCreating ? "Initializing..." : "No study guide yet"}
+                </span>
               </div>
-            </div>
-          ) : (
-            <>
-              <ChatWindow messages={messages} isLoading={isLoading} />
 
-              {/* Suggestions Section */}
-              {surveyGenerated && (
-                <div className="border-t border-[#2a2a2a] p-4 space-y-2">
-                  <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
-                  <SuggestionItem text="Add pricing tier question before the value perception question" />
-                  <SuggestionItem text="Add question about which sections they used most" />
-                  <SuggestionItem text="Add a screener to verify cancelled subscribers" />
+              {createError ? (
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                      <span className="text-red-400 text-2xl">!</span>
+                    </div>
+                    <p className="text-red-400 mb-4">{createError}</p>
+                    <Button onClick={createSurvey} variant="outline" size="sm">
+                      Try Again
+                    </Button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <ChatWindow messages={messages} isLoading={isLoading} />
+                  {surveyGenerated && (
+                    <div className="border-t border-[#2a2a2a] p-4 space-y-2">
+                      <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
+                      <SuggestionItem text="Add pricing tier question before the value perception question" />
+                      <SuggestionItem text="Add question about which sections they used most" />
+                      <SuggestionItem text="Add a screener to verify cancelled subscribers" />
+                    </div>
+                  )}
+                  <ChatInput
+                    onSend={handleSendMessage}
+                    disabled={isLoading || !surveyId || isCreating}
+                    placeholder="Suggest changes to the study..."
+                  />
+                </>
               )}
+            </div>
 
-              <ChatInput
-                onSend={handleSendMessage}
-                disabled={isLoading || !surveyId || isCreating}
-                placeholder="Suggest changes to the study..."
+            {/* Right: Create Content */}
+            <div className="flex-1 flex flex-col bg-black overflow-hidden">
+              <CreateTabContent
+                studyTitle={studyTitle}
+                externalTitle={externalTitle}
+                setExternalTitle={setExternalTitle}
+                background={background}
+                setBackground={setBackground}
+                studyGoals={studyGoals}
+                bringOwnParticipants={bringOwnParticipants}
+                setBringOwnParticipants={setBringOwnParticipants}
+                survey={survey}
               />
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
 
-        {/* Right: Content based on active tab */}
-        <div className="flex-1 flex flex-col bg-black overflow-hidden">
-          {activeTab === "create" && (
-            <CreateTabContent
-              studyTitle={studyTitle}
-              externalTitle={externalTitle}
-              setExternalTitle={setExternalTitle}
-              background={background}
-              setBackground={setBackground}
-              studyGoals={studyGoals}
-              bringOwnParticipants={bringOwnParticipants}
-              setBringOwnParticipants={setBringOwnParticipants}
-              survey={survey}
-            />
-          )}
+        {/* EDIT TAB */}
+        {activeTab === "edit" && (
+          <>
+            {/* Left: Question Editor */}
+            <div className="w-[400px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto">
+              <QuestionEditorPanel
+                survey={survey}
+                selectedQuestionId={selectedQuestionId}
+                onSelectQuestion={(id) => {
+                  setSelectedQuestionId(id);
+                  // Find index for preview
+                  const idx = allQuestions.findIndex(q => q.id === id);
+                  if (idx >= 0) setPreviewQuestionIndex(idx);
+                }}
+              />
+            </div>
 
-          {activeTab === "edit" && (
-            <EditTabContent
-              survey={survey}
-              audioEnabled={audioEnabled}
-              setAudioEnabled={setAudioEnabled}
-              onExport={handleGoToEditor}
-            />
-          )}
+            {/* Right: Live Preview */}
+            <div className="flex-1 flex flex-col bg-white overflow-hidden">
+              <LivePreviewPanel
+                question={currentPreviewQuestion}
+                questionIndex={previewQuestionIndex}
+                totalQuestions={allQuestions.length}
+                onRunFromStart={handleRunFromStart}
+                onOpenPreview={handleOpenPreview}
+                onPrevQuestion={() => setPreviewQuestionIndex(Math.max(0, previewQuestionIndex - 1))}
+                onNextQuestion={() => setPreviewQuestionIndex(Math.min(allQuestions.length - 1, previewQuestionIndex + 1))}
+              />
+            </div>
+          </>
+        )}
 
-          {activeTab === "launch" && (
-            <LaunchTabContent />
-          )}
-        </div>
+        {/* LAUNCH TAB */}
+        {activeTab === "launch" && (
+          <div className="flex-1 flex items-center justify-center bg-black">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+                <RocketIcon className="w-8 h-8 text-[#666]" />
+              </div>
+              <h2 className="text-xl font-medium text-white mb-2">Ready to launch?</h2>
+              <p className="text-[#888] max-w-md">
+                Review your study in the Create and Edit tabs, then come back here to launch.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// Create Tab - Study Overview
+// Create Tab Content
 function CreateTabContent({
   studyTitle,
   externalTitle,
@@ -357,7 +409,6 @@ function CreateTabContent({
 }) {
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Header */}
       <div className="flex items-center justify-end px-6 py-4 border-b border-[#2a2a2a]">
         <Button variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
           <ExportIcon className="w-4 h-4" />
@@ -365,11 +416,9 @@ function CreateTabContent({
         </Button>
       </div>
 
-      {/* Content */}
       <div className="px-8 py-6 max-w-3xl">
         <h1 className="text-2xl font-semibold text-white mb-6">{studyTitle}</h1>
 
-        {/* External Title */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#888] mb-2">External Title</label>
           <input
@@ -381,7 +430,6 @@ function CreateTabContent({
           />
         </div>
 
-        {/* Background */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#888] mb-2">Background</label>
           <textarea
@@ -393,7 +441,6 @@ function CreateTabContent({
           />
         </div>
 
-        {/* Study Goals */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#888] mb-2">Study Goals</label>
           <div className="space-y-2 text-[#ccc]">
@@ -410,7 +457,6 @@ function CreateTabContent({
           </div>
         </div>
 
-        {/* Audience */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#888] mb-2">Audience</label>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -428,139 +474,330 @@ function CreateTabContent({
   );
 }
 
-// Edit Tab - Interview Questions
-function EditTabContent({
+// Question Editor Panel (LHS of Edit tab)
+function QuestionEditorPanel({
   survey,
-  audioEnabled,
-  setAudioEnabled,
-  onExport,
+  selectedQuestionId,
+  onSelectQuestion,
 }: {
   survey: SurveyWithSections | null;
-  audioEnabled: boolean;
-  setAudioEnabled: (v: boolean) => void;
-  onExport: () => void;
+  selectedQuestionId: string | null;
+  onSelectQuestion: (id: string) => void;
+}) {
+  if (!survey || survey.sections.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 text-[#666]">
+        <p>No questions yet. Create some in the Create tab.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4">
+      {survey.sections
+        .filter(section => section.title !== "Welcome")
+        .map((section) => (
+          <SectionEditor
+            key={section.id}
+            section={section}
+            selectedQuestionId={selectedQuestionId}
+            onSelectQuestion={onSelectQuestion}
+          />
+        ))}
+      <button className="w-full mt-4 py-3 border border-dashed border-[#333] rounded-lg text-[#888] hover:border-[#444] hover:text-white transition-colors">
+        + Add Question
+      </button>
+    </div>
+  );
+}
+
+// Section Editor Component
+function SectionEditor({
+  section,
+  selectedQuestionId,
+  onSelectQuestion,
+}: {
+  section: SurveyWithSections["sections"][0];
+  selectedQuestionId: string | null;
+  onSelectQuestion: (id: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between p-3 bg-[#111] border border-[#2a2a2a] rounded-t-lg">
+        <div className="flex items-center gap-2">
+          <MenuIcon className="w-4 h-4 text-[#666]" />
+          <span className="text-white font-medium">{section.title.toUpperCase()}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[#666] text-sm">Questions {section.questions?.length || 0}</span>
+          <button onClick={() => setIsExpanded(!isExpanded)} className="text-[#666] hover:text-white">
+            <ChevronIcon className={`w-4 h-4 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="border border-t-0 border-[#2a2a2a] rounded-b-lg divide-y divide-[#2a2a2a]">
+          {section.questions?.map((question, idx) => (
+            <QuestionEditor
+              key={question.id}
+              question={question}
+              index={idx + 1}
+              isSelected={selectedQuestionId === question.id}
+              onSelect={() => onSelectQuestion(question.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Question Editor Component
+function QuestionEditor({
+  question,
+  index,
+  isSelected,
+  onSelect,
+}: {
+  question: SurveyQuestion;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleClick = () => {
+    onSelect();
+    setIsExpanded(!isExpanded);
+  };
+
+  return (
+    <div className={`bg-[#0a0a0a] ${isSelected ? "ring-1 ring-[#FF6B35]" : ""}`}>
+      <button
+        onClick={handleClick}
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-[#111] transition-colors"
+      >
+        <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+        <span className="text-[#FF6B35] font-medium">Q{index}</span>
+        <span className="text-white flex-1 truncate">{question.text}</span>
+        <div className="flex items-center gap-1">
+          <TrashIcon className="w-4 h-4 text-[#666] hover:text-red-400" />
+          <CopyIcon className="w-4 h-4 text-[#666] hover:text-white" />
+          <GripIcon className="w-4 h-4 text-[#666]" />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-4">
+          <div>
+            <label className="block text-sm text-[#888] mb-1">Question type</label>
+            <select className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white">
+              <option value="multiple_choice">Multiple choice</option>
+              <option value="open_ended">Open-ended</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-[#888] mb-1">Question</label>
+            <textarea
+              defaultValue={question.text}
+              className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white resize-none"
+              rows={2}
+            />
+          </div>
+
+          {question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings) && (
+            <div>
+              <label className="block text-sm text-[#888] mb-1">Options</label>
+              <div className="space-y-2">
+                {question.settings.options.map((option) => (
+                  <div key={option.id} className="flex items-center gap-2">
+                    <GripIcon className="w-4 h-4 text-[#666]" />
+                    <input
+                      type="text"
+                      defaultValue={option.text}
+                      className="flex-1 px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+                    />
+                    <TrashIcon className="w-4 h-4 text-[#666] hover:text-red-400 cursor-pointer" />
+                  </div>
+                ))}
+                <button className="text-[#FF6B35] text-sm hover:underline">+ Add another option</button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <label className="flex items-center justify-between">
+                  <span className="text-[#888]">Multi-select</span>
+                  <ToggleSwitch />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-[#888]">Show &quot;Other&quot; option</span>
+                  <ToggleSwitch />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-[#888]">Randomize order</span>
+                  <ToggleSwitch />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {question.type === "open_ended" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-[#888] mb-1">Follow-up questions</label>
+                <select className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white">
+                  <option value="none">None</option>
+                  <option value="short">If short answer</option>
+                  <option value="always">Always</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-[#888] mb-1">Preferred input type</label>
+                <select className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white">
+                  <option value="voice">Default (voice)</option>
+                  <option value="text">Text</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-[#888] mb-1">Guidelines for follow-up questions</label>
+                <input
+                  type="text"
+                  placeholder="If they mention A, understand why."
+                  className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666]"
+                />
+              </div>
+            </div>
+          )}
+
+          <button className="w-full py-2 text-[#888] hover:text-white transition-colors">
+            Show advanced settings
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Live Preview Panel (RHS of Edit tab)
+function LivePreviewPanel({
+  question,
+  questionIndex,
+  totalQuestions,
+  onRunFromStart,
+  onOpenPreview,
+  onPrevQuestion,
+  onNextQuestion,
+}: {
+  question: SurveyQuestion | undefined;
+  questionIndex: number;
+  totalQuestions: number;
+  onRunFromStart: () => void;
+  onOpenPreview: () => void;
+  onPrevQuestion: () => void;
+  onNextQuestion: () => void;
 }) {
   return (
     <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a]">
-        <h1 className="text-xl font-semibold text-white">Interview Questions</h1>
-        <Button onClick={onExport} variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
-          <ExportIcon className="w-4 h-4" />
-          Export
-        </Button>
-      </div>
-
-      {/* Audio Toggle */}
-      <div className="px-6 py-3 border-b border-[#1a1a1a]">
-        <button
-          onClick={() => setAudioEnabled(!audioEnabled)}
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors ${
-            audioEnabled
-              ? "bg-[#FF6B35]/10 text-[#FF6B35]"
-              : "bg-[#1a1a1a] text-[#888]"
-          }`}
-        >
-          <AudioIcon className="w-4 h-4" />
-          Audio
-        </button>
-      </div>
-
-      {/* Questions Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        {!survey || survey.sections.length === 0 ? (
-          <div className="text-center py-16 text-[#666]">
-            <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
-              <DocumentIcon className="w-8 h-8 text-[#444]" />
-            </div>
-            <p>Your interview questions will appear here</p>
-            <p className="text-sm mt-2">Start by describing your research goals</p>
+      {/* Preview Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onRunFromStart} className="gap-2">
+            <PlayIcon className="w-4 h-4" />
+            Run from start
+          </Button>
+          <Button variant="outline" size="sm" onClick={onOpenPreview} className="gap-2">
+            <ExternalLinkIcon className="w-4 h-4" />
+            Open preview
+          </Button>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <DesktopIcon className="w-5 h-5 text-gray-400" />
+            <MobileIcon className="w-5 h-5 text-gray-600" />
           </div>
+          <span className="text-gray-500 text-sm">⏱ 13-18 min</span>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="h-1 bg-gray-100">
+        <div
+          className="h-full bg-blue-500 transition-all"
+          style={{ width: totalQuestions > 0 ? `${((questionIndex + 1) / totalQuestions) * 100}%` : "0%" }}
+        />
+      </div>
+
+      {/* Preview Content */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
+        {!question ? (
+          <p className="text-gray-400">Select a question to preview</p>
         ) : (
-          <div className="max-w-2xl space-y-8">
-            {/* Welcome Section */}
-            <div>
-              <div className="text-sm font-medium text-[#888] mb-3">Start</div>
-              <div className="text-lg text-[#888] mb-2">Welcome message</div>
-              <div className="bg-[#111] rounded-lg p-4 border border-[#2a2a2a]">
-                <p className="text-[#ccc]">
-                  {survey.settings?.welcome?.message ||
-                    "Thank you for participating in this research. We're interested in hearing about your experiences. Please share your honest thoughts — there are no right or wrong answers."}
-                </p>
+          <div className="max-w-xl w-full text-center">
+            <h2 className="text-2xl font-medium text-gray-900 mb-8">{question.text}</h2>
+
+            {question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings) && (
+              <div className="flex flex-wrap justify-center gap-3">
+                {question.settings.options.map((option) => (
+                  <button
+                    key={option.id}
+                    className="px-6 py-3 border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    {option.text}
+                  </button>
+                ))}
               </div>
-            </div>
+            )}
 
-            {/* Sections */}
-            {survey.sections
-              .filter(section => section.title !== "Welcome")
-              .map((section, sectionIndex) => (
-                <div key={section.id}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-sm font-medium text-[#888]">
-                      Section {sectionIndex + 1}
-                    </span>
-                    <span className="text-sm text-[#666]">{section.title}</span>
-                  </div>
-
-                  <div className="space-y-6">
-                    {section.questions?.map((question, qIndex) => (
-                      <div key={question.id} className="flex gap-4">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center">
-                          <span className="text-sm text-[#888]">{qIndex + 1}</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-white mb-3">{question.text}</p>
-
-                          {question.type === "multiple_choice" &&
-                            isMultipleChoiceSettings(question.settings) && (
-                              <div className="space-y-2 ml-1">
-                                {question.settings.options.map((option) => (
-                                  <label key={option.id} className="flex items-center gap-3">
-                                    <span className="w-4 h-4 rounded-full border-2 border-[#444]" />
-                                    <span className="text-[#888]">{option.text}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-
-                          {question.type === "open_ended" && (
-                            <div className="mt-2">
-                              {isOpenEndedSettings(question.settings) &&
-                                question.settings.followUpMode !== "none" && (
-                                  <span className="inline-flex items-center gap-1 text-sm text-[#FF6B35]">
-                                    <FollowUpIcon className="w-4 h-4" />
-                                    Follow-up on short answers
-                                  </span>
-                                )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            {question.type === "open_ended" && (
+              <div className="flex flex-col items-center">
+                <button className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mb-4 hover:bg-blue-200 transition-colors">
+                  <MicIcon className="w-10 h-10 text-blue-600" />
+                </button>
+                <span className="text-blue-600 font-medium">Start Recording</span>
+                <button className="mt-4 text-gray-500 underline">Skip question</button>
+              </div>
+            )}
           </div>
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+        <span className="text-sm text-gray-400">runs on <span className="font-semibold text-blue-600">listen labs</span></span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onPrevQuestion}
+            disabled={questionIndex <= 0}
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
+          </button>
+          <button
+            onClick={onNextQuestion}
+            disabled={questionIndex >= totalQuestions - 1}
+            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <ChevronRightIcon className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Launch Tab
-function LaunchTabContent() {
+// Toggle Switch Component
+function ToggleSwitch() {
+  const [isOn, setIsOn] = useState(false);
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
-          <RocketIcon className="w-8 h-8 text-[#666]" />
-        </div>
-        <h2 className="text-xl font-medium text-white mb-2">Ready to launch?</h2>
-        <p className="text-[#888] max-w-md">
-          Review your study in the Create and Edit tabs, then come back here to launch.
-        </p>
-      </div>
-    </div>
+    <button
+      onClick={() => setIsOn(!isOn)}
+      className={`w-10 h-6 rounded-full transition-colors ${isOn ? "bg-[#FF6B35]" : "bg-[#333]"}`}
+    >
+      <div className={`w-4 h-4 rounded-full bg-white transform transition-transform mx-1 ${isOn ? "translate-x-4" : ""}`} />
+    </button>
   );
 }
 
@@ -612,26 +849,26 @@ function ExportIcon({ className }: { className?: string }) {
   );
 }
 
-function AudioIcon({ className }: { className?: string }) {
+function ChevronIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   );
 }
 
-function DocumentIcon({ className }: { className?: string }) {
+function ChevronLeftIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
     </svg>
   );
 }
 
-function FollowUpIcon({ className }: { className?: string }) {
+function ChevronRightIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
     </svg>
   );
 }
@@ -644,10 +881,75 @@ function RocketIcon({ className }: { className?: string }) {
   );
 }
 
-function ChevronIcon({ className }: { className?: string }) {
+function MenuIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function GripIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+    </svg>
+  );
+}
+
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+  );
+}
+
+function DesktopIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function MobileIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
     </svg>
   );
 }
