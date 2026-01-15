@@ -99,6 +99,23 @@ export default function NewSurveyPage() {
     }
   }, [surveyId]);
 
+  // Extract study goals from AI messages
+  const extractStudyGoals = (content: string): string[] => {
+    const goals: string[] = [];
+    const lines = content.split('\n');
+    let inGoalsSection = false;
+
+    for (const line of lines) {
+      if (line.toLowerCase().includes('goal') || line.toLowerCase().includes('objective')) {
+        inGoalsSection = true;
+      }
+      if (inGoalsSection && (line.startsWith('•') || line.startsWith('-') || line.match(/^\d+\./))) {
+        goals.push(line.replace(/^[•\-\d.]\s*/, '').trim());
+      }
+    }
+    return goals.length > 0 ? goals : [];
+  };
+
   const handleSendMessage = async (message: string) => {
     if (!surveyId || isLoading) return;
 
@@ -123,6 +140,11 @@ export default function NewSurveyPage() {
 
       if (data.message) {
         setMessages((prev) => [...prev, data.message]);
+        // Try to extract study goals from AI response
+        const goals = extractStudyGoals(data.message.content);
+        if (goals.length > 0) {
+          setStudyGoals(goals);
+        }
       }
 
       if (data.surveyGenerated) {
@@ -153,19 +175,19 @@ export default function NewSurveyPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white flex flex-col">
+    <div className="min-h-screen w-full bg-black flex flex-col">
       <Head>
         <title>{studyTitle} | Surveyor</title>
         <meta name="description" content="Create a new survey with AI assistance" />
       </Head>
 
       {/* Top Header */}
-      <header className="flex items-center justify-between px-4 h-14 border-b border-gray-200 bg-white">
+      <header className="flex items-center justify-between px-4 h-14 border-b border-[#2a2a2a] bg-black">
         {/* Left: Logo and Title */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/surveys")}
-            className="p-1 text-gray-400 hover:text-gray-600"
+            className="p-1 text-[#888] hover:text-white transition-colors"
           >
             <LogoIcon className="w-6 h-6" />
           </button>
@@ -176,22 +198,22 @@ export default function NewSurveyPage() {
               setStudyTitle(e.target.value);
               setIsSaved(false);
             }}
-            className="text-lg font-medium text-gray-900 bg-transparent border-none outline-none focus:ring-0"
+            className="text-lg font-medium text-white bg-transparent border-none outline-none focus:ring-0"
             placeholder="Study name"
           />
         </div>
 
         {/* Center: Tabs */}
         <div className="flex items-center">
-          <nav className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+          <nav className="flex items-center gap-1 bg-[#1a1a1a] rounded-lg p-1">
             {(["create", "edit", "launch"] as TabType[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
                   activeTab === tab
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-[#2a2a2a] text-white"
+                    : "text-[#888] hover:text-white"
                 }`}
               >
                 {tab}
@@ -202,7 +224,7 @@ export default function NewSurveyPage() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
-          <span className={`text-sm flex items-center gap-1 ${isSaved ? "text-gray-400" : "text-yellow-600"}`}>
+          <span className={`text-sm flex items-center gap-1 ${isSaved ? "text-[#888]" : "text-yellow-500"}`}>
             {isSaved ? (
               <>
                 <CheckIcon className="w-4 h-4" />
@@ -212,7 +234,7 @@ export default function NewSurveyPage() {
               "Saving..."
             )}
           </span>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
             <UserPlusIcon className="w-4 h-4" />
             Invite
           </Button>
@@ -225,18 +247,18 @@ export default function NewSurveyPage() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Left: AI Chat */}
-        <div className="w-[480px] flex flex-col border-r border-gray-200 bg-gray-50">
+        <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a]">
           {/* Study Guide Status */}
-          <div className="px-4 py-3 border-b border-gray-200">
+          <div className="px-4 py-3 border-b border-[#2a2a2a]">
             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
               surveyGenerated
-                ? "bg-green-100 text-green-700"
+                ? "bg-green-500/10 text-green-400"
                 : isCreating
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-gray-100 text-gray-600"
+                  ? "bg-yellow-500/10 text-yellow-400"
+                  : "bg-[#1a1a1a] text-[#888]"
             }`}>
               <span className={`w-2 h-2 rounded-full ${
-                surveyGenerated ? "bg-green-500" : isCreating ? "bg-yellow-500 animate-pulse" : "bg-gray-400"
+                surveyGenerated ? "bg-green-500" : isCreating ? "bg-yellow-500 animate-pulse" : "bg-[#666]"
               }`} />
               {surveyGenerated ? "Loaded study guide" : isCreating ? "Initializing..." : "No study guide yet"}
             </span>
@@ -245,10 +267,10 @@ export default function NewSurveyPage() {
           {createError ? (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-red-500 text-2xl">!</span>
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-red-400 text-2xl">!</span>
                 </div>
-                <p className="text-red-600 mb-4">{createError}</p>
+                <p className="text-red-400 mb-4">{createError}</p>
                 <Button onClick={createSurvey} variant="outline" size="sm">
                   Try Again
                 </Button>
@@ -260,10 +282,10 @@ export default function NewSurveyPage() {
 
               {/* Suggestions Section */}
               {surveyGenerated && (
-                <div className="border-t border-gray-200 p-4 space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Suggestions</h4>
+                <div className="border-t border-[#2a2a2a] p-4 space-y-2">
+                  <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
                   <SuggestionItem text="Add pricing tier question before the value perception question" />
-                  <SuggestionItem text="Add question about which NYT sections they used most" />
+                  <SuggestionItem text="Add question about which sections they used most" />
                   <SuggestionItem text="Add a screener to verify cancelled subscribers" />
                 </div>
               )}
@@ -278,7 +300,7 @@ export default function NewSurveyPage() {
         </div>
 
         {/* Right: Content based on active tab */}
-        <div className="flex-1 flex flex-col bg-white overflow-hidden">
+        <div className="flex-1 flex flex-col bg-black overflow-hidden">
           {activeTab === "create" && (
             <CreateTabContent
               studyTitle={studyTitle}
@@ -336,17 +358,8 @@ function CreateTabContent({
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <button className="p-1 text-gray-400 hover:text-gray-600">
-            <UndoIcon className="w-5 h-5" />
-          </button>
-          <span className="text-sm text-gray-400">2 / 2</span>
-          <button className="p-1 text-gray-400 hover:text-gray-600">
-            <RedoIcon className="w-5 h-5" />
-          </button>
-        </div>
-        <Button variant="outline" size="sm" className="gap-2">
+      <div className="flex items-center justify-end px-6 py-4 border-b border-[#2a2a2a]">
+        <Button variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
           <ExportIcon className="w-4 h-4" />
           Export
         </Button>
@@ -354,57 +367,60 @@ function CreateTabContent({
 
       {/* Content */}
       <div className="px-8 py-6 max-w-3xl">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">{studyTitle}</h1>
+        <h1 className="text-2xl font-semibold text-white mb-6">{studyTitle}</h1>
 
         {/* External Title */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-500 mb-2">External Title</label>
+          <label className="block text-sm font-medium text-[#888] mb-2">External Title</label>
           <input
             type="text"
             value={externalTitle}
             onChange={(e) => setExternalTitle(e.target.value)}
             placeholder="Title shown to participants"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666] focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent"
           />
         </div>
 
         {/* Background */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-500 mb-2">Background</label>
+          <label className="block text-sm font-medium text-[#888] mb-2">Background</label>
           <textarea
             value={background || survey?.description || ""}
             onChange={(e) => setBackground(e.target.value)}
             placeholder="Describe the context and purpose of this research..."
             rows={4}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666] focus:outline-none focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent resize-none"
           />
         </div>
 
         {/* Study Goals */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-500 mb-2">Study Goals</label>
-          <div className="space-y-2 text-gray-700">
+          <label className="block text-sm font-medium text-[#888] mb-2">Study Goals</label>
+          <div className="space-y-2 text-[#ccc]">
             {studyGoals.length > 0 ? (
               studyGoals.map((goal, i) => (
-                <p key={i}>• {goal}</p>
+                <p key={i} className="flex items-start gap-2">
+                  <span className="text-[#FF6B35]">•</span>
+                  {goal}
+                </p>
               ))
             ) : (
-              <p className="text-gray-400 italic">Goals will be generated based on your research brief</p>
+              <p className="text-[#666] italic">Goals will be generated based on your research brief</p>
             )}
           </div>
         </div>
 
         {/* Audience */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-500 mb-2">Audience</label>
+          <label className="block text-sm font-medium text-[#888] mb-2">Audience</label>
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={bringOwnParticipants}
               onChange={(e) => setBringOwnParticipants(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 rounded border-[#333] bg-[#111] text-[#FF6B35] focus:ring-[#FF6B35]"
             />
-            <span className="text-gray-700">I&apos;ll bring my own participants</span>
+            <span className="text-[#ccc]">I&apos;ll bring my own participants</span>
           </label>
         </div>
       </div>
@@ -427,31 +443,22 @@ function EditTabContent({
   return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <button className="p-1 text-gray-400 hover:text-gray-600">
-            <UndoIcon className="w-5 h-5" />
-          </button>
-          <span className="text-sm text-gray-400">2 / 2</span>
-          <button className="p-1 text-gray-400 hover:text-gray-600">
-            <RedoIcon className="w-5 h-5" />
-          </button>
-        </div>
-        <h1 className="text-xl font-semibold text-gray-900">Interview Questions</h1>
-        <Button onClick={onExport} variant="outline" size="sm" className="gap-2">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a]">
+        <h1 className="text-xl font-semibold text-white">Interview Questions</h1>
+        <Button onClick={onExport} variant="outline" size="sm" className="gap-2 border-[#333] text-[#888] hover:text-white hover:border-[#444]">
           <ExportIcon className="w-4 h-4" />
           Export
         </Button>
       </div>
 
       {/* Audio Toggle */}
-      <div className="px-6 py-3 border-b border-gray-100">
+      <div className="px-6 py-3 border-b border-[#1a1a1a]">
         <button
           onClick={() => setAudioEnabled(!audioEnabled)}
           className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors ${
             audioEnabled
-              ? "bg-blue-100 text-blue-700"
-              : "bg-gray-100 text-gray-600"
+              ? "bg-[#FF6B35]/10 text-[#FF6B35]"
+              : "bg-[#1a1a1a] text-[#888]"
           }`}
         >
           <AudioIcon className="w-4 h-4" />
@@ -462,9 +469,9 @@ function EditTabContent({
       {/* Questions Content */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {!survey || survey.sections.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <DocumentIcon className="w-8 h-8 text-gray-300" />
+          <div className="text-center py-16 text-[#666]">
+            <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+              <DocumentIcon className="w-8 h-8 text-[#444]" />
             </div>
             <p>Your interview questions will appear here</p>
             <p className="text-sm mt-2">Start by describing your research goals</p>
@@ -473,10 +480,10 @@ function EditTabContent({
           <div className="max-w-2xl space-y-8">
             {/* Welcome Section */}
             <div>
-              <div className="text-sm font-medium text-gray-500 mb-3">Start</div>
-              <div className="text-lg text-gray-500 mb-2">Welcome message</div>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <p className="text-gray-700">
+              <div className="text-sm font-medium text-[#888] mb-3">Start</div>
+              <div className="text-lg text-[#888] mb-2">Welcome message</div>
+              <div className="bg-[#111] rounded-lg p-4 border border-[#2a2a2a]">
+                <p className="text-[#ccc]">
                   {survey.settings?.welcome?.message ||
                     "Thank you for participating in this research. We're interested in hearing about your experiences. Please share your honest thoughts — there are no right or wrong answers."}
                 </p>
@@ -489,28 +496,28 @@ function EditTabContent({
               .map((section, sectionIndex) => (
                 <div key={section.id}>
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="text-sm font-medium text-gray-500">
+                    <span className="text-sm font-medium text-[#888]">
                       Section {sectionIndex + 1}
                     </span>
-                    <span className="text-sm text-gray-400">{section.title}</span>
+                    <span className="text-sm text-[#666]">{section.title}</span>
                   </div>
 
                   <div className="space-y-6">
                     {section.questions?.map((question, qIndex) => (
                       <div key={question.id} className="flex gap-4">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                          <span className="text-sm text-gray-500">{qIndex + 1}</span>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center">
+                          <span className="text-sm text-[#888]">{qIndex + 1}</span>
                         </div>
                         <div className="flex-1">
-                          <p className="text-gray-900 mb-3">{question.text}</p>
+                          <p className="text-white mb-3">{question.text}</p>
 
                           {question.type === "multiple_choice" &&
                             isMultipleChoiceSettings(question.settings) && (
                               <div className="space-y-2 ml-1">
                                 {question.settings.options.map((option) => (
                                   <label key={option.id} className="flex items-center gap-3">
-                                    <span className="w-4 h-4 rounded-full border-2 border-gray-300" />
-                                    <span className="text-gray-600">{option.text}</span>
+                                    <span className="w-4 h-4 rounded-full border-2 border-[#444]" />
+                                    <span className="text-[#888]">{option.text}</span>
                                   </label>
                                 ))}
                               </div>
@@ -520,7 +527,7 @@ function EditTabContent({
                             <div className="mt-2">
                               {isOpenEndedSettings(question.settings) &&
                                 question.settings.followUpMode !== "none" && (
-                                  <span className="inline-flex items-center gap-1 text-sm text-blue-600">
+                                  <span className="inline-flex items-center gap-1 text-sm text-[#FF6B35]">
                                     <FollowUpIcon className="w-4 h-4" />
                                     Follow-up on short answers
                                   </span>
@@ -545,11 +552,11 @@ function LaunchTabContent() {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-          <RocketIcon className="w-8 h-8 text-gray-400" />
+        <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+          <RocketIcon className="w-8 h-8 text-[#666]" />
         </div>
-        <h2 className="text-xl font-medium text-gray-900 mb-2">Ready to launch?</h2>
-        <p className="text-gray-500 max-w-md">
+        <h2 className="text-xl font-medium text-white mb-2">Ready to launch?</h2>
+        <p className="text-[#888] max-w-md">
           Review your study in the Create and Edit tabs, then come back here to launch.
         </p>
       </div>
@@ -564,10 +571,10 @@ function SuggestionItem({ text }: { text: string }) {
   return (
     <button
       onClick={() => setIsExpanded(!isExpanded)}
-      className="w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors text-left"
+      className="w-full flex items-center justify-between p-3 bg-[#111] border border-[#2a2a2a] rounded-lg hover:border-[#333] transition-colors text-left"
     >
-      <span className="text-sm text-gray-700">{text}</span>
-      <ChevronIcon className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+      <span className="text-sm text-[#ccc]">{text}</span>
+      <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
     </button>
   );
 }
@@ -593,22 +600,6 @@ function UserPlusIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-    </svg>
-  );
-}
-
-function UndoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-    </svg>
-  );
-}
-
-function RedoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
     </svg>
   );
 }

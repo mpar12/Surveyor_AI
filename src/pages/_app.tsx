@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import { SessionProvider } from "@/contexts/SessionContext";
 import "@/styles/globals.css";
 
-const PATHS_WITHOUT_HEADER = new Set(["/assistant", "/brief", "/scorecard"]);
+const PATHS_WITHOUT_HEADER = new Set(["/assistant", "/brief", "/scorecard", "/surveys/new", "/surveys/[id]/edit", "/surveys/[id]/take"]);
 
 export default function App({ Component, pageProps }: AppProps) { // Sets up App
   const router = useRouter(); // Use Router to route to different pages 
