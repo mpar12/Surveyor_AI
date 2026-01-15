@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
@@ -35,6 +35,7 @@ export default function NewSurveyPage() {
   // Edit tab state
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [previewQuestionIndex, setPreviewQuestionIndex] = useState(0);
+  const editQuestionListRef = useRef<HTMLDivElement | null>(null);
 
   // Create survey on mount
   useEffect(() => {
@@ -157,6 +158,15 @@ export default function NewSurveyPage() {
 
   const handleRunFromStart = () => {
     setPreviewQuestionIndex(0);
+    const firstQuestion = allQuestions[0];
+    if (firstQuestion) {
+      setSelectedQuestionId(firstQuestion.id);
+    } else {
+      setSelectedQuestionId(null);
+    }
+    if (editQuestionListRef.current) {
+      editQuestionListRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   // Get all questions flattened
@@ -239,12 +249,12 @@ export default function NewSurveyPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         {/* CREATE TAB */}
         {activeTab === "create" && (
           <>
             {/* Left: AI Chat */}
-            <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a]">
+            <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] min-h-0">
               <div className="px-4 py-3 border-b border-[#2a2a2a]">
                 <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
                   surveyGenerated
@@ -293,7 +303,7 @@ export default function NewSurveyPage() {
             </div>
 
             {/* Right: Create Content */}
-            <div className="flex-1 flex flex-col bg-black overflow-hidden">
+            <div className="flex-1 flex flex-col bg-black overflow-hidden min-h-0">
               <CreateTabContent
                 studyTitle={studyTitle}
                 survey={survey}
@@ -306,7 +316,10 @@ export default function NewSurveyPage() {
         {activeTab === "edit" && (
           <>
             {/* Left: Question Editor */}
-            <div className="w-[400px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto">
+            <div
+              ref={editQuestionListRef}
+              className="w-[400px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto min-h-0"
+            >
               <QuestionEditorPanel
                 survey={survey}
                 selectedQuestionId={selectedQuestionId}
@@ -320,7 +333,7 @@ export default function NewSurveyPage() {
             </div>
 
             {/* Right: Live Preview */}
-            <div className="flex-1 flex flex-col bg-white overflow-hidden">
+            <div className="flex-1 flex flex-col bg-black overflow-hidden min-h-0">
               <LivePreviewPanel
                 question={currentPreviewQuestion}
                 questionIndex={previewQuestionIndex}
@@ -771,32 +784,42 @@ function LivePreviewPanel({
   onNextQuestion: () => void;
 }) {
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-[#0a0a0a] text-white">
       {/* Preview Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a]">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onRunFromStart} className="gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRunFromStart}
+            className="gap-2 border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+          >
             <PlayIcon className="w-4 h-4" />
             Run from start
           </Button>
-          <Button variant="outline" size="sm" onClick={onOpenPreview} className="gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenPreview}
+            className="gap-2 border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+          >
             <ExternalLinkIcon className="w-4 h-4" />
             Open preview
           </Button>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <DesktopIcon className="w-5 h-5 text-gray-400" />
-            <MobileIcon className="w-5 h-5 text-gray-600" />
+            <DesktopIcon className="w-5 h-5 text-[#666]" />
+            <MobileIcon className="w-5 h-5 text-[#888]" />
           </div>
-          <span className="text-gray-500 text-sm">⏱ 13-18 min</span>
+          <span className="text-[#888] text-sm">⏱ 13-18 min</span>
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div className="h-1 bg-gray-100">
+      <div className="h-1 bg-[#1a1a1a]">
         <div
-          className="h-full bg-blue-500 transition-all"
+          className="h-full bg-[#FF6B35] transition-all"
           style={{ width: totalQuestions > 0 ? `${((questionIndex + 1) / totalQuestions) * 100}%` : "0%" }}
         />
       </div>
@@ -804,17 +827,17 @@ function LivePreviewPanel({
       {/* Preview Content */}
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         {!question ? (
-          <p className="text-gray-400">Select a question to preview</p>
+          <p className="text-[#666]">Select a question to preview</p>
         ) : (
           <div className="max-w-xl w-full text-center">
-            <h2 className="text-2xl font-medium text-gray-900 mb-8">{question.text}</h2>
+            <h2 className="text-2xl font-medium text-white mb-8">{question.text}</h2>
 
             {question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings) && (
               <div className="flex flex-wrap justify-center gap-3">
                 {question.settings.options.map((option) => (
                   <button
                     key={option.id}
-                    className="px-6 py-3 border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                    className="px-6 py-3 border-2 border-[#FF6B35] text-[#FF6B35] rounded-lg hover:bg-[#1f120c] transition-colors"
                   >
                     {option.text}
                   </button>
@@ -824,11 +847,11 @@ function LivePreviewPanel({
 
             {question.type === "open_ended" && (
               <div className="flex flex-col items-center">
-                <button className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mb-4 hover:bg-blue-200 transition-colors">
-                  <MicIcon className="w-10 h-10 text-blue-600" />
+                <button className="w-24 h-24 rounded-full bg-[#1f120c] flex items-center justify-center mb-4 hover:bg-[#2a1710] transition-colors">
+                  <MicIcon className="w-10 h-10 text-[#FF6B35]" />
                 </button>
-                <span className="text-blue-600 font-medium">Start Recording</span>
-                <button className="mt-4 text-gray-500 underline">Skip question</button>
+                <span className="text-[#FF6B35] font-medium">Start Recording</span>
+                <button className="mt-4 text-[#666] underline">Skip question</button>
               </div>
             )}
           </div>
@@ -836,22 +859,22 @@ function LivePreviewPanel({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-        <span className="text-sm text-gray-400">runs on <span className="font-semibold text-blue-600">listen labs</span></span>
+      <div className="flex items-center justify-between px-6 py-4 border-t border-[#2a2a2a]">
+        <span className="text-sm text-[#666]">runs on <span className="font-semibold text-[#FF6B35]">listen labs</span></span>
         <div className="flex items-center gap-2">
           <button
             onClick={onPrevQuestion}
             disabled={questionIndex <= 0}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="p-2 border border-[#333] rounded-lg hover:bg-[#111] disabled:opacity-50"
           >
-            <ChevronLeftIcon className="w-5 h-5 text-gray-600" />
+            <ChevronLeftIcon className="w-5 h-5 text-[#888]" />
           </button>
           <button
             onClick={onNextQuestion}
             disabled={questionIndex >= totalQuestions - 1}
-            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="p-2 border border-[#333] rounded-lg hover:bg-[#111] disabled:opacity-50"
           >
-            <ChevronRightIcon className="w-5 h-5 text-gray-600" />
+            <ChevronRightIcon className="w-5 h-5 text-[#888]" />
           </button>
         </div>
       </div>
