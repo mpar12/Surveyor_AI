@@ -23,8 +23,8 @@ export default function ChatInput({ onSend, disabled, placeholder }: ChatInputPr
   };
 
   return (
-    <div className="border-t border-[#2a2a2a] p-4">
-      <div className="flex items-end gap-3 bg-[#1a1a1a] rounded-xl p-2">
+    <div className="border-t border-gray-200 p-4 bg-gray-50">
+      <div className="flex items-end gap-3 bg-white rounded-xl p-2 border border-gray-200 shadow-sm">
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -32,18 +32,18 @@ export default function ChatInput({ onSend, disabled, placeholder }: ChatInputPr
           disabled={disabled}
           placeholder={placeholder || "Describe your research goals..."}
           rows={1}
-          className="flex-1 bg-transparent text-white text-sm resize-none outline-none px-2 py-1 max-h-32 placeholder-[#666]"
+          className="flex-1 bg-transparent text-gray-900 text-sm resize-none outline-none px-2 py-1 max-h-32 placeholder-gray-400"
           style={{ minHeight: "36px" }}
         />
         <button
           onClick={handleSubmit}
           disabled={!message.trim() || disabled}
-          className="p-2 bg-[#FF6B35] rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#FF6B35]/90 transition-colors"
+          className="p-2 bg-green-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
         >
           <SendIcon className="w-4 h-4" />
         </button>
       </div>
-      <p className="text-xs text-[#666] mt-2 px-2">
+      <p className="text-xs text-gray-400 mt-2 px-2">
         Press Enter to send, Shift+Enter for new line
       </p>
     </div>
