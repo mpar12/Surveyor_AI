@@ -526,7 +526,7 @@ export default function TakeSurveyPage() {
       {/* Navigation Footer */}
       <footer className="border-t border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded text-sm text-gray-500">
-          runs on <span className="font-semibold text-blue-600">listen labs</span>
+          Powered by <span className="font-semibold text-[#FF6B35]">Surveyor AI</span>
         </div>
         {currentIndex >= 0 && currentIndex < questions.length && (
           <div className="flex items-center gap-2">

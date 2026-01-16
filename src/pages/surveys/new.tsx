@@ -28,6 +28,9 @@ interface ChatMessage {
 
 type TabType = "create" | "edit" | "launch";
 
+const ACTIVE_TAB_STORAGE_KEY = "surveyor-create-active-tab";
+const SUGGESTIONS_MINIMIZED_KEY = "surveyor-create-suggestions-minimized";
+
 type StreamingSurveyDraft = {
   title?: string;
   externalTitle?: string;
@@ -379,6 +382,7 @@ export default function NewSurveyPage() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [streamingSurveyPreview, setStreamingSurveyPreview] = useState<SurveyWithSections | null>(null);
+  const [suggestionsMinimized, setSuggestionsMinimized] = useState(false);
   const titleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Editable study metadata
@@ -410,10 +414,39 @@ export default function NewSurveyPage() {
     const initialPrompt = router.query.prompt;
     if (surveyId && initialPrompt && typeof initialPrompt === "string" && !hasAutoSent) {
       setHasAutoSent(true);
-      handleSendMessage(initialPrompt);
+      handleSendMessage(initialPrompt, "chat");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, router.query.prompt, surveyId, hasAutoSent]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const savedTab = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    if (savedTab === "create" || savedTab === "edit" || savedTab === "launch") {
+      setActiveTab(savedTab);
+    }
+  }, [router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab, router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const savedMinimized = window.localStorage.getItem(SUGGESTIONS_MINIMIZED_KEY);
+    if (savedMinimized === "true") {
+      setSuggestionsMinimized(true);
+    }
+  }, [router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    window.localStorage.setItem(
+      SUGGESTIONS_MINIMIZED_KEY,
+      suggestionsMinimized ? "true" : "false"
+    );
+  }, [suggestionsMinimized, router.isReady]);
 
   const createSurvey = async () => {
     setIsCreating(true);
@@ -433,6 +466,16 @@ export default function NewSurveyPage() {
       if (data.survey?.id) {
         setSurveyId(data.survey.id);
         setSurvey(data.survey);
+        if (typeof router.query.id !== "string") {
+          router.replace(
+            {
+              pathname: "/surveys/new",
+              query: { id: data.survey.id },
+            },
+            undefined,
+            { shallow: true }
+          );
+        }
       } else {
         throw new Error("Invalid response from server");
       }
@@ -603,7 +646,7 @@ export default function NewSurveyPage() {
     }
   }, [surveyId, fetchSurvey]);
 
-  const handleSendMessage = async (message: string) => {
+  const handleSendMessage = async (message: string, mode: "chat" | "apply_suggestion" = "chat") => {
     if (!surveyId || isLoading) return;
 
     const userMessage: ChatMessage = {
@@ -663,7 +706,7 @@ export default function NewSurveyPage() {
       const res = await fetch(`/api/surveys/${surveyId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, mode }),
       });
 
       if (!res.ok) {
@@ -825,7 +868,7 @@ export default function NewSurveyPage() {
               setStudyTitle(e.target.value);
               setIsSaved(false);
             }}
-            className="text-lg font-medium text-white bg-transparent border-none outline-none focus:ring-0"
+            className="text-lg font-medium text-white bg-[#111] border border-[#2a2a2a] rounded-md px-3 py-1.5 outline-none focus:border-[#3a3a3a]"
             placeholder="Study name"
           />
         </div>
@@ -873,7 +916,7 @@ export default function NewSurveyPage() {
         {activeTab === "create" && (
           <>
             {/* Left: AI Chat */}
-            <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] min-h-0">
+            <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] min-h-0 relative">
               <div className="px-4 py-3 border-b border-[#2a2a2a]">
                 <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
                   surveyGenerated
@@ -905,17 +948,26 @@ export default function NewSurveyPage() {
                 <>
                   <div className="flex-1 flex flex-col min-h-0">
                     <ChatWindow messages={messages} isLoading={isLoading} />
-                    {surveyGenerated && (
+                    {surveyGenerated && !suggestionsMinimized && (
                       <div className="border-t border-[#2a2a2a] p-4 space-y-2 shrink-0">
-                        <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
+                          <button
+                            type="button"
+                            onClick={() => setSuggestionsMinimized(true)}
+                            className="text-xs text-[#666] hover:text-white transition-colors"
+                          >
+                            Minimize
+                          </button>
+                        </div>
                         {suggestionsLoading ? (
                           <p className="text-xs text-[#666]">Generating suggestions...</p>
                         ) : suggestions.length > 0 ? (
-                          suggestions.map((suggestion) => (
+                          suggestions.slice(0, 3).map((suggestion) => (
                             <SuggestionItem
                               key={suggestion}
                               text={suggestion}
-                              onClick={() => handleSendMessage(suggestion)}
+                              onClick={() => handleSendMessage(suggestion, "apply_suggestion")}
                             />
                           ))
                         ) : (
@@ -931,6 +983,15 @@ export default function NewSurveyPage() {
                       placeholder="Suggest changes to the study..."
                     />
                   </div>
+                  {surveyGenerated && suggestionsMinimized && (
+                    <button
+                      type="button"
+                      onClick={() => setSuggestionsMinimized(false)}
+                      className="absolute bottom-4 right-4 z-20 rounded-md border border-[#2a2a2a] bg-[#111] px-3 py-1 text-xs text-[#ccc] hover:text-white transition-colors shadow-lg"
+                    >
+                      Suggestions
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1304,6 +1365,8 @@ function QuestionEditor({
   const [draftText, setDraftText] = useState(question.text);
   const [draftType, setDraftType] = useState<QuestionType>(question.type as QuestionType);
   const [draftSettings, setDraftSettings] = useState<QuestionSettings | undefined>(question.settings);
+  const textUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optionDragIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     setDraftText(question.text);
@@ -1311,12 +1374,39 @@ function QuestionEditor({
     setDraftSettings(question.settings);
   }, [question.id, question.text, question.type, question.settings]);
 
+  useEffect(() => {
+    const trimmed = draftText.trim();
+    if (!trimmed || trimmed === question.text) {
+      if (textUpdateTimeoutRef.current) {
+        clearTimeout(textUpdateTimeoutRef.current);
+      }
+      return;
+    }
+
+    if (textUpdateTimeoutRef.current) {
+      clearTimeout(textUpdateTimeoutRef.current);
+    }
+
+    textUpdateTimeoutRef.current = setTimeout(() => {
+      onUpdateQuestion(question.id, { text: trimmed });
+    }, 500);
+
+    return () => {
+      if (textUpdateTimeoutRef.current) {
+        clearTimeout(textUpdateTimeoutRef.current);
+      }
+    };
+  }, [draftText, question.id, question.text, onUpdateQuestion]);
+
   const handleClick = () => {
     onSelect();
     setIsExpanded(!isExpanded);
   };
 
   const handleTextBlur = () => {
+    if (textUpdateTimeoutRef.current) {
+      clearTimeout(textUpdateTimeoutRef.current);
+    }
     const trimmed = draftText.trim();
     if (trimmed && trimmed !== question.text) {
       onUpdateQuestion(question.id, { text: trimmed });
@@ -1389,7 +1479,32 @@ function QuestionEditor({
               <label className="block text-sm text-[#888] mb-1">Options</label>
               <div className="space-y-2">
                 {multipleChoiceSettings.options.map((option, optionIndex) => (
-                  <div key={option.id} className="flex items-center gap-2">
+                  <div
+                    key={option.id}
+                    draggable
+                    onDragStart={() => {
+                      optionDragIndexRef.current = optionIndex;
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const fromIndex = optionDragIndexRef.current;
+                      if (fromIndex === null || fromIndex === optionIndex) return;
+                      const updatedOptions = [...multipleChoiceSettings.options];
+                      const [moved] = updatedOptions.splice(fromIndex, 1);
+                      updatedOptions.splice(optionIndex, 0, moved);
+                      const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                      optionDragIndexRef.current = null;
+                    }}
+                    onDragEnd={() => {
+                      optionDragIndexRef.current = null;
+                    }}
+                    className="flex items-center gap-2 rounded-md border border-transparent hover:border-[#2a2a2a] cursor-move"
+                  >
                     <GripIcon className="w-4 h-4 text-[#666]" />
                     <input
                       type="text"
@@ -1659,7 +1774,7 @@ function LivePreviewPanel({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-[#2a2a2a]">
-        <span className="text-sm text-[#666]">runs on <span className="font-semibold text-[#FF6B35]">listen labs</span></span>
+        <span className="text-sm text-[#666]">Powered by <span className="font-semibold text-[#FF6B35]">Surveyor AI</span></span>
         <div className="flex items-center gap-2">
           <button
             onClick={onPrevQuestion}

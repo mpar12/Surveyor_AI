@@ -2,11 +2,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db/client";
 import { surveys, surveySections, surveyQuestions, surveyChatHistory } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import {
   SURVEY_GENERATION_SYSTEM_PROMPT,
   extractSurveyFromResponse,
   SURVEY_SUGGESTIONS_SYSTEM_PROMPT,
+  SURVEY_SUGGESTION_APPLY_SYSTEM_PROMPT,
   extractSuggestionsFromResponse,
 } from "@/lib/prompts/surveyGeneration";
 import { getDefaultSettingsForType } from "@/types/surveyBuilder";
@@ -15,6 +16,9 @@ import type { QuestionType } from "@/types/surveyBuilder";
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY || process.env.claude_api_key,
 });
+
+const MULTI_VERSION_WARNING =
+  "I can only generate one study per survey. If you'd like another version, please create a new study and I can build it there.";
 
 interface ChatMessage {
   id: string;
@@ -46,7 +50,25 @@ interface GeneratedSurvey {
   sections: GeneratedSection[];
 }
 
-const SUGGESTION_LIMIT = 5;
+const isMultiVersionRequest = (value: string) => {
+  if (/\b(two|2)\s+(versions|variants|alternatives|options|surveys)\b/i.test(value)) {
+    return true;
+  }
+
+  const hasVersionA = /\b(version|variant|option)\s*a\b/i.test(value);
+  const hasVersionB = /\b(version|variant|option)\s*b\b/i.test(value);
+  if (hasVersionA && hasVersionB) return true;
+
+  const hasVersion1 = /\bversion\s*1\b/i.test(value);
+  const hasVersion2 = /\bversion\s*2\b/i.test(value);
+  if (hasVersion1 && hasVersion2) return true;
+
+  if (/\bA\s*\/\s*B\b/i.test(value) || /\bAB\s*test\b/i.test(value)) return true;
+
+  return false;
+};
+
+const SUGGESTION_LIMIT = 3;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -60,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "invalid_survey_id" });
   }
 
-  const { message } = req.body as { message: string };
+  const { message, mode } = req.body as { message: string; mode?: "apply_suggestion" };
 
   if (!message || typeof message !== "string") {
     return res.status(400).json({ error: "message_required" });
@@ -99,6 +121,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const existingMessages: ChatMessage[] = chatHistory?.messages as ChatMessage[] || [];
 
+    const isApplySuggestion = mode === "apply_suggestion";
+    const isMultiVersion = !isApplySuggestion && isMultiVersionRequest(message);
+
     // Add user message
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -109,17 +134,62 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const updatedMessages = [...existingMessages, userMessage];
 
+    if (isMultiVersion) {
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: MULTI_VERSION_WARNING,
+        timestamp: new Date(),
+      };
+
+      const finalMessages = [...updatedMessages, assistantMessage];
+
+      if (chatHistory) {
+        await db
+          .update(surveyChatHistory)
+          .set({
+            messages: finalMessages,
+            updatedAt: new Date(),
+          })
+          .where(eq(surveyChatHistory.id, chatHistory.id));
+      } else {
+        await db.insert(surveyChatHistory).values({
+          surveyId,
+          messages: finalMessages,
+        });
+      }
+
+      sendEvent("done", {
+        message: assistantMessage,
+        surveyGenerated: false,
+      });
+      res.end();
+      return;
+    }
+
     // Prepare messages for Claude
-    const claudeMessages = updatedMessages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    const claudeMessages = isApplySuggestion
+      ? [
+          {
+            role: "user" as const,
+            content: JSON.stringify({
+              suggestion: message,
+              survey: await buildSurveySnapshot(surveyId),
+            }),
+          },
+        ]
+      : updatedMessages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
 
     // Call Claude
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      system: SURVEY_GENERATION_SYSTEM_PROMPT,
+      system: isApplySuggestion
+        ? SURVEY_SUGGESTION_APPLY_SYSTEM_PROMPT
+        : SURVEY_GENERATION_SYSTEM_PROMPT,
       stream: true,
       messages: claudeMessages,
     });
@@ -154,7 +224,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check if response contains a survey structure
-    const { survey: generatedSurvey, cleanContent } = extractSurveyFromResponse(assistantContent);
+    const surveyTagMatches = assistantContent.match(/<survey>/gi) ?? [];
+    const multipleSurveysDetected = surveyTagMatches.length > 1;
+    const { survey: generatedSurvey, cleanContent } = multipleSurveysDetected
+      ? { survey: null, cleanContent: MULTI_VERSION_WARNING }
+      : extractSurveyFromResponse(assistantContent);
 
     // Add assistant message
     const assistantMessage: ChatMessage = {
@@ -185,7 +259,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If survey was generated, apply it
     let surveyUpdated = false;
     let suggestions: string[] = [];
-    if (generatedSurvey) {
+    if (generatedSurvey && !multipleSurveysDetected) {
       suggestions = await generateSurveySuggestions(generatedSurvey as GeneratedSurvey);
       await applySurveyStructure(surveyId, generatedSurvey as GeneratedSurvey, suggestions);
       surveyUpdated = true;
@@ -326,6 +400,66 @@ async function applySurveyStructure(
       });
     }
   }
+}
+
+async function buildSurveySnapshot(surveyId: string): Promise<GeneratedSurvey> {
+  const [survey] = await db
+    .select()
+    .from(surveys)
+    .where(eq(surveys.id, surveyId))
+    .limit(1);
+
+  if (!survey) {
+    throw new Error("survey_not_found");
+  }
+
+  const settingsRaw = (survey.settings ?? {}) as Record<string, unknown>;
+  const { suggestions: _suggestions, ...settings } = settingsRaw;
+
+  const externalTitle =
+    typeof settingsRaw.externalTitle === "string" ? settingsRaw.externalTitle : undefined;
+  const studyGoals = Array.isArray(settingsRaw.studyGoals)
+    ? settingsRaw.studyGoals.filter((item) => typeof item === "string")
+    : undefined;
+  const audience =
+    settingsRaw.audience && typeof settingsRaw.audience === "object"
+      ? (settingsRaw.audience as { bringOwnParticipants?: boolean })
+      : undefined;
+
+  const sections = await db
+    .select()
+    .from(surveySections)
+    .where(eq(surveySections.surveyId, surveyId))
+    .orderBy(asc(surveySections.order));
+
+  const sectionsWithQuestions: GeneratedSection[] = await Promise.all(
+    sections.map(async (section) => {
+      const questions = await db
+        .select()
+        .from(surveyQuestions)
+        .where(eq(surveyQuestions.sectionId, section.id))
+        .orderBy(asc(surveyQuestions.order));
+
+      return {
+        title: section.title,
+        questions: questions.map((question) => ({
+          type: question.type as QuestionType,
+          text: question.text,
+          settings: question.settings as Record<string, unknown> | undefined,
+        })),
+      };
+    })
+  );
+
+  return {
+    title: survey.title,
+    externalTitle,
+    description: survey.description ?? undefined,
+    studyGoals,
+    audience,
+    settings,
+    sections: sectionsWithQuestions,
+  };
 }
 
 async function generateSurveySuggestions(generated: GeneratedSurvey): Promise<string[]> {
