@@ -735,12 +735,13 @@ export default function NewSurveyPage() {
         throw new Error(streamError);
       }
 
-      if (donePayload) {
-        if (typeof donePayload.message?.content === "string") {
-          updateAssistantMessage(donePayload.message.content);
+      const resolvedDonePayload = donePayload as StreamDonePayload | null;
+      if (resolvedDonePayload) {
+        if (typeof resolvedDonePayload.message?.content === "string") {
+          updateAssistantMessage(resolvedDonePayload.message.content);
         }
 
-        const suggestionsPayload = donePayload.suggestions;
+        const suggestionsPayload = resolvedDonePayload.suggestions;
         if (Array.isArray(suggestionsPayload)) {
           const nextSuggestions = suggestionsPayload
             .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
@@ -748,7 +749,7 @@ export default function NewSurveyPage() {
           setSuggestions(nextSuggestions);
         }
 
-        if (donePayload.surveyGenerated === true) {
+        if (resolvedDonePayload.surveyGenerated === true) {
           setSurveyGenerated(true);
           await fetchSurvey();
           setIsSaved(true);
