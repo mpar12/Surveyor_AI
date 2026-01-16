@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
-import type { SurveyWithSections, SurveyQuestion, SurveySection, QuestionType, QuestionSettings } from "@/types/surveyBuilder";
+import type { SurveyWithSections, SurveyQuestion, SurveySection, QuestionType, QuestionSettings, SurveySettings } from "@/types/surveyBuilder";
 import {
   DndContext,
   closestCenter,
