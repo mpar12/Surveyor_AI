@@ -557,6 +557,40 @@ export default function NewSurveyPage() {
     [applyQuestionUpdate, surveyId]
   );
 
+  const deleteQuestion = useCallback(
+    async (questionId: string) => {
+      if (!surveyId) return;
+      setIsSaved(false);
+
+      // Optimistic update - remove from local state
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((section) => ({
+          ...section,
+          questions: section.questions.filter((q) => q.id !== questionId),
+        }));
+        return { ...prev, sections: updatedSections };
+      });
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/questions?questionId=${questionId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to delete question");
+        setIsSaved(true);
+        // Clear selection if deleted question was selected
+        if (selectedQuestionId === questionId) {
+          setSelectedQuestionId(null);
+        }
+      } catch (error) {
+        console.error("Failed to delete question", error);
+        // Refetch to restore state on error
+        fetchSurvey();
+      }
+    },
+    [surveyId, selectedQuestionId, fetchSurvey]
+  );
+
   useEffect(() => {
     if (surveyId) {
       fetchSurvey();
@@ -908,11 +942,11 @@ export default function NewSurveyPage() {
 
         {/* EDIT TAB */}
         {activeTab === "edit" && (
-          <>
+          <div className="flex-1 flex min-h-0">
             {/* Left: Question Editor */}
             <div
               ref={editQuestionListRef}
-              className="w-[400px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto min-h-0"
+              className="w-[400px] flex-shrink-0 border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto"
             >
               <QuestionEditorPanel
                 survey={survey}
@@ -924,11 +958,12 @@ export default function NewSurveyPage() {
                   if (idx >= 0) setPreviewQuestionIndex(idx);
                 }}
                 onUpdateQuestion={updateQuestion}
+                onDeleteQuestion={deleteQuestion}
               />
             </div>
 
             {/* Right: Live Preview */}
-            <div className="flex-1 flex flex-col bg-black overflow-hidden min-h-0">
+            <div className="flex-1 flex flex-col bg-black overflow-hidden">
               <LivePreviewPanel
                 question={currentPreviewQuestion}
                 questionIndex={previewQuestionIndex}
@@ -939,7 +974,7 @@ export default function NewSurveyPage() {
                 onNextQuestion={() => setPreviewQuestionIndex(Math.min(allQuestions.length - 1, previewQuestionIndex + 1))}
               />
             </div>
-          </>
+          </div>
         )}
 
         {/* LAUNCH TAB */}
@@ -1156,11 +1191,13 @@ function QuestionEditorPanel({
   selectedQuestionId,
   onSelectQuestion,
   onUpdateQuestion,
+  onDeleteQuestion,
 }: {
   survey: SurveyWithSections | null;
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
 }) {
   if (!survey || survey.sections.length === 0) {
     return (
@@ -1181,6 +1218,7 @@ function QuestionEditorPanel({
             selectedQuestionId={selectedQuestionId}
             onSelectQuestion={onSelectQuestion}
             onUpdateQuestion={onUpdateQuestion}
+            onDeleteQuestion={onDeleteQuestion}
           />
         ))}
       <button className="w-full mt-4 py-3 border border-dashed border-[#333] rounded-lg text-[#888] hover:border-[#444] hover:text-white transition-colors">
@@ -1196,11 +1234,13 @@ function SectionEditor({
   selectedQuestionId,
   onSelectQuestion,
   onUpdateQuestion,
+  onDeleteQuestion,
 }: {
   section: SurveyWithSections["sections"][0];
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -1229,6 +1269,7 @@ function SectionEditor({
               isSelected={selectedQuestionId === question.id}
               onSelect={() => onSelectQuestion(question.id)}
               onUpdateQuestion={onUpdateQuestion}
+              onDeleteQuestion={onDeleteQuestion}
             />
           ))}
         </div>
@@ -1244,12 +1285,14 @@ function QuestionEditor({
   isSelected,
   onSelect,
   onUpdateQuestion,
+  onDeleteQuestion,
 }: {
   question: SurveyQuestion;
   index: number;
   isSelected: boolean;
   onSelect: () => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [draftText, setDraftText] = useState(question.text);
@@ -1298,11 +1341,15 @@ function QuestionEditor({
         <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
         <span className="text-[#FF6B35] font-medium">Q{index}</span>
         <span className="text-white flex-1 truncate">{question.text}</span>
-        <div className="flex items-center gap-1">
-          <TrashIcon className="w-4 h-4 text-[#666] hover:text-red-400" />
-          <CopyIcon className="w-4 h-4 text-[#666] hover:text-white" />
-          <GripIcon className="w-4 h-4 text-[#666]" />
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteQuestion(question.id);
+          }}
+          className="p-1 text-[#666] hover:text-red-400 transition-colors"
+        >
+          <TrashIcon className="w-4 h-4" />
+        </button>
       </button>
 
       {isExpanded && (
