@@ -4,7 +4,24 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
-import type { SurveyWithSections, SurveyQuestion, QuestionType, QuestionSettings } from "@/types/surveyBuilder";
+import type { SurveyWithSections, SurveyQuestion, SurveySection, QuestionType, QuestionSettings } from "@/types/surveyBuilder";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   isMultipleChoiceSettings,
   isOpenEndedSettings,
@@ -252,6 +269,146 @@ export default function NewSurveyPage() {
       }
     },
     [surveyId, selectedQuestionId, fetchSurvey]
+  );
+
+  const addQuestion = useCallback(
+    async (sectionId: string) => {
+      if (!surveyId) return;
+      setIsSaved(false);
+
+      // Get the section to find the next order number
+      const section = survey?.sections.find(s => s.id === sectionId);
+      const nextOrder = section?.questions?.length || 0;
+
+      // Create optimistic question
+      const tempId = crypto.randomUUID();
+      const newQuestion: SurveyQuestion = {
+        id: tempId,
+        sectionId,
+        type: "open_ended",
+        text: "New question",
+        order: nextOrder,
+        settings: getDefaultSettingsForType("open_ended"),
+        createdAt: new Date(),
+      };
+
+      // Optimistic update
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((s) =>
+          s.id === sectionId
+            ? { ...s, questions: [...(s.questions || []), newQuestion] }
+            : s
+        );
+        return { ...prev, sections: updatedSections };
+      });
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/questions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sectionId,
+            type: "open_ended",
+            text: "New question",
+            order: nextOrder,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to add question");
+        const data = await res.json();
+        // Replace temp ID with real ID
+        setSurvey((prev) => {
+          if (!prev) return prev;
+          const updatedSections = prev.sections.map((s) =>
+            s.id === sectionId
+              ? {
+                  ...s,
+                  questions: s.questions.map((q) =>
+                    q.id === tempId ? { ...q, ...data.question } : q
+                  ),
+                }
+              : s
+          );
+          return { ...prev, sections: updatedSections };
+        });
+        setIsSaved(true);
+        // Select the new question
+        if (data.question?.id) {
+          setSelectedQuestionId(data.question.id);
+        }
+      } catch (error) {
+        console.error("Failed to add question", error);
+        fetchSurvey();
+      }
+    },
+    [surveyId, survey, fetchSurvey]
+  );
+
+  const reorderSections = useCallback(
+    async (oldIndex: number, newIndex: number) => {
+      if (!surveyId || !survey) return;
+      setIsSaved(false);
+
+      const reorderedSections = arrayMove(survey.sections, oldIndex, newIndex);
+      const updatedSections = reorderedSections.map((s, idx) => ({ ...s, order: idx }));
+
+      // Optimistic update
+      setSurvey((prev) => (prev ? { ...prev, sections: updatedSections } : prev));
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/reorder`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sections: updatedSections.map((s, idx) => ({ id: s.id, order: idx })),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to reorder sections");
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to reorder sections", error);
+        fetchSurvey();
+      }
+    },
+    [surveyId, survey, fetchSurvey]
+  );
+
+  const reorderQuestions = useCallback(
+    async (sectionId: string, oldIndex: number, newIndex: number) => {
+      if (!surveyId || !survey) return;
+      setIsSaved(false);
+
+      const section = survey.sections.find((s) => s.id === sectionId);
+      if (!section) return;
+
+      const reorderedQuestions = arrayMove(section.questions || [], oldIndex, newIndex);
+      const updatedQuestions = reorderedQuestions.map((q, idx) => ({ ...q, order: idx }));
+
+      // Optimistic update
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((s) =>
+          s.id === sectionId ? { ...s, questions: updatedQuestions } : s
+        );
+        return { ...prev, sections: updatedSections };
+      });
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/reorder`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questions: updatedQuestions.map((q, idx) => ({ id: q.id, order: idx })),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to reorder questions");
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to reorder questions", error);
+        fetchSurvey();
+      }
+    },
+    [surveyId, survey, fetchSurvey]
   );
 
   useEffect(() => {
@@ -511,6 +668,9 @@ export default function NewSurveyPage() {
                 }}
                 onUpdateQuestion={updateQuestion}
                 onDeleteQuestion={deleteQuestion}
+                onAddQuestion={addQuestion}
+                onReorderSections={reorderSections}
+                onReorderQuestions={reorderQuestions}
               />
             </div>
 
@@ -524,6 +684,7 @@ export default function NewSurveyPage() {
                 onOpenPreview={handleOpenPreview}
                 onPrevQuestion={() => setPreviewQuestionIndex(Math.max(0, previewQuestionIndex - 1))}
                 onNextQuestion={() => setPreviewQuestionIndex(Math.min(allQuestions.length - 1, previewQuestionIndex + 1))}
+                hasSurvey={!!surveyId}
               />
             </div>
           </div>
@@ -740,13 +901,51 @@ function QuestionEditorPanel({
   onSelectQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
+  onAddQuestion,
+  onReorderSections,
+  onReorderQuestions,
 }: {
   survey: SurveyWithSections | null;
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
   onDeleteQuestion: (id: string) => void;
+  onAddQuestion: (sectionId: string) => void;
+  onReorderSections: (oldIndex: number, newIndex: number) => void;
+  onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
 }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Get the section ID for the currently selected question
+  const getSelectedSectionId = (): string | null => {
+    if (!survey || !selectedQuestionId) return null;
+    for (const section of survey.sections) {
+      if (section.questions?.some(q => q.id === selectedQuestionId)) {
+        return section.id;
+      }
+    }
+    return null;
+  };
+
+  const selectedSectionId = getSelectedSectionId();
+
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const filteredSections = survey?.sections.filter(s => s.title !== "Welcome") || [];
+      const oldIndex = filteredSections.findIndex(s => s.id === active.id);
+      const newIndex = filteredSections.findIndex(s => s.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderSections(oldIndex, newIndex);
+      }
+    }
+  };
+
   if (!survey || survey.sections.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 text-[#666]">
@@ -755,23 +954,90 @@ function QuestionEditorPanel({
     );
   }
 
+  const filteredSections = survey.sections.filter(section => section.title !== "Welcome");
+
   return (
     <div className="p-4">
-      {survey.sections
-        .filter(section => section.title !== "Welcome")
-        .map((section) => (
-          <SectionEditor
-            key={section.id}
-            section={section}
-            selectedQuestionId={selectedQuestionId}
-            onSelectQuestion={onSelectQuestion}
-            onUpdateQuestion={onUpdateQuestion}
-            onDeleteQuestion={onDeleteQuestion}
-          />
-        ))}
-      <button className="w-full mt-4 py-3 border border-dashed border-[#333] rounded-lg text-[#888] hover:border-[#444] hover:text-white transition-colors">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleSectionDragEnd}
+      >
+        <SortableContext
+          items={filteredSections.map(s => s.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {filteredSections.map((section) => (
+            <SortableSectionEditor
+              key={section.id}
+              section={section}
+              selectedQuestionId={selectedQuestionId}
+              onSelectQuestion={onSelectQuestion}
+              onUpdateQuestion={onUpdateQuestion}
+              onDeleteQuestion={onDeleteQuestion}
+              onReorderQuestions={onReorderQuestions}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+      <button
+        onClick={() => {
+          // Add to currently selected section, or first section if none selected
+          const targetSectionId = selectedSectionId || filteredSections[0]?.id;
+          if (targetSectionId) {
+            onAddQuestion(targetSectionId);
+          }
+        }}
+        className="w-full mt-4 py-3 border border-dashed border-[#333] rounded-lg text-[#888] hover:border-[#444] hover:text-white transition-colors"
+      >
         + Add Question
       </button>
+    </div>
+  );
+}
+
+// Sortable Section Editor Wrapper
+function SortableSectionEditor({
+  section,
+  selectedQuestionId,
+  onSelectQuestion,
+  onUpdateQuestion,
+  onDeleteQuestion,
+  onReorderQuestions,
+}: {
+  section: SurveyWithSections["sections"][0];
+  selectedQuestionId: string | null;
+  onSelectQuestion: (id: string) => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+  onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SectionEditor
+        section={section}
+        selectedQuestionId={selectedQuestionId}
+        onSelectQuestion={onSelectQuestion}
+        onUpdateQuestion={onUpdateQuestion}
+        onDeleteQuestion={onDeleteQuestion}
+        onReorderQuestions={onReorderQuestions}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
     </div>
   );
 }
@@ -783,24 +1049,54 @@ function SectionEditor({
   onSelectQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
+  onReorderQuestions,
+  dragHandleProps,
 }: {
   section: SurveyWithSections["sections"][0];
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
   onDeleteQuestion: (id: string) => void;
+  onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+  dragHandleProps?: Record<string, unknown>;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleQuestionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const questions = section.questions || [];
+      const oldIndex = questions.findIndex(q => q.id === active.id);
+      const newIndex = questions.findIndex(q => q.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderQuestions(section.id, oldIndex, newIndex);
+      }
+    }
+  };
+
+  const questions = section.questions || [];
 
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between p-3 bg-[#111] border border-[#2a2a2a] rounded-t-lg">
         <div className="flex items-center gap-2">
-          <MenuIcon className="w-4 h-4 text-[#666]" />
+          <button
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing text-[#666] hover:text-white"
+          >
+            <GripIcon className="w-4 h-4" />
+          </button>
           <span className="text-white font-medium">{section.title.toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[#666] text-sm">Questions {section.questions?.length || 0}</span>
+          <span className="text-[#666] text-sm">Questions {questions.length}</span>
           <button onClick={() => setIsExpanded(!isExpanded)} className="text-[#666] hover:text-white">
             <ChevronIcon className={`w-4 h-4 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
           </button>
@@ -808,26 +1104,37 @@ function SectionEditor({
       </div>
 
       {isExpanded && (
-        <div className="border border-t-0 border-[#2a2a2a] rounded-b-lg divide-y divide-[#2a2a2a]">
-          {section.questions?.map((question, idx) => (
-            <QuestionEditor
-              key={question.id}
-              question={question}
-              index={idx + 1}
-              isSelected={selectedQuestionId === question.id}
-              onSelect={() => onSelectQuestion(question.id)}
-              onUpdateQuestion={onUpdateQuestion}
-              onDeleteQuestion={onDeleteQuestion}
-            />
-          ))}
+        <div className="border border-t-0 border-[#2a2a2a] rounded-b-lg">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleQuestionDragEnd}
+          >
+            <SortableContext
+              items={questions.map(q => q.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {questions.map((question, idx) => (
+                <SortableQuestionEditor
+                  key={question.id}
+                  question={question}
+                  index={idx + 1}
+                  isSelected={selectedQuestionId === question.id}
+                  onSelect={() => onSelectQuestion(question.id)}
+                  onUpdateQuestion={onUpdateQuestion}
+                  onDeleteQuestion={onDeleteQuestion}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       )}
     </div>
   );
 }
 
-// Question Editor Component
-function QuestionEditor({
+// Sortable Question Editor Wrapper
+function SortableQuestionEditor({
   question,
   index,
   isSelected,
@@ -841,6 +1148,54 @@ function QuestionEditor({
   onSelect: () => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
   onDeleteQuestion: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="border-b border-[#2a2a2a] last:border-b-0">
+      <QuestionEditor
+        question={question}
+        index={index}
+        isSelected={isSelected}
+        onSelect={onSelect}
+        onUpdateQuestion={onUpdateQuestion}
+        onDeleteQuestion={onDeleteQuestion}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
+// Question Editor Component
+function QuestionEditor({
+  question,
+  index,
+  isSelected,
+  onSelect,
+  onUpdateQuestion,
+  onDeleteQuestion,
+  dragHandleProps,
+}: {
+  question: SurveyQuestion;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+  dragHandleProps?: Record<string, unknown>;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [draftText, setDraftText] = useState(question.text);
@@ -882,13 +1237,22 @@ function QuestionEditor({
 
   return (
     <div className={`bg-[#0a0a0a] ${isSelected ? "ring-1 ring-[#FF6B35]" : ""}`}>
-      <button
-        onClick={handleClick}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-[#111] transition-colors"
-      >
-        <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-        <span className="text-[#FF6B35] font-medium">Q{index}</span>
-        <span className="text-white flex-1 truncate">{question.text}</span>
+      <div className="flex items-center gap-2 p-3 hover:bg-[#111] transition-colors">
+        <button
+          {...dragHandleProps}
+          className="cursor-grab active:cursor-grabbing text-[#666] hover:text-white"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripIcon className="w-4 h-4" />
+        </button>
+        <button
+          onClick={handleClick}
+          className="flex-1 flex items-center gap-3 text-left"
+        >
+          <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+          <span className="text-[#FF6B35] font-medium">Q{index}</span>
+          <span className="text-white flex-1 truncate">{question.text}</span>
+        </button>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -898,7 +1262,7 @@ function QuestionEditor({
         >
           <TrashIcon className="w-4 h-4" />
         </button>
-      </button>
+      </div>
 
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4">
@@ -1115,6 +1479,7 @@ function LivePreviewPanel({
   onOpenPreview,
   onPrevQuestion,
   onNextQuestion,
+  hasSurvey,
 }: {
   question: SurveyQuestion | undefined;
   questionIndex: number;
@@ -1123,9 +1488,96 @@ function LivePreviewPanel({
   onOpenPreview: () => void;
   onPrevQuestion: () => void;
   onNextQuestion: () => void;
+  hasSurvey: boolean;
 }) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset audio state when question changes
+  useEffect(() => {
+    setAudioUrl(null);
+    setIsRecording(false);
+    setIsPlaying(false);
+    setRecordingTime(0);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, [question?.id]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(t => t + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    }
+  };
+
+  const playAudio = () => {
+    if (audioUrl && audioRef.current) {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const deleteRecording = () => {
+    setAudioUrl(null);
+    setIsPlaying(false);
+    setRecordingTime(0);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#0a0a0a] text-white">
+      {audioUrl && <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} />}
       {/* Preview Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a]">
         <div className="flex items-center gap-2">
@@ -1142,7 +1594,8 @@ function LivePreviewPanel({
             variant="outline"
             size="sm"
             onClick={onOpenPreview}
-            className="gap-2 border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+            disabled={!hasSurvey}
+            className="gap-2 border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ExternalLinkIcon className="w-4 h-4" />
             Open preview
@@ -1188,10 +1641,55 @@ function LivePreviewPanel({
 
             {question.type === "open_ended" && (
               <div className="flex flex-col items-center">
-                <button className="w-24 h-24 rounded-full bg-[#1f120c] flex items-center justify-center mb-4 hover:bg-[#2a1710] transition-colors">
-                  <MicIcon className="w-10 h-10 text-[#FF6B35]" />
-                </button>
-                <span className="text-[#FF6B35] font-medium">Start Recording</span>
+                {!audioUrl ? (
+                  <>
+                    <button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-colors ${
+                        isRecording
+                          ? "bg-red-500/20 hover:bg-red-500/30 animate-pulse"
+                          : "bg-[#1f120c] hover:bg-[#2a1710]"
+                      }`}
+                    >
+                      {isRecording ? (
+                        <StopIcon className="w-10 h-10 text-red-500" />
+                      ) : (
+                        <MicIcon className="w-10 h-10 text-[#FF6B35]" />
+                      )}
+                    </button>
+                    <span className={`font-medium ${isRecording ? "text-red-500" : "text-[#FF6B35]"}`}>
+                      {isRecording ? `Recording... ${formatTime(recordingTime)}` : "Start Recording"}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4 mb-4">
+                      <button
+                        onClick={isPlaying ? pauseAudio : playAudio}
+                        className="w-16 h-16 rounded-full bg-[#1f120c] flex items-center justify-center hover:bg-[#2a1710] transition-colors"
+                      >
+                        {isPlaying ? (
+                          <PauseIcon className="w-8 h-8 text-[#FF6B35]" />
+                        ) : (
+                          <PlayIcon className="w-8 h-8 text-[#FF6B35]" />
+                        )}
+                      </button>
+                      <button
+                        onClick={deleteRecording}
+                        className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                      >
+                        <TrashIcon className="w-6 h-6 text-red-500" />
+                      </button>
+                    </div>
+                    <span className="text-[#888]">Recording saved ({formatTime(recordingTime)})</span>
+                    <button
+                      onClick={deleteRecording}
+                      className="mt-2 text-[#FF6B35] underline"
+                    >
+                      Record again
+                    </button>
+                  </>
+                )}
                 <button className="mt-4 text-[#666] underline">Skip question</button>
               </div>
             )}
@@ -1366,6 +1864,23 @@ function MicIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    </svg>
+  );
+}
+
+function StopIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+
+function PauseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
     </svg>
   );
 }
