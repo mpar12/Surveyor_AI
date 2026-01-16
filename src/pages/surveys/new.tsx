@@ -967,31 +967,28 @@ function QuestionEditorPanel({
           items={filteredSections.map(s => s.id)}
           strategy={verticalListSortingStrategy}
         >
-          {filteredSections.map((section) => (
-            <SortableSectionEditor
-              key={section.id}
-              section={section}
-              selectedQuestionId={selectedQuestionId}
-              onSelectQuestion={onSelectQuestion}
-              onUpdateQuestion={onUpdateQuestion}
-              onDeleteQuestion={onDeleteQuestion}
-              onReorderQuestions={onReorderQuestions}
-            />
-          ))}
+          {filteredSections.map((section, sectionIdx) => {
+            // Calculate cumulative question start index
+            const questionStartIndex = filteredSections
+              .slice(0, sectionIdx)
+              .reduce((acc, s) => acc + (s.questions?.length || 0), 0);
+            return (
+              <SortableSectionEditor
+                key={section.id}
+                section={section}
+                sectionIndex={sectionIdx + 1}
+                questionStartIndex={questionStartIndex}
+                selectedQuestionId={selectedQuestionId}
+                onSelectQuestion={onSelectQuestion}
+                onUpdateQuestion={onUpdateQuestion}
+                onDeleteQuestion={onDeleteQuestion}
+                onReorderQuestions={onReorderQuestions}
+                onAddQuestion={onAddQuestion}
+              />
+            );
+          })}
         </SortableContext>
       </DndContext>
-      <button
-        onClick={() => {
-          // Add to currently selected section, or first section if none selected
-          const targetSectionId = selectedSectionId || filteredSections[0]?.id;
-          if (targetSectionId) {
-            onAddQuestion(targetSectionId);
-          }
-        }}
-        className="w-full mt-4 py-3 border border-dashed border-[#333] rounded-lg text-[#888] hover:border-[#444] hover:text-white transition-colors"
-      >
-        + Add Question
-      </button>
     </div>
   );
 }
@@ -999,18 +996,24 @@ function QuestionEditorPanel({
 // Sortable Section Editor Wrapper
 function SortableSectionEditor({
   section,
+  sectionIndex,
+  questionStartIndex,
   selectedQuestionId,
   onSelectQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
   onReorderQuestions,
+  onAddQuestion,
 }: {
   section: SurveyWithSections["sections"][0];
+  sectionIndex: number;
+  questionStartIndex: number;
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
   onDeleteQuestion: (id: string) => void;
   onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+  onAddQuestion: (sectionId: string) => void;
 }) {
   const {
     attributes,
@@ -1031,11 +1034,14 @@ function SortableSectionEditor({
     <div ref={setNodeRef} style={style}>
       <SectionEditor
         section={section}
+        sectionIndex={sectionIndex}
+        questionStartIndex={questionStartIndex}
         selectedQuestionId={selectedQuestionId}
         onSelectQuestion={onSelectQuestion}
         onUpdateQuestion={onUpdateQuestion}
         onDeleteQuestion={onDeleteQuestion}
         onReorderQuestions={onReorderQuestions}
+        onAddQuestion={onAddQuestion}
         dragHandleProps={{ ...attributes, ...listeners }}
       />
     </div>
@@ -1045,19 +1051,25 @@ function SortableSectionEditor({
 // Section Editor Component
 function SectionEditor({
   section,
+  sectionIndex,
+  questionStartIndex,
   selectedQuestionId,
   onSelectQuestion,
   onUpdateQuestion,
   onDeleteQuestion,
   onReorderQuestions,
+  onAddQuestion,
   dragHandleProps,
 }: {
   section: SurveyWithSections["sections"][0];
+  sectionIndex: number;
+  questionStartIndex: number;
   selectedQuestionId: string | null;
   onSelectQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
   onDeleteQuestion: (id: string) => void;
   onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+  onAddQuestion: (sectionId: string) => void;
   dragHandleProps?: Record<string, unknown>;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -1093,10 +1105,10 @@ function SectionEditor({
           >
             <GripIcon className="w-4 h-4" />
           </button>
+          <span className="text-[#FF6B35] font-medium">Section {sectionIndex}</span>
           <span className="text-white font-medium">{section.title.toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[#666] text-sm">Questions {questions.length}</span>
           <button onClick={() => setIsExpanded(!isExpanded)} className="text-[#666] hover:text-white">
             <ChevronIcon className={`w-4 h-4 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
           </button>
@@ -1118,7 +1130,7 @@ function SectionEditor({
                 <SortableQuestionEditor
                   key={question.id}
                   question={question}
-                  index={idx + 1}
+                  index={questionStartIndex + idx + 1}
                   isSelected={selectedQuestionId === question.id}
                   onSelect={() => onSelectQuestion(question.id)}
                   onUpdateQuestion={onUpdateQuestion}
@@ -1127,6 +1139,12 @@ function SectionEditor({
               ))}
             </SortableContext>
           </DndContext>
+          <button
+            onClick={() => onAddQuestion(section.id)}
+            className="w-full py-3 border-t border-[#2a2a2a] text-[#888] hover:bg-[#111] hover:text-white transition-colors"
+          >
+            + Add Question
+          </button>
         </div>
       )}
     </div>
@@ -1247,11 +1265,11 @@ function QuestionEditor({
         </button>
         <button
           onClick={handleClick}
-          className="flex-1 flex items-center gap-3 text-left"
+          className="flex-1 flex items-center gap-3 text-left min-w-0 overflow-hidden"
         >
-          <ChevronIcon className={`w-4 h-4 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-          <span className="text-[#FF6B35] font-medium">Q{index}</span>
-          <span className="text-white flex-1 truncate">{question.text}</span>
+          <ChevronIcon className={`w-4 h-4 flex-shrink-0 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+          <span className="text-[#FF6B35] font-medium flex-shrink-0">Q{index}</span>
+          <span className="text-white flex-1 truncate min-w-0">{question.text}</span>
         </button>
         <button
           onClick={(e) => {
@@ -1691,6 +1709,7 @@ function LivePreviewPanel({
                   </>
                 )}
                 <button className="mt-4 text-[#666] underline">Skip question</button>
+                <p className="mt-2 text-xs text-[#555] italic">Survey respondents won't have option to skip questions.</p>
               </div>
             )}
           </div>
