@@ -75,7 +75,7 @@ export default function PreviewPane({ survey, currentQuestionIndex, onNavigate }
       {/* Navigation Footer */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-[#2a2a2a]">
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] rounded text-sm text-[#888]">
-          runs on <span className="font-semibold text-blue-400">listen labs</span>
+          Powered by <span className="font-semibold text-[#FF6B35]">Surveyor AI</span>
         </div>
         <div className="flex items-center gap-2">
           <button

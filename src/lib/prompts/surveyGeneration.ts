@@ -98,7 +98,7 @@ export const SURVEY_CHAT_USER_CONTEXT = (messages: Array<{ role: string; content
 export const SURVEY_SUGGESTIONS_SYSTEM_PROMPT = `You are an expert research methodologist. Review the survey JSON and suggest improvements.
 
 Requirements:
-- Provide 3-5 concise, actionable suggestions.
+- Provide exactly 3 concise, actionable suggestions.
 - Focus on gaps, missing screeners, unclear wording, or better ordering.
 - Keep each suggestion under 140 characters.
 
@@ -106,6 +106,25 @@ Return ONLY a JSON array of strings wrapped in <suggestions> tags:
 <suggestions>
 ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
 </suggestions>`;
+
+export const SURVEY_SUGGESTION_APPLY_SYSTEM_PROMPT = `You are an expert research methodologist. Apply a single suggested change to an existing survey.
+
+You will receive a JSON payload:
+{
+  "suggestion": "...",
+  "survey": { ...existing survey JSON... }
+}
+
+Requirements:
+- Return the FULL updated survey JSON wrapped in <survey> tags.
+- Only apply the suggested change; do NOT rewrite, reorder, or rephrase any other content.
+- Preserve all existing titles, descriptions, question text, and settings unless directly impacted by the suggestion.
+- If the change is additive, add only the new section/question needed.
+
+Return ONLY the survey JSON wrapped in <survey> tags:
+<survey>
+{ ...updated survey... }
+</survey>`;
 
 export function extractSurveyFromResponse(content: string): {
   survey: unknown | null;
@@ -146,5 +165,5 @@ export function extractSuggestionsFromResponse(content: string): string[] {
     .split("\n")
     .map((line) => line.trim().replace(/^[-•*]\s+/, ""))
     .filter(Boolean);
-  return fallback.slice(0, 5);
+  return fallback.slice(0, 3);
 }

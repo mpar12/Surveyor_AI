@@ -2,11 +2,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db/client";
 import { surveys, surveySections, surveyQuestions, surveyChatHistory } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import {
   SURVEY_GENERATION_SYSTEM_PROMPT,
   extractSurveyFromResponse,
   SURVEY_SUGGESTIONS_SYSTEM_PROMPT,
+  SURVEY_SUGGESTION_APPLY_SYSTEM_PROMPT,
   extractSuggestionsFromResponse,
 } from "@/lib/prompts/surveyGeneration";
 import { getDefaultSettingsForType } from "@/types/surveyBuilder";
@@ -46,7 +47,7 @@ interface GeneratedSurvey {
   sections: GeneratedSection[];
 }
 
-const SUGGESTION_LIMIT = 5;
+const SUGGESTION_LIMIT = 3;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -60,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "invalid_survey_id" });
   }
 
-  const { message } = req.body as { message: string };
+  const { message, mode } = req.body as { message: string; mode?: "apply_suggestion" };
 
   if (!message || typeof message !== "string") {
     return res.status(400).json({ error: "message_required" });
@@ -99,6 +100,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const existingMessages: ChatMessage[] = chatHistory?.messages as ChatMessage[] || [];
 
+    const isApplySuggestion = mode === "apply_suggestion";
+
     // Add user message
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -110,16 +113,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const updatedMessages = [...existingMessages, userMessage];
 
     // Prepare messages for Claude
-    const claudeMessages = updatedMessages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    const claudeMessages = isApplySuggestion
+      ? [
+          {
+            role: "user" as const,
+            content: JSON.stringify({
+              suggestion: message,
+              survey: await buildSurveySnapshot(surveyId),
+            }),
+          },
+        ]
+      : updatedMessages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
 
     // Call Claude
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      system: SURVEY_GENERATION_SYSTEM_PROMPT,
+      system: isApplySuggestion
+        ? SURVEY_SUGGESTION_APPLY_SYSTEM_PROMPT
+        : SURVEY_GENERATION_SYSTEM_PROMPT,
       stream: true,
       messages: claudeMessages,
     });
@@ -326,6 +341,66 @@ async function applySurveyStructure(
       });
     }
   }
+}
+
+async function buildSurveySnapshot(surveyId: string): Promise<GeneratedSurvey> {
+  const [survey] = await db
+    .select()
+    .from(surveys)
+    .where(eq(surveys.id, surveyId))
+    .limit(1);
+
+  if (!survey) {
+    throw new Error("survey_not_found");
+  }
+
+  const settingsRaw = (survey.settings ?? {}) as Record<string, unknown>;
+  const { suggestions: _suggestions, ...settings } = settingsRaw;
+
+  const externalTitle =
+    typeof settingsRaw.externalTitle === "string" ? settingsRaw.externalTitle : undefined;
+  const studyGoals = Array.isArray(settingsRaw.studyGoals)
+    ? settingsRaw.studyGoals.filter((item) => typeof item === "string")
+    : undefined;
+  const audience =
+    settingsRaw.audience && typeof settingsRaw.audience === "object"
+      ? (settingsRaw.audience as { bringOwnParticipants?: boolean })
+      : undefined;
+
+  const sections = await db
+    .select()
+    .from(surveySections)
+    .where(eq(surveySections.surveyId, surveyId))
+    .orderBy(asc(surveySections.order));
+
+  const sectionsWithQuestions: GeneratedSection[] = await Promise.all(
+    sections.map(async (section) => {
+      const questions = await db
+        .select()
+        .from(surveyQuestions)
+        .where(eq(surveyQuestions.sectionId, section.id))
+        .orderBy(asc(surveyQuestions.order));
+
+      return {
+        title: section.title,
+        questions: questions.map((question) => ({
+          type: question.type as QuestionType,
+          text: question.text,
+          settings: question.settings as Record<string, unknown> | undefined,
+        })),
+      };
+    })
+  );
+
+  return {
+    title: survey.title,
+    externalTitle,
+    description: survey.description ?? undefined,
+    studyGoals,
+    audience,
+    settings,
+    sections: sectionsWithQuestions,
+  };
 }
 
 async function generateSurveySuggestions(generated: GeneratedSurvey): Promise<string[]> {
