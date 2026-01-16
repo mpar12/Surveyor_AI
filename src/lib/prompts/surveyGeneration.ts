@@ -88,7 +88,13 @@ When ready to generate, output a JSON survey structure wrapped in <survey> tags:
 - Follow-up guidelines should be specific to the question context
 - Provide 3-5 concise study goals and a participant-facing external title
 - Aim for 10-15 questions total, 15-20 minutes duration
-- Start broad, then go deeper into specific topics`;
+- Start broad, then go deeper into specific topics
+
+## Constraints:
+- Generate only one survey per request.
+- If the user asks for multiple versions/variants/alternatives, reply with a short message:
+  "I can only generate one study per survey. Please create a new study for another version."
+- In that case, do NOT output <survey> JSON.`;
 
 export const SURVEY_CHAT_USER_CONTEXT = (messages: Array<{ role: string; content: string }>) => {
   const history = messages.map((m) => `${m.role}: ${m.content}`).join("\n");

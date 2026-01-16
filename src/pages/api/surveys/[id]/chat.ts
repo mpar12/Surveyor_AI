@@ -17,6 +17,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY || process.env.claude_api_key,
 });
 
+const MULTI_VERSION_WARNING =
+  "I can only generate one study per survey. If you'd like another version, please create a new study and I can build it there.";
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -46,6 +49,24 @@ interface GeneratedSurvey {
   settings?: Record<string, unknown>;
   sections: GeneratedSection[];
 }
+
+const isMultiVersionRequest = (value: string) => {
+  if (/\b(two|2)\s+(versions|variants|alternatives|options|surveys)\b/i.test(value)) {
+    return true;
+  }
+
+  const hasVersionA = /\b(version|variant|option)\s*a\b/i.test(value);
+  const hasVersionB = /\b(version|variant|option)\s*b\b/i.test(value);
+  if (hasVersionA && hasVersionB) return true;
+
+  const hasVersion1 = /\bversion\s*1\b/i.test(value);
+  const hasVersion2 = /\bversion\s*2\b/i.test(value);
+  if (hasVersion1 && hasVersion2) return true;
+
+  if (/\bA\s*\/\s*B\b/i.test(value) || /\bAB\s*test\b/i.test(value)) return true;
+
+  return false;
+};
 
 const SUGGESTION_LIMIT = 3;
 
@@ -101,6 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const existingMessages: ChatMessage[] = chatHistory?.messages as ChatMessage[] || [];
 
     const isApplySuggestion = mode === "apply_suggestion";
+    const isMultiVersion = !isApplySuggestion && isMultiVersionRequest(message);
 
     // Add user message
     const userMessage: ChatMessage = {
@@ -111,6 +133,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     const updatedMessages = [...existingMessages, userMessage];
+
+    if (isMultiVersion) {
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: MULTI_VERSION_WARNING,
+        timestamp: new Date(),
+      };
+
+      const finalMessages = [...updatedMessages, assistantMessage];
+
+      if (chatHistory) {
+        await db
+          .update(surveyChatHistory)
+          .set({
+            messages: finalMessages,
+            updatedAt: new Date(),
+          })
+          .where(eq(surveyChatHistory.id, chatHistory.id));
+      } else {
+        await db.insert(surveyChatHistory).values({
+          surveyId,
+          messages: finalMessages,
+        });
+      }
+
+      sendEvent("done", {
+        message: assistantMessage,
+        surveyGenerated: false,
+      });
+      res.end();
+      return;
+    }
 
     // Prepare messages for Claude
     const claudeMessages = isApplySuggestion
@@ -169,7 +224,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Check if response contains a survey structure
-    const { survey: generatedSurvey, cleanContent } = extractSurveyFromResponse(assistantContent);
+    const surveyTagMatches = assistantContent.match(/<survey>/gi) ?? [];
+    const multipleSurveysDetected = surveyTagMatches.length > 1;
+    const { survey: generatedSurvey, cleanContent } = multipleSurveysDetected
+      ? { survey: null, cleanContent: MULTI_VERSION_WARNING }
+      : extractSurveyFromResponse(assistantContent);
 
     // Add assistant message
     const assistantMessage: ChatMessage = {
@@ -200,7 +259,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If survey was generated, apply it
     let surveyUpdated = false;
     let suggestions: string[] = [];
-    if (generatedSurvey) {
+    if (generatedSurvey && !multipleSurveysDetected) {
       suggestions = await generateSurveySuggestions(generatedSurvey as GeneratedSurvey);
       await applySurveyStructure(surveyId, generatedSurvey as GeneratedSurvey, suggestions);
       surveyUpdated = true;
