@@ -45,6 +45,12 @@ type StreamingSurveyDraft = {
   }>;
 };
 
+type StreamDonePayload = {
+  message?: { content?: string };
+  suggestions?: unknown;
+  surveyGenerated?: boolean;
+};
+
 const SURVEY_TAG_OPEN = "<survey>";
 const SURVEY_TAG_CLOSE = "</survey>";
 
@@ -677,7 +683,7 @@ export default function NewSurveyPage() {
       const decoder = new TextDecoder();
       let buffer = "";
       let assistantContent = "";
-      let donePayload: Record<string, unknown> | null = null;
+      let donePayload: StreamDonePayload | null = null;
       let streamError: string | null = null;
 
       const handleSseEvent = (eventType: string, dataPayload: string) => {
@@ -695,7 +701,7 @@ export default function NewSurveyPage() {
         if (eventType === "done") {
           const payload = safeJsonParse(dataPayload);
           if (payload && typeof payload === "object") {
-            donePayload = payload as Record<string, unknown>;
+            donePayload = payload as StreamDonePayload;
           }
           return;
         }
@@ -730,9 +736,8 @@ export default function NewSurveyPage() {
       }
 
       if (donePayload) {
-        const messagePayload = donePayload.message as { content?: string } | undefined;
-        if (typeof messagePayload?.content === "string") {
-          updateAssistantMessage(messagePayload.content);
+        if (typeof donePayload.message?.content === "string") {
+          updateAssistantMessage(donePayload.message.content);
         }
 
         const suggestionsPayload = donePayload.suggestions;
