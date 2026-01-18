@@ -797,8 +797,12 @@ export default function NewSurveyPage() {
     }
   }, [surveyId, fetchSurvey]);
 
-  const handleSendMessage = async (message: string, mode: "chat" | "apply_suggestion" = "chat") => {
+  const handleSendMessage = async (
+    message: string,
+    mode: "chat" | "apply_suggestion" = "chat"
+  ) => {
     if (!surveyId || isLoading) return;
+    const isApplySuggestion = mode === "apply_suggestion";
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -887,8 +891,10 @@ export default function NewSurveyPage() {
           if (!text) return;
           assistantContent += text;
           updateAssistantMessage(assistantContent);
-          const preview = buildStreamingSurveyView(assistantContent, studyTitle);
-          if (preview) setStreamingSurveyPreview(preview);
+          if (!isApplySuggestion) {
+            const preview = buildStreamingSurveyView(assistantContent, studyTitle);
+            if (preview) setStreamingSurveyPreview(preview);
+          }
           return;
         }
 

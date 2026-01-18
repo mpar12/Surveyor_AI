@@ -126,6 +126,7 @@ Requirements:
 - Only apply the suggested change; do NOT rewrite, reorder, or rephrase any other content.
 - Preserve all existing titles, descriptions, question text, and settings unless directly impacted by the suggestion.
 - If the change is additive, add only the new section/question needed.
+- Include every existing section and question from the input, even if unchanged.
 
 Return ONLY the survey JSON wrapped in <survey> tags:
 <survey>
