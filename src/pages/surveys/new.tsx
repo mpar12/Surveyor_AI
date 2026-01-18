@@ -1073,7 +1073,7 @@ export default function NewSurveyPage() {
         {activeTab === "create" && (
           <>
             {/* Left: AI Chat */}
-            <div className="w-[480px] flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] min-h-0 relative">
+            <div className="w-2/5 min-w-[320px] max-w-[500px] flex-shrink-0 flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] min-h-0 relative">
               <div className="px-4 py-3 border-b border-[#2a2a2a]">
                 <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
                   surveyGenerated
@@ -1170,7 +1170,7 @@ export default function NewSurveyPage() {
             {/* Left: Question Editor */}
             <div
               ref={editQuestionListRef}
-              className="w-[400px] flex-shrink-0 border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto"
+              className="w-2/5 min-w-[320px] max-w-[500px] flex-shrink-0 border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto"
             >
               <QuestionEditorPanel
                 survey={survey}
