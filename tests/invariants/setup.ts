@@ -7,8 +7,6 @@ if (fs.existsSync(envPath)) {
   config({ path: envPath });
 }
 
-process.env.NODE_ENV = "test";
-
 const postgresUrl = process.env.POSTGRES_URL;
 if (!postgresUrl) {
   throw new Error(
