@@ -2276,7 +2276,7 @@ function LivePreviewPanel({
                   </>
                 )}
                 <button className="mt-4 text-[#666] underline">Skip question</button>
-                <p className="mt-2 text-xs text-[#555] italic">Survey respondents won't have option to skip questions.</p>
+                <p className="mt-2 text-xs text-[#555] italic">Survey respondents won&apos;t have option to skip questions.</p>
               </div>
             )}
           </div>
