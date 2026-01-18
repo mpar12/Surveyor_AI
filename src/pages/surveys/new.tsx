@@ -2208,15 +2208,15 @@ function LivePreviewPanel({
         {!question ? (
           <p className="text-[#666]">Select a question to preview</p>
         ) : (
-          <div className="max-w-xl w-full text-center">
-            <h2 className="text-2xl font-medium text-white mb-8">{question.text}</h2>
+          <div className="max-w-xl w-full">
+            <h2 className="text-2xl font-medium text-white mb-8 text-center">{question.text}</h2>
 
             {question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings) && (
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-col items-start gap-3">
                 {question.settings.options.map((option) => (
                   <button
                     key={option.id}
-                    className="px-6 py-3 border-2 border-[#FF6B35] text-[#FF6B35] rounded-lg hover:bg-[#1f120c] transition-colors"
+                    className="px-6 py-3 border-2 border-[#FF6B35] text-[#FF6B35] rounded-lg hover:bg-[#1f120c] transition-colors text-left"
                   >
                     {option.text}
                   </button>
