@@ -167,14 +167,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
+    const existingSurveySnapshot = isApplySuggestion ? await buildSurveySnapshot(surveyId) : null;
+
     // Prepare messages for Claude
-    const claudeMessages = isApplySuggestion
+    const claudeMessages = isApplySuggestion && existingSurveySnapshot
       ? [
           {
             role: "user" as const,
             content: JSON.stringify({
               suggestion: message,
-              survey: await buildSurveySnapshot(surveyId),
+              survey: existingSurveySnapshot,
             }),
           },
         ]
@@ -259,9 +261,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If survey was generated, apply it
     let surveyUpdated = false;
     let suggestions: string[] = [];
-    if (generatedSurvey && !multipleSurveysDetected) {
-      suggestions = await generateSurveySuggestions(generatedSurvey as GeneratedSurvey);
-      await applySurveyStructure(surveyId, generatedSurvey as GeneratedSurvey, suggestions);
+    const nextSurvey =
+      generatedSurvey && isApplySuggestion && existingSurveySnapshot
+        ? mergeSurveyUpdate(existingSurveySnapshot, generatedSurvey as GeneratedSurvey)
+        : (generatedSurvey as GeneratedSurvey | null);
+
+    if (nextSurvey && !multipleSurveysDetected) {
+      suggestions = await generateSurveySuggestions(nextSurvey);
+      await applySurveyStructure(surveyId, nextSurvey, suggestions);
       surveyUpdated = true;
     }
 
@@ -400,6 +407,185 @@ async function applySurveyStructure(
       });
     }
   }
+}
+
+function mergeSurveyUpdate(existing: GeneratedSurvey, incoming: GeneratedSurvey): GeneratedSurvey {
+  const normalizeText = (value: unknown) =>
+    typeof value === "string" ? value.trim() : "";
+  const normalizeKey = (value: unknown) => normalizeText(value).toLowerCase();
+
+  const pickString = (value: unknown, fallback?: string) => {
+    const normalized = normalizeText(value);
+    return normalized ? normalized : fallback;
+  };
+
+  const pickStringArray = (value: unknown, fallback?: string[]) => {
+    if (!Array.isArray(value)) return fallback;
+    const next = value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    return next.length ? next : fallback;
+  };
+
+  const pickAudience = (
+    value: unknown,
+    fallback?: { bringOwnParticipants?: boolean }
+  ): { bringOwnParticipants?: boolean } | undefined => {
+    if (!value || typeof value !== "object") return fallback;
+    const raw = value as Record<string, unknown>;
+    if (typeof raw.bringOwnParticipants === "boolean") {
+      return { bringOwnParticipants: raw.bringOwnParticipants };
+    }
+    return fallback;
+  };
+
+  const mergeSettings = (
+    existingSettings: Record<string, unknown> | undefined,
+    incomingSettings: Record<string, unknown> | undefined
+  ) => {
+    if (!incomingSettings) return existingSettings;
+    if (!existingSettings) return incomingSettings;
+
+    const merged: Record<string, unknown> = {
+      ...existingSettings,
+      ...incomingSettings,
+    };
+
+    const existingWelcome = existingSettings.welcome;
+    const incomingWelcome = incomingSettings.welcome;
+    if (
+      existingWelcome &&
+      incomingWelcome &&
+      typeof existingWelcome === "object" &&
+      typeof incomingWelcome === "object"
+    ) {
+      merged.welcome = {
+        ...(existingWelcome as Record<string, unknown>),
+        ...(incomingWelcome as Record<string, unknown>),
+      };
+    }
+
+    const existingAudience = existingSettings.audience;
+    const incomingAudience = incomingSettings.audience;
+    if (
+      existingAudience &&
+      incomingAudience &&
+      typeof existingAudience === "object" &&
+      typeof incomingAudience === "object"
+    ) {
+      merged.audience = {
+        ...(existingAudience as Record<string, unknown>),
+        ...(incomingAudience as Record<string, unknown>),
+      };
+    }
+
+    return merged;
+  };
+
+  const mergeQuestion = (
+    existingQuestion: GeneratedQuestion,
+    incomingQuestion: GeneratedQuestion
+  ): GeneratedQuestion => ({
+    type: incomingQuestion.type ?? existingQuestion.type,
+    text: pickString(incomingQuestion.text, existingQuestion.text) || existingQuestion.text,
+    settings: incomingQuestion.settings
+      ? { ...(existingQuestion.settings ?? {}), ...incomingQuestion.settings }
+      : existingQuestion.settings,
+  });
+
+  const mergeQuestions = (
+    existingQuestions: GeneratedQuestion[],
+    incomingQuestions: GeneratedQuestion[]
+  ): GeneratedQuestion[] => {
+    if (!Array.isArray(incomingQuestions) || incomingQuestions.length === 0) {
+      return existingQuestions;
+    }
+
+    if (incomingQuestions.length === existingQuestions.length) {
+      return existingQuestions.map((question, index) =>
+        mergeQuestion(question, incomingQuestions[index])
+      );
+    }
+
+    const merged = existingQuestions.map((question) => ({ ...question }));
+    const existingByText = new Map<string, number>();
+    existingQuestions.forEach((question, index) => {
+      const key = normalizeKey(question.text);
+      if (key && !existingByText.has(key)) {
+        existingByText.set(key, index);
+      }
+    });
+
+    const newQuestions: GeneratedQuestion[] = [];
+    incomingQuestions.forEach((question) => {
+      const key = normalizeKey(question.text);
+      if (key && existingByText.has(key)) {
+        const index = existingByText.get(key);
+        if (index !== undefined) {
+          merged[index] = mergeQuestion(existingQuestions[index], question);
+          return;
+        }
+      }
+      newQuestions.push(question);
+    });
+
+    return newQuestions.length ? [...merged, ...newQuestions] : merged;
+  };
+
+  const mergeSection = (
+    existingSection: GeneratedSection,
+    incomingSection: GeneratedSection
+  ): GeneratedSection => ({
+    title: pickString(incomingSection.title, existingSection.title) || existingSection.title,
+    questions: mergeQuestions(existingSection.questions, incomingSection.questions ?? []),
+  });
+
+  const mergeSections = (
+    existingSections: GeneratedSection[],
+    incomingSections: GeneratedSection[]
+  ): GeneratedSection[] => {
+    if (!Array.isArray(incomingSections) || incomingSections.length === 0) {
+      return existingSections;
+    }
+
+    if (incomingSections.length === existingSections.length) {
+      return existingSections.map((section, index) => mergeSection(section, incomingSections[index]));
+    }
+
+    const merged = existingSections.map((section) => ({ ...section }));
+    const existingByTitle = new Map<string, number>();
+    existingSections.forEach((section, index) => {
+      const key = normalizeKey(section.title);
+      if (key && !existingByTitle.has(key)) {
+        existingByTitle.set(key, index);
+      }
+    });
+
+    const newSections: GeneratedSection[] = [];
+    incomingSections.forEach((section) => {
+      const key = normalizeKey(section.title);
+      if (key && existingByTitle.has(key)) {
+        const index = existingByTitle.get(key);
+        if (index !== undefined) {
+          merged[index] = mergeSection(existingSections[index], section);
+          return;
+        }
+      }
+      newSections.push(section);
+    });
+
+    return newSections.length ? [...merged, ...newSections] : merged;
+  };
+
+  return {
+    title: pickString(incoming.title, existing.title) || existing.title,
+    externalTitle: pickString(incoming.externalTitle, existing.externalTitle),
+    description: pickString(incoming.description, existing.description),
+    studyGoals: pickStringArray(incoming.studyGoals, existing.studyGoals),
+    audience: pickAudience(incoming.audience, existing.audience),
+    settings: mergeSettings(existing.settings, incoming.settings),
+    sections: mergeSections(existing.sections, incoming.sections ?? []),
+  };
 }
 
 async function buildSurveySnapshot(surveyId: string): Promise<GeneratedSurvey> {
