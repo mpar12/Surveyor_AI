@@ -1,7 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState, useCallback } from "react";
-import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SurveyBuilder from "@/components/SurveyBuilder";
@@ -75,6 +74,11 @@ export default function SurveyEditorPage() {
     }
   };
 
+  const handleOpenPreview = () => {
+    if (!survey) return;
+    window.open(`/surveys/${survey.id}/take?preview=true`, "_blank");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-black flex items-center justify-center">
@@ -117,13 +121,19 @@ export default function SurveyEditorPage() {
 
           {/* Center: Tabs */}
           <div className="flex items-center gap-1 bg-[#1a1a1a] rounded-lg p-1">
-            <button className="px-4 py-1.5 text-sm text-[#888] hover:text-white transition-colors rounded">
+            <button
+              onClick={() => router.push(`/surveys/new?id=${survey.id}`)}
+              className="px-4 py-1.5 text-sm text-[#888] hover:text-white transition-colors rounded"
+            >
               Create
             </button>
             <button className="px-4 py-1.5 text-sm bg-[#2a2a2a] text-white rounded">
               Edit
             </button>
-            <button className="px-4 py-1.5 text-sm text-[#888] hover:text-white transition-colors rounded">
+            <button
+              disabled
+              className="px-4 py-1.5 text-sm text-[#555] cursor-not-allowed rounded"
+            >
               Launch
             </button>
           </div>
@@ -144,6 +154,7 @@ export default function SurveyEditorPage() {
               variant="outline"
               size="sm"
               className="border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+              onClick={handleOpenPreview}
             >
               <EyeIcon className="w-4 h-4" />
               Preview

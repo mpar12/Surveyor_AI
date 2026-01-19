@@ -19,7 +19,6 @@ export default function HomePage() {
   const router = useRouter();
   const [form, setForm] = useState<FormData>(INITIAL_DATA);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const REQUIRED_FIELDS: Array<keyof FormData> = useMemo(
     () => ["prompt"],
@@ -41,57 +40,13 @@ export default function HomePage() {
       return;
     }
 
-    try {
-      setSubmitError(null);
-      setIsSubmitting(true);
+    setIsSubmitting(true);
+    const sanitizedPrompt = form.prompt.trim();
 
-      const response = await fetch("/api/sessions", { method: "POST" });
-
-      if (!response.ok) {
-        throw new Error("Unable to create session. Please try again.");
-      }
-
-      const payload: { sessionId?: string; pin?: string } = await response.json();
-
-      if (!payload.sessionId || !payload.pin) {
-        throw new Error("Session response was incomplete. Please try again.");
-      }
-
-      const sanitizedPrompt = form.prompt.trim();
-      const sanitizedName = form.name.trim() || "Researcher";
-
-      const contextPayload: Record<string, unknown> = {
-        sessionId: payload.sessionId,
-        requester: sanitizedName,
-        prompt: sanitizedPrompt,
-        surveyQuestions: null
-      };
-
-      await fetch("/api/sessions/context", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(contextPayload)
-      }).catch((contextError) => {
-        console.error("Failed to persist session context", contextError);
-      });
-
-      const query: Record<string, string> = {
-        name: sanitizedName,
-        prompt: sanitizedPrompt,
-        sid: payload.sessionId,
-        pin: payload.pin
-      };
-
-      router.push({
-        pathname: "/brief",
-        query
-      });
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Something went wrong. Please retry.");
-      setIsSubmitting(false);
-    }
+    router.push({
+      pathname: "/surveys/new",
+      query: { prompt: sanitizedPrompt }
+    });
   };
 
   return (
@@ -139,11 +94,6 @@ export default function HomePage() {
               {/* Terminal-style Input */}
               <div className="w-full max-w-xl">
                 <form onSubmit={handleSubmit} noValidate>
-                  {submitError ? (
-                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-400 text-sm mb-4">
-                      {submitError}
-                    </div>
-                  ) : null}
                   <ChatInput
                     value={form.prompt}
                     onChange={(value) => setForm((previous) => ({ ...previous, prompt: value }))}

@@ -28,7 +28,15 @@ When ready to generate, output a JSON survey structure wrapped in <survey> tags:
 <survey>
 {
   "title": "Survey Title",
+  "externalTitle": "Title shown to participants",
   "description": "Brief description of research goals",
+  "studyGoals": [
+    "Goal 1",
+    "Goal 2"
+  ],
+  "audience": {
+    "bringOwnParticipants": false
+  },
   "settings": {
     "welcome": {
       "title": "Welcome message title",
@@ -78,13 +86,52 @@ When ready to generate, output a JSON survey structure wrapped in <survey> tags:
 - Keep questions conversational: "Tell me about..." not "Please describe..."
 - For voice questions, write as if speaking to someone
 - Follow-up guidelines should be specific to the question context
+- Provide 3-5 concise study goals and a participant-facing external title
 - Aim for 10-15 questions total, 15-20 minutes duration
-- Start broad, then go deeper into specific topics`;
+- Start broad, then go deeper into specific topics
+
+## Constraints:
+- Generate only one survey per request.
+- If the user asks for multiple versions/variants/alternatives, reply with a short message:
+  "I can only generate one study per survey. Please create a new study for another version."
+- In that case, do NOT output <survey> JSON.`;
 
 export const SURVEY_CHAT_USER_CONTEXT = (messages: Array<{ role: string; content: string }>) => {
   const history = messages.map((m) => `${m.role}: ${m.content}`).join("\n");
   return `Previous conversation:\n${history}\n\nContinue the conversation. If you have enough information to generate a complete survey, do so. Otherwise, ask clarifying questions.`;
 };
+
+export const SURVEY_SUGGESTIONS_SYSTEM_PROMPT = `You are an expert research methodologist. Review the survey JSON and suggest improvements.
+
+Requirements:
+- Provide exactly 3 concise, actionable suggestions.
+- Focus on gaps, missing screeners, unclear wording, or better ordering.
+- Keep each suggestion under 140 characters.
+
+Return ONLY a JSON array of strings wrapped in <suggestions> tags:
+<suggestions>
+["Suggestion 1", "Suggestion 2", "Suggestion 3"]
+</suggestions>`;
+
+export const SURVEY_SUGGESTION_APPLY_SYSTEM_PROMPT = `You are an expert research methodologist. Apply a single suggested change to an existing survey.
+
+You will receive a JSON payload:
+{
+  "suggestion": "...",
+  "survey": { ...existing survey JSON... }
+}
+
+Requirements:
+- Return the FULL updated survey JSON wrapped in <survey> tags.
+- Only apply the suggested change; do NOT rewrite, reorder, or rephrase any other content.
+- Preserve all existing titles, descriptions, question text, and settings unless directly impacted by the suggestion.
+- If the change is additive, add only the new section/question needed.
+- Include every existing section and question from the input, even if unchanged.
+
+Return ONLY the survey JSON wrapped in <survey> tags:
+<survey>
+{ ...updated survey... }
+</survey>`;
 
 export function extractSurveyFromResponse(content: string): {
   survey: unknown | null;
@@ -104,4 +151,26 @@ export function extractSurveyFromResponse(content: string): {
   }
 
   return { survey: null, cleanContent: content };
+}
+
+export function extractSuggestionsFromResponse(content: string): string[] {
+  const match = content.match(/<suggestions>([\s\S]*?)<\/suggestions>/i);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean);
+      }
+    } catch (error) {
+      console.error("Failed to parse suggestions JSON:", error);
+    }
+  }
+
+  const fallback = content
+    .split("\n")
+    .map((line) => line.trim().replace(/^[-•*]\s+/, ""))
+    .filter(Boolean);
+  return fallback.slice(0, 3);
 }

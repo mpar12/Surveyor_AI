@@ -1,9 +1,34 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import ChatWindow from "@/components/SurveyChat/ChatWindow";
 import ChatInput from "@/components/SurveyChat/ChatInput";
+import type { SurveyWithSections, SurveyQuestion, SurveySection, QuestionType, QuestionSettings, SurveySettings } from "@/types/surveyBuilder";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  isMultipleChoiceSettings,
+  isOpenEndedSettings,
+  getDefaultSettingsForType,
+  defaultMultipleChoiceSettings,
+  defaultOpenEndedSettings,
+} from "@/types/surveyBuilder";
 
 interface ChatMessage {
   id: string;
@@ -12,77 +37,933 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+type TabType = "create" | "edit" | "launch";
+
+const ACTIVE_TAB_STORAGE_KEY = "surveyor-create-active-tab";
+const SUGGESTIONS_MINIMIZED_KEY = "surveyor-create-suggestions-minimized";
+
+type StreamingSurveyDraft = {
+  title?: string;
+  externalTitle?: string;
+  description?: string;
+  studyGoals?: string[];
+  audience?: { bringOwnParticipants?: boolean };
+  settings?: Record<string, unknown>;
+  sections?: Array<{
+    title?: string;
+    questions?: Array<{
+      type?: QuestionType;
+      text?: string;
+      settings?: QuestionSettings;
+    }>;
+  }>;
+};
+
+type StreamDonePayload = {
+  message?: { content?: string };
+  suggestions?: unknown;
+  surveyGenerated?: boolean;
+};
+
+const SURVEY_TAG_OPEN = "<survey>";
+const SURVEY_TAG_CLOSE = "</survey>";
+
+const safeJsonParse = (value: string) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const extractSurveyJson = (content: string) => {
+  const startIndex = content.indexOf(SURVEY_TAG_OPEN);
+  if (startIndex === -1) return null;
+  const endIndex = content.indexOf(SURVEY_TAG_CLOSE, startIndex);
+  const rawJson =
+    endIndex === -1
+      ? content.slice(startIndex + SURVEY_TAG_OPEN.length)
+      : content.slice(startIndex + SURVEY_TAG_OPEN.length, endIndex);
+  const trimmed = rawJson.trim();
+  return trimmed ? trimmed : null;
+};
+
+const stripSurveyPayload = (content: string) => {
+  const startIndex = content.indexOf(SURVEY_TAG_OPEN);
+  if (startIndex === -1) return content;
+  const endIndex = content.indexOf(SURVEY_TAG_CLOSE, startIndex);
+  if (endIndex === -1) {
+    return content.slice(0, startIndex).trim();
+  }
+  const before = content.slice(0, startIndex);
+  const after = content.slice(endIndex + SURVEY_TAG_CLOSE.length);
+  return `${before}${after}`.trim();
+};
+
+const extractStringField = (source: string, key: string) => {
+  const regex = new RegExp(`"${key}"\\s*:\\s*"([^"]*)`);
+  const match = source.match(regex);
+  return match ? match[1] : null;
+};
+
+const extractBooleanField = (source: string, key: string) => {
+  const regex = new RegExp(`"${key}"\\s*:\\s*(true|false)`);
+  const match = source.match(regex);
+  if (!match) return null;
+  return match[1] === "true";
+};
+
+const extractNumberField = (source: string, key: string) => {
+  const regex = new RegExp(`"${key}"\\s*:\\s*(\\d+)`);
+  const match = source.match(regex);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isNaN(value) ? null : value;
+};
+
+const extractBalancedBlock = (
+  source: string,
+  startIndex: number,
+  openChar: string,
+  closeChar: string
+) => {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < source.length; i += 1) {
+    const char = source[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === openChar) {
+      depth += 1;
+    } else if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(startIndex, i + 1);
+      }
+    }
+  }
+
+  return null;
+};
+
+const extractObjectFromKey = (source: string, key: string) => {
+  const keyIndex = source.indexOf(`"${key}"`);
+  if (keyIndex === -1) return null;
+  const braceIndex = source.indexOf("{", keyIndex);
+  if (braceIndex === -1) return null;
+  return extractBalancedBlock(source, braceIndex, "{", "}");
+};
+
+const extractArrayFromKey = (source: string, key: string) => {
+  const keyIndex = source.indexOf(`"${key}"`);
+  if (keyIndex === -1) return null;
+  const bracketIndex = source.indexOf("[", keyIndex);
+  if (bracketIndex === -1) return null;
+  return extractBalancedBlock(source, bracketIndex, "[", "]");
+};
+
+const extractObjectsFromArray = (source: string, arrayStartIndex: number) => {
+  const objects: string[] = [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let objectStart = -1;
+
+  for (let i = arrayStartIndex + 1; i < source.length; i += 1) {
+    const char = source[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      if (depth === 0) objectStart = i;
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && objectStart !== -1) {
+        objects.push(source.slice(objectStart, i + 1));
+        objectStart = -1;
+      }
+    } else if (char === "]" && depth === 0) {
+      break;
+    }
+  }
+
+  return objects;
+};
+
+const parseStreamingSurveyDraft = (jsonText: string): StreamingSurveyDraft | null => {
+  const draft: StreamingSurveyDraft = {};
+
+  const title = extractStringField(jsonText, "title");
+  if (title) draft.title = title;
+
+  const externalTitle = extractStringField(jsonText, "externalTitle");
+  if (externalTitle) draft.externalTitle = externalTitle;
+
+  const description = extractStringField(jsonText, "description");
+  if (description) draft.description = description;
+
+  const studyGoalsArray = extractArrayFromKey(jsonText, "studyGoals");
+  if (studyGoalsArray) {
+    const parsedGoals = safeJsonParse(studyGoalsArray);
+    if (Array.isArray(parsedGoals)) {
+      draft.studyGoals = parsedGoals
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean);
+    }
+  }
+
+  const audienceBlock = extractObjectFromKey(jsonText, "audience");
+  if (audienceBlock) {
+    const parsedAudience = safeJsonParse(audienceBlock);
+    if (parsedAudience && typeof parsedAudience === "object") {
+      const bringOwnParticipants = (parsedAudience as { bringOwnParticipants?: boolean })
+        .bringOwnParticipants;
+      if (typeof bringOwnParticipants === "boolean") {
+        draft.audience = { bringOwnParticipants };
+      }
+    }
+  }
+
+  const settingsBlock = extractObjectFromKey(jsonText, "settings");
+  const settingsParsed = settingsBlock ? safeJsonParse(settingsBlock) : null;
+  if (settingsParsed && typeof settingsParsed === "object") {
+    draft.settings = settingsParsed as Record<string, unknown>;
+  }
+
+  const welcomeBlock = extractObjectFromKey(jsonText, "welcome");
+  if (welcomeBlock) {
+    const welcomeParsed = safeJsonParse(welcomeBlock);
+    if (welcomeParsed && typeof welcomeParsed === "object") {
+      draft.settings = { ...(draft.settings || {}), welcome: welcomeParsed };
+    }
+  }
+
+  const estimatedDurationMinutes = extractNumberField(jsonText, "estimatedDurationMinutes");
+  if (estimatedDurationMinutes !== null) {
+    draft.settings = { ...(draft.settings || {}), estimatedDurationMinutes };
+  }
+
+  const showProgressBar = extractBooleanField(jsonText, "showProgressBar");
+  if (showProgressBar !== null) {
+    draft.settings = { ...(draft.settings || {}), showProgressBar };
+  }
+
+  const allowSkipQuestions = extractBooleanField(jsonText, "allowSkipQuestions");
+  if (allowSkipQuestions !== null) {
+    draft.settings = { ...(draft.settings || {}), allowSkipQuestions };
+  }
+
+  const sectionsIndex = jsonText.indexOf("\"sections\"");
+  if (sectionsIndex !== -1) {
+    const arrayStart = jsonText.indexOf("[", sectionsIndex);
+    if (arrayStart !== -1) {
+      const sectionObjects = extractObjectsFromArray(jsonText, arrayStart);
+      const parsedSections = sectionObjects
+        .map((sectionText) => safeJsonParse(sectionText))
+        .filter((section) => section && typeof section === "object") as Array<{
+          title?: string;
+          questions?: Array<{ type?: QuestionType; text?: string; settings?: QuestionSettings }>;
+        }>;
+
+      if (parsedSections.length) {
+        draft.sections = parsedSections;
+      }
+    }
+  }
+
+  return Object.keys(draft).length ? draft : null;
+};
+
+const buildStreamingSurveyView = (
+  content: string,
+  fallbackTitle: string
+): SurveyWithSections | null => {
+  const jsonText = extractSurveyJson(content);
+  if (!jsonText) return null;
+
+  const parsedFull = safeJsonParse(jsonText);
+  const draft = parsedFull && typeof parsedFull === "object"
+    ? (parsedFull as StreamingSurveyDraft)
+    : parseStreamingSurveyDraft(jsonText);
+
+  if (!draft) return null;
+
+  const now = new Date();
+  const baseId = "streaming-preview";
+  const mergedSettings = {
+    ...(draft.settings || {}),
+    ...(draft.externalTitle ? { externalTitle: draft.externalTitle } : {}),
+    ...(draft.studyGoals ? { studyGoals: draft.studyGoals } : {}),
+    ...(draft.audience ? { audience: draft.audience } : {}),
+  } as SurveySettings;
+
+  const draftSections = Array.isArray(draft.sections) ? draft.sections : [];
+  const sections =
+    draftSections.map((section, sectionIndex) => {
+      const sectionId = `${baseId}-section-${sectionIndex}`;
+      const questionList = Array.isArray(section.questions) ? section.questions : [];
+      const questions = questionList.reduce<SurveyQuestion[]>((acc, question, questionIndex) => {
+        if (!question?.text) return acc;
+        const type = question.type ?? "open_ended";
+        const settings = question.settings ?? getDefaultSettingsForType(type);
+        acc.push({
+          id: `${baseId}-question-${sectionIndex}-${questionIndex}`,
+          sectionId,
+          type,
+          text: question.text,
+          order: questionIndex,
+          createdAt: now,
+          settings,
+        });
+        return acc;
+      }, []);
+
+      return {
+        id: sectionId,
+        surveyId: baseId,
+        title: section.title || `Section ${sectionIndex + 1}`,
+        order: sectionIndex,
+        createdAt: now,
+        questions,
+      };
+    }) ?? [];
+
+  return {
+    id: baseId,
+    title: draft.title || fallbackTitle,
+    description: draft.description,
+    status: "draft",
+    version: 0,
+    accessType: "anonymous",
+    settings: mergedSettings,
+    createdAt: now,
+    updatedAt: now,
+    sections,
+  };
+};
+
 export default function NewSurveyPage() {
   const router = useRouter();
   const [surveyId, setSurveyId] = useState<string | null>(null);
+  const [survey, setSurvey] = useState<SurveyWithSections | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [surveyGenerated, setSurveyGenerated] = useState(false);
+  const [hasAutoSent, setHasAutoSent] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>("create");
+  const [isSaved, setIsSaved] = useState(true);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [streamingSurveyPreview, setStreamingSurveyPreview] = useState<SurveyWithSections | null>(null);
+  const [suggestionsMinimized, setSuggestionsMinimized] = useState(false);
+  const titleSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Create survey on mount
+  // Editable study metadata
+  const [studyTitle, setStudyTitle] = useState("Untitled Study");
+
+  // Edit tab state
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [previewQuestionIndex, setPreviewQuestionIndex] = useState(0);
+  const editQuestionListRef = useRef<HTMLDivElement | null>(null);
+
+  // Create survey on mount (or load existing survey from query)
   useEffect(() => {
+    if (!router.isReady) return;
+
+    const existingId = typeof router.query.id === "string" ? router.query.id : null;
+    if (existingId) {
+      setSurveyId(existingId);
+      setIsCreating(false);
+      return;
+    }
+
     createSurvey();
-  }, []);
+  }, [router.isReady, router.query.id]);
+
+  // Auto-send initial prompt from query params
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const initialPrompt = router.query.prompt;
+    if (surveyId && initialPrompt && typeof initialPrompt === "string" && !hasAutoSent) {
+      setHasAutoSent(true);
+      handleSendMessage(initialPrompt, "chat");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.prompt, surveyId, hasAutoSent]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const savedTab = window.localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    if (savedTab === "create" || savedTab === "edit" || savedTab === "launch") {
+      setActiveTab(savedTab);
+    }
+  }, [router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    window.localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab, router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const savedMinimized = window.localStorage.getItem(SUGGESTIONS_MINIMIZED_KEY);
+    if (savedMinimized === "true") {
+      setSuggestionsMinimized(true);
+    }
+  }, [router.isReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    window.localStorage.setItem(
+      SUGGESTIONS_MINIMIZED_KEY,
+      suggestionsMinimized ? "true" : "false"
+    );
+  }, [suggestionsMinimized, router.isReady]);
 
   const createSurvey = async () => {
+    setIsCreating(true);
+    setCreateError(null);
     try {
       const res = await fetch("/api/surveys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Untitled Survey" }),
+        body: JSON.stringify({ title: "Untitled Study" }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to create survey");
+      }
+
       const data = await res.json();
       if (data.survey?.id) {
         setSurveyId(data.survey.id);
+        setSurvey(data.survey);
+        if (typeof router.query.id !== "string") {
+          router.replace(
+            {
+              pathname: "/surveys/new",
+              query: { id: data.survey.id },
+            },
+            undefined,
+            { shallow: true }
+          );
+        }
+      } else {
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error("Failed to create survey", error);
+      setCreateError("Failed to create survey. Please refresh the page to try again.");
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const handleSendMessage = async (message: string) => {
-    if (!surveyId || isLoading) return;
+  const fetchSurvey = useCallback(async () => {
+    if (!surveyId) return;
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSurvey(data.survey);
+        if (data.survey.title) setStudyTitle(data.survey.title);
+        const settings = data.survey.settings || {};
+        const nextSuggestions = Array.isArray(settings.suggestions)
+          ? settings.suggestions.filter((item: unknown) => typeof item === "string" && item.trim())
+          : [];
+        setSuggestions(nextSuggestions);
+        const hasQuestions = Array.isArray(data.survey.sections)
+          ? data.survey.sections.some(
+              (section: SurveyWithSections["sections"][0]) =>
+                section.title !== "Welcome" && section.questions?.length > 0
+            )
+          : false;
+        setSurveyGenerated(hasQuestions);
+      }
+    } catch (error) {
+      console.error("Failed to fetch survey", error);
+    }
+  }, [surveyId]);
 
-    // Add user message immediately
+  const saveSurveyTitle = useCallback(
+    async (nextTitle: string) => {
+      if (!surveyId) return;
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: nextTitle }),
+        });
+        if (!res.ok) throw new Error("Failed to update survey title");
+        const data = await res.json();
+        setSurvey((prev) => (prev ? { ...prev, title: data.survey?.title ?? nextTitle } : prev));
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to save survey title", error);
+      }
+    },
+    [surveyId]
+  );
+
+  useEffect(() => {
+    if (!surveyId) return;
+    const trimmedTitle = studyTitle.trim();
+    const existingTitle = survey?.title ?? "";
+
+    if (!trimmedTitle || trimmedTitle === existingTitle) {
+      setIsSaved(true);
+      return;
+    }
+
+    setIsSaved(false);
+    if (titleSaveTimeoutRef.current) {
+      clearTimeout(titleSaveTimeoutRef.current);
+    }
+
+    titleSaveTimeoutRef.current = setTimeout(() => {
+      saveSurveyTitle(trimmedTitle);
+    }, 700);
+
+    return () => {
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current);
+      }
+    };
+  }, [studyTitle, survey?.title, surveyId, saveSurveyTitle]);
+
+  const applyQuestionUpdate = useCallback(
+    (questionId: string, updates: Partial<SurveyQuestion>) => {
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((section) => ({
+          ...section,
+          questions: section.questions.map((question) =>
+            question.id === questionId
+              ? {
+                  ...question,
+                  ...updates,
+                  settings: updates.settings ?? question.settings,
+                }
+              : question
+          ),
+        }));
+        return { ...prev, sections: updatedSections };
+      });
+    },
+    []
+  );
+
+  const updateQuestion = useCallback(
+    async (questionId: string, updates: Partial<SurveyQuestion>) => {
+      if (!surveyId) return;
+      setIsSaved(false);
+      applyQuestionUpdate(questionId, updates);
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/questions?questionId=${questionId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+        if (!res.ok) throw new Error("Failed to update question");
+        const data = await res.json();
+        if (data.question) {
+          applyQuestionUpdate(questionId, data.question);
+        }
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to update question", error);
+      }
+    },
+    [applyQuestionUpdate, surveyId]
+  );
+
+  const deleteQuestion = useCallback(
+    async (questionId: string) => {
+      if (!surveyId) return;
+      setIsSaved(false);
+
+      // Optimistic update - remove from local state
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((section) => ({
+          ...section,
+          questions: section.questions.filter((q) => q.id !== questionId),
+        }));
+        return { ...prev, sections: updatedSections };
+      });
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/questions?questionId=${questionId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to delete question");
+        setIsSaved(true);
+        // Clear selection if deleted question was selected
+        if (selectedQuestionId === questionId) {
+          setSelectedQuestionId(null);
+        }
+      } catch (error) {
+        console.error("Failed to delete question", error);
+        // Refetch to restore state on error
+        fetchSurvey();
+      }
+    },
+    [surveyId, selectedQuestionId, fetchSurvey]
+  );
+
+  const addQuestion = useCallback(
+    async (sectionId: string) => {
+      if (!surveyId) return;
+      setIsSaved(false);
+
+      // Get the section to find the next order number
+      const section = survey?.sections.find(s => s.id === sectionId);
+      const nextOrder = section?.questions?.length || 0;
+
+      // Create optimistic question
+      const tempId = crypto.randomUUID();
+      const newQuestion: SurveyQuestion = {
+        id: tempId,
+        sectionId,
+        type: "open_ended",
+        text: "New question",
+        order: nextOrder,
+        settings: getDefaultSettingsForType("open_ended"),
+        createdAt: new Date(),
+      };
+
+      // Optimistic update
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((s) =>
+          s.id === sectionId
+            ? { ...s, questions: [...(s.questions || []), newQuestion] }
+            : s
+        );
+        return { ...prev, sections: updatedSections };
+      });
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/questions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sectionId,
+            type: "open_ended",
+            text: "New question",
+            order: nextOrder,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to add question");
+        const data = await res.json();
+        // Replace temp ID with real ID
+        setSurvey((prev) => {
+          if (!prev) return prev;
+          const updatedSections = prev.sections.map((s) =>
+            s.id === sectionId
+              ? {
+                  ...s,
+                  questions: s.questions.map((q) =>
+                    q.id === tempId ? { ...q, ...data.question } : q
+                  ),
+                }
+              : s
+          );
+          return { ...prev, sections: updatedSections };
+        });
+        setIsSaved(true);
+        // Select the new question
+        if (data.question?.id) {
+          setSelectedQuestionId(data.question.id);
+        }
+      } catch (error) {
+        console.error("Failed to add question", error);
+        fetchSurvey();
+      }
+    },
+    [surveyId, survey, fetchSurvey]
+  );
+
+  const reorderSections = useCallback(
+    async (oldIndex: number, newIndex: number) => {
+      if (!surveyId || !survey) return;
+      setIsSaved(false);
+
+      const reorderedSections = arrayMove(survey.sections, oldIndex, newIndex);
+      const updatedSections = reorderedSections.map((s, idx) => ({ ...s, order: idx }));
+
+      // Optimistic update
+      setSurvey((prev) => (prev ? { ...prev, sections: updatedSections } : prev));
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/reorder`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sections: updatedSections.map((s, idx) => ({ id: s.id, order: idx })),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to reorder sections");
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to reorder sections", error);
+        fetchSurvey();
+      }
+    },
+    [surveyId, survey, fetchSurvey]
+  );
+
+  const reorderQuestions = useCallback(
+    async (sectionId: string, oldIndex: number, newIndex: number) => {
+      if (!surveyId || !survey) return;
+      setIsSaved(false);
+
+      const section = survey.sections.find((s) => s.id === sectionId);
+      if (!section) return;
+
+      const reorderedQuestions = arrayMove(section.questions || [], oldIndex, newIndex);
+      const updatedQuestions = reorderedQuestions.map((q, idx) => ({ ...q, order: idx }));
+
+      // Optimistic update
+      setSurvey((prev) => {
+        if (!prev) return prev;
+        const updatedSections = prev.sections.map((s) =>
+          s.id === sectionId ? { ...s, questions: updatedQuestions } : s
+        );
+        return { ...prev, sections: updatedSections };
+      });
+
+      try {
+        const res = await fetch(`/api/surveys/${surveyId}/reorder`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questions: updatedQuestions.map((q, idx) => ({ id: q.id, order: idx })),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to reorder questions");
+        setIsSaved(true);
+      } catch (error) {
+        console.error("Failed to reorder questions", error);
+        fetchSurvey();
+      }
+    },
+    [surveyId, survey, fetchSurvey]
+  );
+
+  useEffect(() => {
+    if (surveyId) {
+      fetchSurvey();
+    }
+  }, [surveyId, fetchSurvey]);
+
+  const handleSendMessage = async (
+    message: string,
+    mode: "chat" | "apply_suggestion" = "chat"
+  ) => {
+    if (!surveyId || isLoading) return;
+    const isApplySuggestion = mode === "apply_suggestion";
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: message,
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantMessageId = crypto.randomUUID();
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
+    setIsSaved(false);
+    setStreamingSurveyPreview(null);
+    setSuggestionsLoading(true);
+
+    const updateAssistantMessage = (content: string) => {
+      const displayContent = stripSurveyPayload(content);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId ? { ...msg, content: displayContent } : msg
+        )
+      );
+    };
+
+    const processRawEvent = (
+      rawEvent: string,
+      onEvent: (eventType: string, dataPayload: string) => void
+    ) => {
+      if (!rawEvent.trim()) return;
+
+      const lines = rawEvent.split("\n");
+      let eventType = "message";
+      let dataPayload = "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        if (line.startsWith("event:")) {
+          eventType = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          const value = line.slice(5).trim();
+          dataPayload = dataPayload ? `${dataPayload}\n${value}` : value;
+        }
+      }
+
+      if (!dataPayload) return;
+      onEvent(eventType, dataPayload);
+    };
 
     try {
       const res = await fetch(`/api/surveys/${surveyId}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ message, mode }),
       });
 
-      const data = await res.json();
-
-      if (data.message) {
-        setMessages((prev) => [...prev, data.message]);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        const messageText =
+          typeof payload?.error === "string" && payload.error.trim()
+            ? payload.error
+            : "Unable to reach the assistant.";
+        throw new Error(messageText);
       }
 
-      if (data.surveyGenerated) {
-        setSurveyGenerated(true);
+      if (!res.body) {
+        throw new Error("Assistant response was empty.");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let assistantContent = "";
+      let donePayload: StreamDonePayload | null = null;
+      let streamError: string | null = null;
+
+      const handleSseEvent = (eventType: string, dataPayload: string) => {
+        if (eventType === "delta") {
+          const payload = safeJsonParse(dataPayload) as { text?: string } | null;
+          const text = typeof payload?.text === "string" ? payload.text : "";
+          if (!text) return;
+          assistantContent += text;
+          updateAssistantMessage(assistantContent);
+          if (!isApplySuggestion) {
+            const preview = buildStreamingSurveyView(assistantContent, studyTitle);
+            if (preview) setStreamingSurveyPreview(preview);
+          }
+          return;
+        }
+
+        if (eventType === "done") {
+          const payload = safeJsonParse(dataPayload);
+          if (payload && typeof payload === "object") {
+            donePayload = payload as StreamDonePayload;
+          }
+          return;
+        }
+
+        if (eventType === "error") {
+          const payload = safeJsonParse(dataPayload) as { message?: string } | null;
+          streamError = payload?.message || "Assistant streaming failed.";
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let separatorIndex = buffer.indexOf("\n\n");
+        while (separatorIndex !== -1) {
+          const rawEvent = buffer.slice(0, separatorIndex);
+          buffer = buffer.slice(separatorIndex + 2);
+          processRawEvent(rawEvent, handleSseEvent);
+          separatorIndex = buffer.indexOf("\n\n");
+        }
+      }
+
+      if (buffer.trim()) {
+        processRawEvent(buffer, handleSseEvent);
+      }
+
+      if (streamError) {
+        throw new Error(streamError);
+      }
+
+      const resolvedDonePayload = donePayload as StreamDonePayload | null;
+      if (resolvedDonePayload) {
+        if (typeof resolvedDonePayload.message?.content === "string") {
+          updateAssistantMessage(resolvedDonePayload.message.content);
+        }
+
+        const suggestionsPayload = resolvedDonePayload.suggestions;
+        if (Array.isArray(suggestionsPayload)) {
+          const nextSuggestions = suggestionsPayload
+            .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+            .filter(Boolean);
+          setSuggestions(nextSuggestions);
+        }
+
+        if (resolvedDonePayload.surveyGenerated === true) {
+          setSurveyGenerated(true);
+          await fetchSurvey();
+          setIsSaved(true);
+        } else {
+          setIsSaved(true);
+        }
       }
     } catch (error) {
       console.error("Failed to send message", error);
-      // Add error message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, I encountered an error. Please try again.",
-          timestamp: new Date(),
-        },
-      ]);
+      updateAssistantMessage("Sorry, I encountered an error. Please try again.");
     } finally {
       setIsLoading(false);
+      setSuggestionsLoading(false);
+      setStreamingSurveyPreview(null);
     }
   };
 
@@ -92,138 +973,1376 @@ export default function NewSurveyPage() {
     }
   };
 
+  const handleOpenPreview = () => {
+    if (surveyId) {
+      window.open(`/surveys/${surveyId}/take?preview=true`, '_blank');
+    }
+  };
+
+  const handleRunFromStart = () => {
+    setPreviewQuestionIndex(0);
+    const firstQuestion = allQuestions[0];
+    if (firstQuestion) {
+      setSelectedQuestionId(firstQuestion.id);
+    } else {
+      setSelectedQuestionId(null);
+    }
+    if (editQuestionListRef.current) {
+      editQuestionListRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // Get all questions flattened
+  const getAllQuestions = (): SurveyQuestion[] => {
+    if (!survey) return [];
+    return survey.sections.flatMap(s => s.questions || []);
+  };
+
+  const allQuestions = getAllQuestions();
+  const currentPreviewQuestion = allQuestions[previewQuestionIndex];
+
   return (
-    <div className="min-h-screen w-full bg-black flex flex-col">
+    <div className="h-screen w-full bg-black flex flex-col overflow-hidden">
       <Head>
-        <title>Create Survey | Surveyor</title>
+        <title>{studyTitle} | Surveyor</title>
         <meta name="description" content="Create a new survey with AI assistance" />
       </Head>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 h-14 border-b border-[#2a2a2a]">
+      {/* Top Header */}
+      <header className="flex items-center justify-between px-4 h-14 border-b border-[#2a2a2a] bg-black z-10">
+        {/* Left: Logo and Title */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/surveys")}
-            className="text-[#888] hover:text-white transition-colors"
+            className="p-1 text-[#888] hover:text-white transition-colors"
           >
-            <ArrowLeftIcon className="w-5 h-5" />
+            <LogoIcon className="w-6 h-6" />
           </button>
-          <span className="text-white font-medium">Create Survey</span>
+          <input
+            type="text"
+            value={studyTitle}
+            onChange={(e) => {
+              setStudyTitle(e.target.value);
+              setIsSaved(false);
+            }}
+            className="text-lg font-medium text-white bg-[#111] border border-[#2a2a2a] rounded-md px-3 py-1.5 outline-none focus:border-[#3a3a3a]"
+            placeholder="Study name"
+          />
         </div>
 
+        {/* Center: Tabs */}
+        <div className="flex items-center">
+          <nav className="flex items-center gap-1 bg-[#1a1a1a] rounded-lg p-1">
+            {(["create", "edit", "launch"] as TabType[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors capitalize ${
+                  activeTab === tab
+                    ? "bg-[#2a2a2a] text-white"
+                    : "text-[#888] hover:text-white"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Right: Actions */}
         <div className="flex items-center gap-3">
-          {surveyGenerated && (
-            <span className="text-sm text-green-400 flex items-center gap-1">
-              <CheckIcon className="w-4 h-4" />
-              Survey generated
-            </span>
-          )}
-          <Button
-            onClick={handleGoToEditor}
-            disabled={!surveyId}
-            variant={surveyGenerated ? "default" : "outline"}
-            size="sm"
-          >
-            {surveyGenerated ? "Open in Editor" : "Skip to Editor"}
-            <ArrowRightIcon className="w-4 h-4" />
+          <span className={`text-sm flex items-center gap-1 ${isSaved ? "text-[#888]" : "text-yellow-500"}`}>
+            {isSaved ? (
+              <>
+                <CheckIcon className="w-4 h-4" />
+                Saved
+              </>
+            ) : (
+              "Saving..."
+            )}
+          </span>
+          <Button size="sm" onClick={handleGoToEditor}>
+            Proceed to Editor
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Chat Interface */}
-      <div className="flex-1 flex">
-        {/* Left: Chat */}
-        <div className="w-1/2 flex flex-col border-r border-[#2a2a2a]">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#2a2a2a]">
-            <div className="w-2 h-2 rounded-full bg-[#FF6B35]" />
-            <span className="text-sm text-[#888]">AI Research Assistant</span>
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* CREATE TAB */}
+        {activeTab === "create" && (
+          <>
+            {/* Left: AI Chat */}
+            <div className="w-2/5 min-w-[320px] max-w-[500px] flex-shrink-0 flex flex-col border-r border-[#2a2a2a] bg-[#0a0a0a] min-h-0 relative">
+              <div className="px-4 py-3 border-b border-[#2a2a2a]">
+                <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                  surveyGenerated
+                    ? "bg-green-500/10 text-green-400"
+                    : isCreating
+                      ? "bg-yellow-500/10 text-yellow-400"
+                      : "bg-[#1a1a1a] text-[#888]"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    surveyGenerated ? "bg-green-500" : isCreating ? "bg-yellow-500 animate-pulse" : "bg-[#666]"
+                  }`} />
+                  {surveyGenerated ? "Loaded study guide" : isCreating ? "Initializing..." : "No study guide yet"}
+                </span>
+              </div>
+
+              {createError ? (
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                      <span className="text-red-400 text-2xl">!</span>
+                    </div>
+                    <p className="text-red-400 mb-4">{createError}</p>
+                    <Button onClick={createSurvey} variant="outline" size="sm">
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <ChatWindow messages={messages} isLoading={isLoading} />
+                    {surveyGenerated && !suggestionsMinimized && (
+                      <div className="border-t border-[#2a2a2a] p-4 space-y-2 shrink-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-[#888]">Suggestions</h4>
+                          <button
+                            type="button"
+                            onClick={() => setSuggestionsMinimized(true)}
+                            className="text-xs text-[#666] hover:text-white transition-colors"
+                          >
+                            Minimize
+                          </button>
+                        </div>
+                        {suggestionsLoading ? (
+                          <p className="text-xs text-[#666]">Generating suggestions...</p>
+                        ) : suggestions.length > 0 ? (
+                          suggestions.slice(0, 3).map((suggestion) => (
+                            <SuggestionItem
+                              key={suggestion}
+                              text={suggestion}
+                              onClick={() => handleSendMessage(suggestion, "apply_suggestion")}
+                            />
+                          ))
+                        ) : (
+                          <p className="text-xs text-[#666]">No suggestions yet.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    <ChatInput
+                      onSend={handleSendMessage}
+                      disabled={isLoading || !surveyId || isCreating}
+                      placeholder="Suggest changes to the study..."
+                    />
+                  </div>
+                  {surveyGenerated && suggestionsMinimized && (
+                    <button
+                      type="button"
+                      onClick={() => setSuggestionsMinimized(false)}
+                      className="absolute bottom-4 right-4 z-20 rounded-md border border-[#2a2a2a] bg-[#111] px-3 py-1 text-xs text-[#ccc] hover:text-white transition-colors shadow-lg"
+                    >
+                      Suggestions
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Right: Create Content */}
+            <div className="flex-1 flex flex-col bg-black overflow-hidden min-h-0">
+              <CreateTabContent
+                studyTitle={studyTitle}
+                survey={survey}
+                draftSurvey={streamingSurveyPreview}
+              />
+            </div>
+          </>
+        )}
+
+        {/* EDIT TAB */}
+        {activeTab === "edit" && (
+          <div className="flex-1 flex min-h-0">
+            {/* Left: Question Editor */}
+            <div
+              ref={editQuestionListRef}
+              className="w-2/5 min-w-[320px] max-w-[500px] flex-shrink-0 border-r border-[#2a2a2a] bg-[#0a0a0a] overflow-y-auto"
+            >
+              <QuestionEditorPanel
+                survey={survey}
+                selectedQuestionId={selectedQuestionId}
+                onSelectQuestion={(id) => {
+                  setSelectedQuestionId(id);
+                  // Find index for preview
+                  const idx = allQuestions.findIndex(q => q.id === id);
+                  if (idx >= 0) setPreviewQuestionIndex(idx);
+                }}
+                onUpdateQuestion={updateQuestion}
+                onDeleteQuestion={deleteQuestion}
+                onAddQuestion={addQuestion}
+                onReorderSections={reorderSections}
+                onReorderQuestions={reorderQuestions}
+              />
+            </div>
+
+            {/* Right: Live Preview */}
+            <div className="flex-1 flex flex-col bg-black overflow-hidden">
+              <LivePreviewPanel
+                question={currentPreviewQuestion}
+                questionIndex={previewQuestionIndex}
+                totalQuestions={allQuestions.length}
+                onRunFromStart={handleRunFromStart}
+                onOpenPreview={handleOpenPreview}
+                onPrevQuestion={() => setPreviewQuestionIndex(Math.max(0, previewQuestionIndex - 1))}
+                onNextQuestion={() => setPreviewQuestionIndex(Math.min(allQuestions.length - 1, previewQuestionIndex + 1))}
+                hasSurvey={!!surveyId}
+              />
+            </div>
           </div>
+        )}
 
-          <ChatWindow messages={messages} isLoading={isLoading} />
-          <ChatInput onSend={handleSendMessage} disabled={isLoading || !surveyId} />
+        {/* LAUNCH TAB */}
+        {activeTab === "launch" && (
+          <div className="flex-1 flex items-center justify-center bg-black">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-4">
+                <RocketIcon className="w-8 h-8 text-[#666]" />
+              </div>
+              <h2 className="text-xl font-medium text-white mb-2">Ready to launch?</h2>
+              <p className="text-[#888] max-w-md">
+                Review your study in the Create and Edit tabs, then come back here to launch.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Create Tab Content
+function CreateTabContent({
+  studyTitle,
+  survey,
+  draftSurvey,
+}: {
+  studyTitle: string;
+  survey: SurveyWithSections | null;
+  draftSurvey: SurveyWithSections | null;
+}) {
+  const resolvedSurvey = draftSurvey ?? survey;
+  const settings = resolvedSurvey?.settings;
+  const resolvedTitle = draftSurvey?.title?.trim() || studyTitle;
+  const externalTitle =
+    typeof settings?.externalTitle === "string" && settings.externalTitle.trim()
+      ? settings.externalTitle.trim()
+      : resolvedTitle;
+  const background = typeof resolvedSurvey?.description === "string" ? resolvedSurvey.description : "";
+  const studyGoals = Array.isArray(settings?.studyGoals)
+    ? settings.studyGoals.filter((goal) => typeof goal === "string" && goal.trim())
+    : [];
+  const bringOwnParticipants = settings?.audience?.bringOwnParticipants === true;
+  const durationMinutes =
+    typeof settings?.estimatedDurationMinutes === "number"
+      ? settings.estimatedDurationMinutes
+      : null;
+  const durationLabel = durationMinutes
+    ? `${Math.max(1, durationMinutes - 1)}-${durationMinutes + 2} min`
+    : null;
+  const welcomeTitle =
+    typeof settings?.welcome?.title === "string" ? settings.welcome.title : "Welcome message";
+  const welcomeMessage =
+    typeof settings?.welcome?.message === "string" ? settings.welcome.message : "";
+  const sections =
+    resolvedSurvey?.sections?.filter((section) => section.title !== "Welcome") ?? [];
+  let questionCounter = 0;
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="px-8 py-6 max-w-3xl">
+        <div className="flex items-center gap-3 mb-6">
+          <h1 className="text-2xl font-semibold text-white">{resolvedTitle}</h1>
+          {durationLabel && (
+            <span className="text-xs px-2 py-1 rounded-full bg-[#1a1a1a] text-[#888]">
+              {durationLabel}
+            </span>
+          )}
         </div>
 
-        {/* Right: Suggestions */}
-        <div className="w-1/2 p-6 overflow-y-auto">
-          <div className="max-w-md mx-auto space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-white mb-4">
-                Example prompts to get started
-              </h3>
-              <div className="space-y-3">
-                {EXAMPLE_PROMPTS.map((prompt, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSendMessage(prompt.text)}
-                    disabled={isLoading || !surveyId}
-                    className="w-full text-left p-4 bg-[#111] border border-[#2a2a2a] rounded-lg hover:border-[#3a3a3a] transition-colors disabled:opacity-50"
-                  >
-                    <span className="text-white text-sm">{prompt.label}</span>
-                    <p className="text-[#888] text-xs mt-1">{prompt.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-[#888] mb-2">External Title</label>
+          <p className={`text-sm ${externalTitle ? "text-[#ccc]" : "text-[#666] italic"}`}>
+            {externalTitle || "Title shown to participants"}
+          </p>
+        </div>
 
-            <div className="pt-6 border-t border-[#2a2a2a]">
-              <h4 className="text-sm font-medium text-white mb-3">Tips for better surveys</h4>
-              <ul className="space-y-2 text-sm text-[#888]">
-                <li className="flex items-start gap-2">
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-[#888] mb-2">Background</label>
+          <p className={`text-sm ${background ? "text-[#ccc]" : "text-[#666] italic"}`}>
+            {background || "Background will appear once the study guide is generated."}
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-[#888] mb-2">Study Goals</label>
+          <div className="space-y-2 text-[#ccc]">
+            {studyGoals.length > 0 ? (
+              studyGoals.map((goal, i) => (
+                <p key={i} className="flex items-start gap-2 text-sm">
                   <span className="text-[#FF6B35]">•</span>
-                  Be specific about your research goals
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#FF6B35]">•</span>
-                  Describe your target audience clearly
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#FF6B35]">•</span>
-                  Mention any constraints (time, topics to avoid)
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#FF6B35]">•</span>
-                  Voice questions work best for qualitative insights
-                </li>
-              </ul>
+                  {goal}
+                </p>
+              ))
+            ) : (
+              <p className="text-sm text-[#666] italic">
+                Goals will be generated based on your research brief.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-10">
+          <label className="block text-sm font-medium text-[#888] mb-2">Audience</label>
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a1a1a] text-sm text-[#ccc]">
+            {bringOwnParticipants ? "I'll bring my own participants" : "Surveyor participants"}
+          </span>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-white">Interview Questions</h2>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#1a1a1a] text-xs text-[#888]">
+              <MicIcon className="w-3 h-3" />
+              Audio
+            </span>
+          </div>
+
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-wider text-[#666]">Start</p>
+            <div className="mt-2 p-4 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f]">
+              <p className="text-sm text-[#ccc] font-medium mb-2">{welcomeTitle}</p>
+              <p className={`text-sm ${welcomeMessage ? "text-[#aaa]" : "text-[#555] italic"}`}>
+                {welcomeMessage || "Welcome message will appear here."}
+              </p>
             </div>
           </div>
+
+          {sections.length === 0 ? (
+            <p className="text-sm text-[#666] italic">
+              Questions will appear here once the study guide is generated.
+            </p>
+          ) : (
+            <div className="space-y-8">
+              {sections.map((section, sectionIndex) => (
+                <div key={section.id} className="space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-[#666]">
+                      Section {sectionIndex + 1}
+                    </p>
+                    <h3 className="text-base font-semibold text-white">{section.title}</h3>
+                  </div>
+                  <div className="space-y-4">
+                    {section.questions.map((question) => {
+                      questionCounter += 1;
+                      const multipleChoiceSettings = isMultipleChoiceSettings(question.settings)
+                        ? question.settings
+                        : null;
+                      const openEndedSettings = isOpenEndedSettings(question.settings)
+                        ? question.settings
+                        : null;
+                      const followUpMode = openEndedSettings?.followUpMode ?? "none";
+                      const followUpLabel =
+                        followUpMode === "if_short"
+                          ? "Follow-up on short answers"
+                          : followUpMode === "always"
+                            ? "Always follow up"
+                            : null;
+                      const questionTypeLabel =
+                        question.type === "multiple_choice"
+                          ? "Multiple choice"
+                          : question.type === "statement"
+                            ? "Statement"
+                            : "Open-ended";
+
+                      return (
+                        <div key={question.id} className="p-4 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f]">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#1a1a1a] text-[#888]">
+                              Q{questionCounter}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#1a1a1a] text-[#888]">
+                              {questionTypeLabel}
+                            </span>
+                            {followUpLabel && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#0f2b3a] text-[#8fd7ff]">
+                                {followUpLabel}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-[#ddd] mb-3">{question.text}</p>
+
+                          {multipleChoiceSettings && (
+                            <ul className="space-y-2 text-sm text-[#bbb]">
+                              {multipleChoiceSettings.options.map((option) => (
+                                <li key={option.id} className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full border border-[#555]" />
+                                  {option.text}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          {question.type === "statement" && (
+                            <p className="text-xs text-[#666]">Statement screen</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-const EXAMPLE_PROMPTS = [
-  {
-    label: "Customer churn research",
-    text: "I want to understand why customers are canceling their subscriptions to our SaaS product. I'd like to interview recently churned customers about their experience.",
-    description: "Understand why customers leave",
-  },
-  {
-    label: "Product feedback",
-    text: "We're launching a new feature and want to gather feedback from beta users. I want to understand their first impressions and any pain points.",
-    description: "Gather insights on new features",
-  },
-  {
-    label: "User research",
-    text: "I'm researching how people manage their personal finances. I want to understand their habits, tools they use, and pain points they experience.",
-    description: "Explore user behaviors and needs",
-  },
-];
+// Question Editor Panel (LHS of Edit tab)
+function QuestionEditorPanel({
+  survey,
+  selectedQuestionId,
+  onSelectQuestion,
+  onUpdateQuestion,
+  onDeleteQuestion,
+  onAddQuestion,
+  onReorderSections,
+  onReorderQuestions,
+}: {
+  survey: SurveyWithSections | null;
+  selectedQuestionId: string | null;
+  onSelectQuestion: (id: string) => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+  onAddQuestion: (sectionId: string) => void;
+  onReorderSections: (oldIndex: number, newIndex: number) => void;
+  onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-// Icons
-function ArrowLeftIcon({ className }: { className?: string }) {
+  // Get the section ID for the currently selected question
+  const getSelectedSectionId = (): string | null => {
+    if (!survey || !selectedQuestionId) return null;
+    for (const section of survey.sections) {
+      if (section.questions?.some(q => q.id === selectedQuestionId)) {
+        return section.id;
+      }
+    }
+    return null;
+  };
+
+  const selectedSectionId = getSelectedSectionId();
+
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const filteredSections = survey?.sections.filter(s => s.title !== "Welcome") || [];
+      const oldIndex = filteredSections.findIndex(s => s.id === active.id);
+      const newIndex = filteredSections.findIndex(s => s.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderSections(oldIndex, newIndex);
+      }
+    }
+  };
+
+  if (!survey || survey.sections.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 text-[#666]">
+        <p>No questions yet. Create some in the Create tab.</p>
+      </div>
+    );
+  }
+
+  const filteredSections = survey.sections.filter(section => section.title !== "Welcome");
+
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-    </svg>
+    <div className="p-4">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleSectionDragEnd}
+      >
+        <SortableContext
+          items={filteredSections.map(s => s.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {filteredSections.map((section, sectionIdx) => {
+            // Calculate cumulative question start index
+            const questionStartIndex = filteredSections
+              .slice(0, sectionIdx)
+              .reduce((acc, s) => acc + (s.questions?.length || 0), 0);
+            return (
+              <SortableSectionEditor
+                key={section.id}
+                section={section}
+                sectionIndex={sectionIdx + 1}
+                questionStartIndex={questionStartIndex}
+                selectedQuestionId={selectedQuestionId}
+                onSelectQuestion={onSelectQuestion}
+                onUpdateQuestion={onUpdateQuestion}
+                onDeleteQuestion={onDeleteQuestion}
+                onReorderQuestions={onReorderQuestions}
+                onAddQuestion={onAddQuestion}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
+    </div>
   );
 }
 
-function ArrowRightIcon({ className }: { className?: string }) {
+// Sortable Section Editor Wrapper
+function SortableSectionEditor({
+  section,
+  sectionIndex,
+  questionStartIndex,
+  selectedQuestionId,
+  onSelectQuestion,
+  onUpdateQuestion,
+  onDeleteQuestion,
+  onReorderQuestions,
+  onAddQuestion,
+}: {
+  section: SurveyWithSections["sections"][0];
+  sectionIndex: number;
+  questionStartIndex: number;
+  selectedQuestionId: string | null;
+  onSelectQuestion: (id: string) => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+  onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+  onAddQuestion: (sectionId: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+    <div ref={setNodeRef} style={style}>
+      <SectionEditor
+        section={section}
+        sectionIndex={sectionIndex}
+        questionStartIndex={questionStartIndex}
+        selectedQuestionId={selectedQuestionId}
+        onSelectQuestion={onSelectQuestion}
+        onUpdateQuestion={onUpdateQuestion}
+        onDeleteQuestion={onDeleteQuestion}
+        onReorderQuestions={onReorderQuestions}
+        onAddQuestion={onAddQuestion}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
+// Section Editor Component
+function SectionEditor({
+  section,
+  sectionIndex,
+  questionStartIndex,
+  selectedQuestionId,
+  onSelectQuestion,
+  onUpdateQuestion,
+  onDeleteQuestion,
+  onReorderQuestions,
+  onAddQuestion,
+  dragHandleProps,
+}: {
+  section: SurveyWithSections["sections"][0];
+  sectionIndex: number;
+  questionStartIndex: number;
+  selectedQuestionId: string | null;
+  onSelectQuestion: (id: string) => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+  onReorderQuestions: (sectionId: string, oldIndex: number, newIndex: number) => void;
+  onAddQuestion: (sectionId: string) => void;
+  dragHandleProps?: Record<string, unknown>;
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleQuestionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const questions = section.questions || [];
+      const oldIndex = questions.findIndex(q => q.id === active.id);
+      const newIndex = questions.findIndex(q => q.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderQuestions(section.id, oldIndex, newIndex);
+      }
+    }
+  };
+
+  const questions = section.questions || [];
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between p-3 bg-[#111] border border-[#2a2a2a] rounded-t-lg">
+        <div className="flex items-center gap-2">
+          <button
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing text-[#666] hover:text-white"
+          >
+            <GripIcon className="w-4 h-4" />
+          </button>
+          <span className="text-[#FF6B35] font-medium">Section {sectionIndex}</span>
+          <span className="text-white font-medium">{section.title.toUpperCase()}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsExpanded(!isExpanded)} className="text-[#666] hover:text-white">
+            <ChevronIcon className={`w-4 h-4 transition-transform ${isExpanded ? "" : "-rotate-90"}`} />
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="border border-t-0 border-[#2a2a2a] rounded-b-lg">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleQuestionDragEnd}
+          >
+            <SortableContext
+              items={questions.map(q => q.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {questions.map((question, idx) => (
+                <SortableQuestionEditor
+                  key={question.id}
+                  question={question}
+                  index={questionStartIndex + idx + 1}
+                  isSelected={selectedQuestionId === question.id}
+                  onSelect={() => onSelectQuestion(question.id)}
+                  onUpdateQuestion={onUpdateQuestion}
+                  onDeleteQuestion={onDeleteQuestion}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          <button
+            onClick={() => onAddQuestion(section.id)}
+            className="w-full py-3 border-t border-[#2a2a2a] text-[#888] hover:bg-[#111] hover:text-white transition-colors"
+          >
+            + Add Question
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Sortable Question Editor Wrapper
+function SortableQuestionEditor({
+  question,
+  index,
+  isSelected,
+  onSelect,
+  onUpdateQuestion,
+  onDeleteQuestion,
+}: {
+  question: SurveyQuestion;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="border-b border-[#2a2a2a] last:border-b-0">
+      <QuestionEditor
+        question={question}
+        index={index}
+        isSelected={isSelected}
+        onSelect={onSelect}
+        onUpdateQuestion={onUpdateQuestion}
+        onDeleteQuestion={onDeleteQuestion}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </div>
+  );
+}
+
+// Question Editor Component
+function QuestionEditor({
+  question,
+  index,
+  isSelected,
+  onSelect,
+  onUpdateQuestion,
+  onDeleteQuestion,
+  dragHandleProps,
+}: {
+  question: SurveyQuestion;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+  onUpdateQuestion: (id: string, updates: Partial<SurveyQuestion>) => void;
+  onDeleteQuestion: (id: string) => void;
+  dragHandleProps?: Record<string, unknown>;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [draftText, setDraftText] = useState(question.text);
+  const [draftType, setDraftType] = useState<QuestionType>(question.type as QuestionType);
+  const [draftSettings, setDraftSettings] = useState<QuestionSettings | undefined>(question.settings);
+  const textUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const optionDragIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setDraftText(question.text);
+    setDraftType(question.type as QuestionType);
+    setDraftSettings(question.settings);
+  }, [question.id, question.text, question.type, question.settings]);
+
+  useEffect(() => {
+    const trimmed = draftText.trim();
+    if (!trimmed || trimmed === question.text) {
+      if (textUpdateTimeoutRef.current) {
+        clearTimeout(textUpdateTimeoutRef.current);
+      }
+      return;
+    }
+
+    if (textUpdateTimeoutRef.current) {
+      clearTimeout(textUpdateTimeoutRef.current);
+    }
+
+    textUpdateTimeoutRef.current = setTimeout(() => {
+      onUpdateQuestion(question.id, { text: trimmed });
+    }, 500);
+
+    return () => {
+      if (textUpdateTimeoutRef.current) {
+        clearTimeout(textUpdateTimeoutRef.current);
+      }
+    };
+  }, [draftText, question.id, question.text, onUpdateQuestion]);
+
+  const handleClick = () => {
+    onSelect();
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleTextBlur = () => {
+    if (textUpdateTimeoutRef.current) {
+      clearTimeout(textUpdateTimeoutRef.current);
+    }
+    const trimmed = draftText.trim();
+    if (trimmed && trimmed !== question.text) {
+      onUpdateQuestion(question.id, { text: trimmed });
+    }
+  };
+
+  const handleTypeChange = (value: string) => {
+    const nextType = value as QuestionType;
+    const nextSettings = getDefaultSettingsForType(nextType);
+    setDraftType(nextType);
+    setDraftSettings(nextSettings);
+    onUpdateQuestion(question.id, { type: nextType, settings: nextSettings });
+  };
+
+  const multipleChoiceSettings = isMultipleChoiceSettings(draftSettings)
+    ? draftSettings
+    : defaultMultipleChoiceSettings;
+  const openEndedSettings = isOpenEndedSettings(draftSettings)
+    ? draftSettings
+    : defaultOpenEndedSettings;
+
+  return (
+    <div className={`bg-[#0a0a0a] ${isSelected ? "ring-1 ring-[#FF6B35]" : ""}`}>
+      <div className="flex items-center gap-2 p-3 hover:bg-[#111] transition-colors">
+        <button
+          {...dragHandleProps}
+          className="cursor-grab active:cursor-grabbing text-[#666] hover:text-white"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripIcon className="w-4 h-4" />
+        </button>
+        <button
+          onClick={handleClick}
+          className="flex-1 flex items-center gap-3 text-left min-w-0 overflow-hidden"
+        >
+          <ChevronIcon className={`w-4 h-4 flex-shrink-0 text-[#666] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+          <span className="text-[#FF6B35] font-medium flex-shrink-0">Q{index}</span>
+          <span className="text-white flex-1 truncate min-w-0">{question.text}</span>
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteQuestion(question.id);
+          }}
+          className="p-1 text-[#666] hover:text-red-400 transition-colors"
+        >
+          <TrashIcon className="w-4 h-4" />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-4">
+          <div>
+            <label className="block text-sm text-[#888] mb-1">Question type</label>
+            <select
+              value={draftType}
+              onChange={(e) => handleTypeChange(e.target.value)}
+              className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+            >
+              <option value="multiple_choice">Multiple choice</option>
+              <option value="open_ended">Open-ended</option>
+              <option value="statement">Statement</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-[#888] mb-1">Question</label>
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onBlur={handleTextBlur}
+              className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white resize-none"
+              rows={2}
+            />
+          </div>
+
+          {draftType === "multiple_choice" && (
+            <div>
+              <label className="block text-sm text-[#888] mb-1">Options</label>
+              <div className="space-y-2">
+                {multipleChoiceSettings.options.map((option, optionIndex) => (
+                  <div
+                    key={option.id}
+                    draggable
+                    onDragStart={() => {
+                      optionDragIndexRef.current = optionIndex;
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const fromIndex = optionDragIndexRef.current;
+                      if (fromIndex === null || fromIndex === optionIndex) return;
+                      const updatedOptions = [...multipleChoiceSettings.options];
+                      const [moved] = updatedOptions.splice(fromIndex, 1);
+                      updatedOptions.splice(optionIndex, 0, moved);
+                      const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                      optionDragIndexRef.current = null;
+                    }}
+                    onDragEnd={() => {
+                      optionDragIndexRef.current = null;
+                    }}
+                    className="flex items-center gap-2 rounded-md border border-transparent hover:border-[#2a2a2a] cursor-move"
+                  >
+                    <GripIcon className="w-4 h-4 text-[#666]" />
+                    <input
+                      type="text"
+                      value={option.text}
+                      onChange={(e) => {
+                        const updatedOptions = multipleChoiceSettings.options.map((entry, idx) =>
+                          idx === optionIndex ? { ...entry, text: e.target.value } : entry
+                        );
+                        const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                        setDraftSettings(nextSettings);
+                      }}
+                      onBlur={() => {
+                        if (isMultipleChoiceSettings(draftSettings)) {
+                          onUpdateQuestion(question.id, { settings: draftSettings });
+                        } else {
+                          onUpdateQuestion(question.id, { settings: multipleChoiceSettings });
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+                    />
+                    <button
+                      onClick={() => {
+                        const updatedOptions = multipleChoiceSettings.options.filter(
+                          (_, idx) => idx !== optionIndex
+                        );
+                        const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                        setDraftSettings(nextSettings);
+                        onUpdateQuestion(question.id, { settings: nextSettings });
+                      }}
+                      className="p-1 text-[#666] hover:text-red-400 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const updatedOptions = [
+                      ...multipleChoiceSettings.options,
+                      { id: crypto.randomUUID(), text: `Option ${multipleChoiceSettings.options.length + 1}`, isOther: false },
+                    ];
+                    const nextSettings = { ...multipleChoiceSettings, options: updatedOptions };
+                    setDraftSettings(nextSettings);
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  className="text-[#FF6B35] text-sm hover:underline"
+                >
+                  + Add another option
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <label className="flex items-center justify-between">
+                  <span className="text-[#888]">Multi-select</span>
+                  <ToggleSwitch
+                    isOn={multipleChoiceSettings.selectionMode === "multiple"}
+                    onToggle={(next) => {
+                      const nextSettings = {
+                        ...multipleChoiceSettings,
+                        selectionMode: (next ? "multiple" : "single") as "multiple" | "single",
+                      };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                    }}
+                  />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-[#888]">Show &quot;Other&quot; option</span>
+                  <ToggleSwitch
+                    isOn={multipleChoiceSettings.allowOther}
+                    onToggle={(next) => {
+                      const nextSettings = { ...multipleChoiceSettings, allowOther: next };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                    }}
+                  />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-[#888]">Randomize order</span>
+                  <ToggleSwitch
+                    isOn={multipleChoiceSettings.randomizeOrder}
+                    onToggle={(next) => {
+                      const nextSettings = { ...multipleChoiceSettings, randomizeOrder: next };
+                      setDraftSettings(nextSettings);
+                      onUpdateQuestion(question.id, { settings: nextSettings });
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {draftType === "open_ended" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-[#888] mb-1">Follow-up questions</label>
+                <select
+                  value={openEndedSettings.followUpMode}
+                  onChange={(e) => {
+                    const baseSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    const nextSettings = {
+                      ...baseSettings,
+                      followUpMode: e.target.value as "none" | "if_short" | "always",
+                    };
+                    setDraftSettings(nextSettings);
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+                >
+                  <option value="none">None</option>
+                  <option value="if_short">If short answer</option>
+                  <option value="always">Always</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-[#888] mb-1">Preferred input type</label>
+                <select
+                  value={openEndedSettings.preferredInput}
+                  onChange={(e) => {
+                    const baseSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    const nextSettings = {
+                      ...baseSettings,
+                      preferredInput: e.target.value as "voice" | "text",
+                    };
+                    setDraftSettings(nextSettings);
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white"
+                >
+                  <option value="voice">Default (voice)</option>
+                  <option value="text">Text</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-[#888] mb-1">Guidelines for follow-up questions</label>
+                <input
+                  type="text"
+                  value={openEndedSettings.followUpGuidelines ?? ""}
+                  onChange={(e) => {
+                    const baseSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    const nextSettings = {
+                      ...baseSettings,
+                      followUpGuidelines: e.target.value,
+                    };
+                    setDraftSettings(nextSettings);
+                  }}
+                  onBlur={() => {
+                    const nextSettings = isOpenEndedSettings(draftSettings)
+                      ? draftSettings
+                      : openEndedSettings;
+                    onUpdateQuestion(question.id, { settings: nextSettings });
+                  }}
+                  placeholder="If they mention A, understand why."
+                  className="w-full px-3 py-2 bg-[#111] border border-[#2a2a2a] rounded-lg text-white placeholder-[#666]"
+                />
+              </div>
+            </div>
+          )}
+
+          <button className="w-full py-2 text-[#888] hover:text-white transition-colors">
+            Show advanced settings
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Live Preview Panel (RHS of Edit tab)
+function LivePreviewPanel({
+  question,
+  questionIndex,
+  totalQuestions,
+  onRunFromStart,
+  onOpenPreview,
+  onPrevQuestion,
+  onNextQuestion,
+  hasSurvey,
+}: {
+  question: SurveyQuestion | undefined;
+  questionIndex: number;
+  totalQuestions: number;
+  onRunFromStart: () => void;
+  onOpenPreview: () => void;
+  onPrevQuestion: () => void;
+  onNextQuestion: () => void;
+  hasSurvey: boolean;
+}) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset audio state when question changes
+  useEffect(() => {
+    setAudioUrl(null);
+    setIsRecording(false);
+    setIsPlaying(false);
+    setRecordingTime(0);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, [question?.id]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(t => t + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    }
+  };
+
+  const playAudio = () => {
+    if (audioUrl && audioRef.current) {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const pauseAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const deleteRecording = () => {
+    setAudioUrl(null);
+    setIsPlaying(false);
+    setRecordingTime(0);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="flex-1 flex flex-col bg-[#0a0a0a] text-white">
+      {audioUrl && <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} />}
+      {/* Preview Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a]">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRunFromStart}
+            className="gap-2 border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444]"
+          >
+            <PlayIcon className="w-4 h-4" />
+            Run from start
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenPreview}
+            disabled={!hasSurvey}
+            className="gap-2 border-[#333] text-[#a1a1a1] hover:text-white hover:border-[#444] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ExternalLinkIcon className="w-4 h-4" />
+            Open preview
+          </Button>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <DesktopIcon className="w-5 h-5 text-[#666]" />
+            <MobileIcon className="w-5 h-5 text-[#888]" />
+          </div>
+          <span className="text-[#888] text-sm">⏱ 13-18 min</span>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="h-1 bg-[#1a1a1a]">
+        <div
+          className="h-full bg-[#FF6B35] transition-all"
+          style={{ width: totalQuestions > 0 ? `${((questionIndex + 1) / totalQuestions) * 100}%` : "0%" }}
+        />
+      </div>
+
+      {/* Preview Content */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8">
+        {!question ? (
+          <p className="text-[#666]">Select a question to preview</p>
+        ) : (
+          <div className="max-w-xl w-full">
+            <h2 className="text-2xl font-medium text-white mb-8 text-center">{question.text}</h2>
+
+            {question.type === "multiple_choice" && isMultipleChoiceSettings(question.settings) && (
+              <div className="flex flex-col items-start gap-3">
+                {question.settings.options.map((option) => (
+                  <button
+                    key={option.id}
+                    className="px-6 py-3 border-2 border-[#FF6B35] text-[#FF6B35] rounded-lg hover:bg-[#1f120c] transition-colors text-left"
+                  >
+                    {option.text}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {question.type === "open_ended" && (
+              <div className="flex flex-col items-center">
+                {!audioUrl ? (
+                  <>
+                    <button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-colors ${
+                        isRecording
+                          ? "bg-red-500/20 hover:bg-red-500/30 animate-pulse"
+                          : "bg-[#1f120c] hover:bg-[#2a1710]"
+                      }`}
+                    >
+                      {isRecording ? (
+                        <StopIcon className="w-10 h-10 text-red-500" />
+                      ) : (
+                        <MicIcon className="w-10 h-10 text-[#FF6B35]" />
+                      )}
+                    </button>
+                    <span className={`font-medium ${isRecording ? "text-red-500" : "text-[#FF6B35]"}`}>
+                      {isRecording ? `Recording... ${formatTime(recordingTime)}` : "Start Recording"}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4 mb-4">
+                      <button
+                        onClick={isPlaying ? pauseAudio : playAudio}
+                        className="w-16 h-16 rounded-full bg-[#1f120c] flex items-center justify-center hover:bg-[#2a1710] transition-colors"
+                      >
+                        {isPlaying ? (
+                          <PauseIcon className="w-8 h-8 text-[#FF6B35]" />
+                        ) : (
+                          <PlayIcon className="w-8 h-8 text-[#FF6B35]" />
+                        )}
+                      </button>
+                      <button
+                        onClick={deleteRecording}
+                        className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                      >
+                        <TrashIcon className="w-6 h-6 text-red-500" />
+                      </button>
+                    </div>
+                    <span className="text-[#888]">Recording saved ({formatTime(recordingTime)})</span>
+                    <button
+                      onClick={deleteRecording}
+                      className="mt-2 text-[#FF6B35] underline"
+                    >
+                      Record again
+                    </button>
+                  </>
+                )}
+                <button className="mt-4 text-[#666] underline">Skip question</button>
+                <p className="mt-2 text-xs text-[#555] italic">Survey respondents won&apos;t have option to skip questions.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-[#2a2a2a]">
+        <span className="text-sm text-[#666]">Powered by <span className="font-semibold text-[#FF6B35]">Surveyor AI</span></span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onPrevQuestion}
+            disabled={questionIndex <= 0}
+            className="p-2 border border-[#333] rounded-lg hover:bg-[#111] disabled:opacity-50"
+          >
+            <ChevronLeftIcon className="w-5 h-5 text-[#888]" />
+          </button>
+          <button
+            onClick={onNextQuestion}
+            disabled={questionIndex >= totalQuestions - 1}
+            className="p-2 border border-[#333] rounded-lg hover:bg-[#111] disabled:opacity-50"
+          >
+            <ChevronRightIcon className="w-5 h-5 text-[#888]" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Toggle Switch Component
+function ToggleSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: (next: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onToggle(!isOn)}
+      className={`w-10 h-6 rounded-full transition-colors ${isOn ? "bg-[#FF6B35]" : "bg-[#333]"}`}
+    >
+      <div className={`w-4 h-4 rounded-full bg-white transform transition-transform mx-1 ${isOn ? "translate-x-4" : ""}`} />
+    </button>
+  );
+}
+
+// Suggestion Item Component
+function SuggestionItem({ text, onClick }: { text: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center justify-between p-3 bg-[#111] border border-[#2a2a2a] rounded-lg hover:border-[#333] transition-colors text-left"
+    >
+      <span className="text-sm text-[#ccc]">{text}</span>
+      <ChevronIcon className="w-4 h-4 text-[#666]" />
+    </button>
+  );
+}
+
+// Icons
+function LogoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
     </svg>
   );
 }
@@ -232,6 +2351,128 @@ function CheckIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function RocketIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+    </svg>
+  );
+}
+
+function MenuIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function GripIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+    </svg>
+  );
+}
+
+function PlayIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+  );
+}
+
+function DesktopIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function MobileIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    </svg>
+  );
+}
+
+function StopIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+
+function PauseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
     </svg>
   );
 }

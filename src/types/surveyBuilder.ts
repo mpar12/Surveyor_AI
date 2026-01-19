@@ -86,11 +86,19 @@ export interface SurveyWelcomeSettings {
   consentText?: string;
 }
 
+export interface SurveyAudienceSettings {
+  bringOwnParticipants?: boolean;
+}
+
 export interface SurveySettings {
   welcome: SurveyWelcomeSettings;
   estimatedDurationMinutes?: number;
   showProgressBar: boolean;
   allowSkipQuestions: boolean;
+  externalTitle?: string;
+  studyGoals?: string[];
+  audience?: SurveyAudienceSettings;
+  suggestions?: string[];
 }
 
 // ============================================
@@ -328,6 +336,12 @@ export const defaultSurveySettings: SurveySettings = {
   },
   showProgressBar: true,
   allowSkipQuestions: true,
+  externalTitle: "",
+  studyGoals: [],
+  audience: {
+    bringOwnParticipants: false,
+  },
+  suggestions: [],
 };
 
 export function getDefaultSettingsForType(type: QuestionType): QuestionSettings {

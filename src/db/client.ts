@@ -7,11 +7,11 @@ if (!connectionString) {
   throw new Error("POSTGRES_URL environment variable is not set.");
 }
 
+const isLocalhost = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
+
 const createClient = () =>
   postgres(connectionString, {
-    ssl: {
-      rejectUnauthorized: false
-    }
+    ssl: isLocalhost ? false : { rejectUnauthorized: false }
   });
 
 declare global {

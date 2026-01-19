@@ -382,10 +382,15 @@ export default function TakeSurveyPage() {
     return null;
   }
 
+  const participantTitle =
+    typeof survey.settings?.externalTitle === "string" && survey.settings.externalTitle.trim()
+      ? survey.settings.externalTitle.trim()
+      : survey.title;
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Head>
-        <title>{survey.title}</title>
+        <title>{participantTitle}</title>
         <meta name="description" content={survey.description || "Take this survey"} />
       </Head>
 
@@ -415,6 +420,7 @@ export default function TakeSurveyPage() {
               <h1 className="text-2xl font-semibold text-gray-900">
                 {survey.settings?.welcome?.title || "Welcome to this interview"}
               </h1>
+              <p className="text-sm text-gray-500">{participantTitle}</p>
               <p className="text-gray-600">
                 {survey.settings?.welcome?.message ||
                   "Thank you for participating. Please share your honest thoughts."}
@@ -526,7 +532,7 @@ export default function TakeSurveyPage() {
       {/* Navigation Footer */}
       <footer className="border-t border-gray-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded text-sm text-gray-500">
-          runs on <span className="font-semibold text-blue-600">listen labs</span>
+          Powered by <span className="font-semibold text-[#FF6B35]">Surveyor AI</span>
         </div>
         {currentIndex >= 0 && currentIndex < questions.length && (
           <div className="flex items-center gap-2">

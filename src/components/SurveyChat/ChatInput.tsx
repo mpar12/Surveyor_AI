@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, KeyboardEvent } from "react";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -8,6 +8,17 @@ interface ChatInputProps {
 
 export default function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
   const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const resizeTextarea = () => {
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [message]);
 
   const handleSubmit = () => {
     if (!message.trim() || disabled) return;
@@ -23,16 +34,20 @@ export default function ChatInput({ onSend, disabled, placeholder }: ChatInputPr
   };
 
   return (
-    <div className="border-t border-[#2a2a2a] p-4">
-      <div className="flex items-end gap-3 bg-[#1a1a1a] rounded-xl p-2">
+    <div className="border-t border-[#2a2a2a] p-4 bg-[#0a0a0a]">
+      <div className="flex items-end gap-3 bg-[#111] rounded-xl p-2 border border-[#2a2a2a]">
         <textarea
+          ref={textareaRef}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            resizeTextarea();
+          }}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder || "Describe your research goals..."}
           rows={1}
-          className="flex-1 bg-transparent text-white text-sm resize-none outline-none px-2 py-1 max-h-32 placeholder-[#666]"
+          className="flex-1 bg-transparent text-white text-sm resize-none outline-none px-2 py-1 placeholder-[#666] overflow-hidden"
           style={{ minHeight: "36px" }}
         />
         <button
